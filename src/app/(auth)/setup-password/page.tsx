@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
-export default function SetupPasswordPage() {
+function SetupPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
@@ -27,7 +27,6 @@ export default function SetupPasswordPage() {
     e.preventDefault();
     setError('');
 
-    // Validate passwords
     if (password.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
@@ -41,7 +40,6 @@ export default function SetupPasswordPage() {
     setIsLoading(true);
 
     try {
-      // Set the password
       const response = await fetch('/api/auth/setup-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -56,7 +54,6 @@ export default function SetupPasswordPage() {
         return;
       }
 
-      // Sign in with the new password
       const result = await signIn('credentials', {
         email,
         password,
@@ -185,5 +182,22 @@ export default function SetupPasswordPage() {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+export default function SetupPasswordPage() {
+  return (
+    <Suspense fallback={
+      <Card className="w-full max-w-md shadow-card">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="w-8 h-8 text-maxxed-blue animate-spin" />
+          </div>
+          <CardTitle className="text-2xl">Loading...</CardTitle>
+        </CardHeader>
+      </Card>
+    }>
+      <SetupPasswordContent />
+    </Suspense>
   );
 }

@@ -1,9 +1,10 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 const errorMessages: Record<string, { title: string; description: string }> = {
@@ -33,7 +34,7 @@ const errorMessages: Record<string, { title: string; description: string }> = {
   },
 };
 
-export default function ErrorPage() {
+function ErrorContent() {
   const searchParams = useSearchParams();
   const errorCode = searchParams.get('error') || 'default';
   const error = errorMessages[errorCode] || errorMessages.default;
@@ -58,5 +59,22 @@ export default function ErrorPage() {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense fallback={
+      <Card className="w-full max-w-md shadow-card">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+          </div>
+          <CardTitle className="text-2xl">Loading...</CardTitle>
+        </CardHeader>
+      </Card>
+    }>
+      <ErrorContent />
+    </Suspense>
   );
 }
