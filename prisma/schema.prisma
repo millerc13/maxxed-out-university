@@ -107,6 +107,7 @@ model Course {
   enrollments  Enrollment[]
   certificates Certificate[]
   products     ProductMapping[]
+  quizzes      Quiz[]
 }
 
 model Module {
@@ -262,6 +263,7 @@ model Quiz {
   description String?
   moduleId    String?  // Optional: attach to a module
   courseId    String?  // Optional: attach to a course
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
   passingScore Int     @default(70) // Percentage required to pass
   timeLimit   Int?     // Time limit in minutes (null = no limit)
   published   Boolean  @default(false)

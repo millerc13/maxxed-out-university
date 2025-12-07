@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import Link from 'next/link';
 
 export default function NewQuizPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get('courseId');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -19,6 +21,7 @@ export default function NewQuizPage() {
     passingScore: '70',
     timeLimit: '',
     published: false,
+    courseId: courseId || '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +37,7 @@ export default function NewQuizPage() {
           ...formData,
           passingScore: parseInt(formData.passingScore) || 70,
           timeLimit: formData.timeLimit ? parseInt(formData.timeLimit) : null,
+          courseId: formData.courseId || null,
         }),
       });
 

@@ -5,7 +5,7 @@ import { ModuleManager } from '@/components/admin/ModuleManager';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
-import { ArrowLeft, Settings, Layers, Link2 } from 'lucide-react';
+import { ArrowLeft, Settings, Layers, Link2, FileQuestion, Edit, Plus } from 'lucide-react';
 
 interface CourseEditPageProps {
   params: Promise<{ id: string }>;
@@ -26,6 +26,12 @@ export default async function CourseEditPage({ params }: CourseEditPageProps) {
         orderBy: { order: 'asc' },
       },
       products: true,
+      quizzes: {
+        include: {
+          _count: { select: { questions: true, attempts: true } },
+        },
+        orderBy: { order: 'asc' },
+      },
     },
   });
 
@@ -58,10 +64,14 @@ export default async function CourseEditPage({ params }: CourseEditPageProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="content" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
           <TabsTrigger value="content" className="flex items-center gap-2">
             <Layers className="w-4 h-4" />
             Content
+          </TabsTrigger>
+          <TabsTrigger value="quizzes" className="flex items-center gap-2">
+            <FileQuestion className="w-4 h-4" />
+            Quizzes
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
@@ -75,6 +85,70 @@ export default async function CourseEditPage({ params }: CourseEditPageProps) {
 
         <TabsContent value="content" className="mt-6">
           <ModuleManager course={course} />
+        </TabsContent>
+
+        <TabsContent value="quizzes" className="mt-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-gray-900">Course Quizzes</h3>
+                <Link
+                  href={`/admin/quizzes/new?courseId=${course.id}`}
+                  className="flex items-center gap-2 px-3 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-maxxed-blue-dark"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Quiz
+                </Link>
+              </div>
+              {course.quizzes.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileQuestion className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 mb-4">No quizzes for this course yet</p>
+                  <Link
+                    href={`/admin/quizzes/new?courseId=${course.id}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Quiz
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {course.quizzes.map((quiz) => (
+                    <div
+                      key={quiz.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-gray-900">{quiz.title}</h4>
+                          <span
+                            className={`px-2 py-0.5 text-xs rounded font-medium ${
+                              quiz.published
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-200 text-gray-600'
+                            }`}
+                          >
+                            {quiz.published ? 'Published' : 'Draft'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {quiz._count.questions} questions &bull; {quiz._count.attempts} attempts &bull; {quiz.passingScore}% to pass
+                          {quiz.timeLimit && ` • ${quiz.timeLimit} min`}
+                        </p>
+                      </div>
+                      <Link
+                        href={`/admin/quizzes/${quiz.id}`}
+                        className="p-2 text-gray-500 hover:text-maxxed-blue hover:bg-gray-100 rounded-lg"
+                      >
+                        <Edit className="w-5 h-5" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings" className="mt-6">

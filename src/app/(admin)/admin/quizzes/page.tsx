@@ -6,6 +6,9 @@ import Link from 'next/link';
 export default async function AdminQuizzesPage() {
   const quizzes = await prisma.quiz.findMany({
     include: {
+      course: {
+        select: { id: true, title: true, slug: true },
+      },
       _count: {
         select: { questions: true, attempts: true },
       },
@@ -71,6 +74,11 @@ export default async function AdminQuizzesPage() {
                         {quiz.published ? 'Published' : 'Draft'}
                       </span>
                     </div>
+                    {quiz.course && (
+                      <p className="text-sm text-maxxed-blue mt-1">
+                        Course: {quiz.course.title}
+                      </p>
+                    )}
                     {quiz.description && (
                       <p className="text-sm text-gray-500 mt-1 line-clamp-1">
                         {quiz.description}
