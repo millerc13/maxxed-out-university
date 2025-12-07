@@ -22,39 +22,16 @@ function CallbackContent() {
         return;
       }
 
-      try {
-        const result = await signIn('credentials', {
-          email: 'magic-link-verified',
-          password: userId,
-          redirect: false,
-        });
-
-        if (result?.error) {
-          if (needsPassword && email) {
-            router.push(`/setup-password?email=${encodeURIComponent(email)}&userId=${userId}`);
-            return;
-          }
-          setStatus('success');
-          setTimeout(() => router.push('/dashboard'), 1500);
-          return;
-        }
-
-        if (needsPassword && email) {
-          router.push(`/setup-password?email=${encodeURIComponent(email)}&userId=${userId}`);
-          return;
-        }
-
-        setStatus('success');
-        setTimeout(() => router.push('/dashboard'), 1500);
-      } catch (error) {
-        console.error('Callback error:', error);
-        if (needsPassword && email) {
-          router.push(`/setup-password?email=${encodeURIComponent(email)}&userId=${userId}`);
-          return;
-        }
-        setStatus('success');
-        setTimeout(() => router.push('/dashboard'), 1500);
+      // If user needs to set up a password, redirect them first
+      if (needsPassword && email) {
+        router.push(`/setup-password?email=${encodeURIComponent(email)}&userId=${userId}`);
+        return;
       }
+
+      // User has a password, just show success and go to dashboard
+      // The magic link verification already authenticated them
+      setStatus('success');
+      setTimeout(() => router.push('/dashboard'), 1500);
     };
 
     completeSignIn();
