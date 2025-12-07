@@ -54,21 +54,32 @@ function SetupPasswordContent() {
         return;
       }
 
+      // Try to sign in with the new password
       const result = await signIn('credentials', {
-        email,
+        email: email.toLowerCase().trim(),
         password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError('Password set, but sign in failed. Please try logging in.');
-        setIsLoading(false);
+        console.error('Sign in error after password setup:', result.error);
+        // Password was set successfully, just redirect to login
+        setSuccess(true);
+        setTimeout(() => router.push('/login?message=password_set'), 1500);
         return;
       }
 
+      if (result?.ok) {
+        setSuccess(true);
+        setTimeout(() => router.push('/dashboard'), 1500);
+        return;
+      }
+
+      // Fallback - password set, redirect to login
       setSuccess(true);
-      setTimeout(() => router.push('/dashboard'), 1500);
+      setTimeout(() => router.push('/login?message=password_set'), 1500);
     } catch (err) {
+      console.error('Setup password error:', err);
       setError('Something went wrong. Please try again.');
       setIsLoading(false);
     }
