@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard, Settings } from 'lucide-react';
 
 const socialLinks = [
   { href: 'https://www.facebook.com/todd.pultz', icon: Facebook, label: 'Facebook', hoverClass: 'hover:bg-[#1877f2]' },
@@ -33,6 +33,7 @@ export function Header() {
 
   const isLoading = status === 'loading';
   const isAuthenticated = status === 'authenticated';
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
   const userName = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
   const userInitial = userName.charAt(0).toUpperCase();
 
@@ -139,6 +140,16 @@ export function Header() {
                     <BookOpen className="w-4 h-4" />
                     Browse Courses
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-text-body hover:bg-gray-50 hover:text-maxxed-blue"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      <Settings className="w-4 h-4" />
+                      Admin Panel
+                    </Link>
+                  )}
                   <div className="border-t border-gray-100 my-1" />
                   <button
                     onClick={() => {
@@ -183,16 +194,28 @@ export function Header() {
               </Link>
             ))}
           {isAuthenticated ? (
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                signOut({ callbackUrl: '/login' });
-              }}
-              className="px-5 py-4 text-text-body text-sm font-medium transition-colors duration-300 hover:text-red-600 flex items-center gap-2 w-full text-left"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
+            <>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Settings className="w-4 h-4" />
+                  Admin Panel
+                </Link>
+              )}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  signOut({ callbackUrl: '/login' });
+                }}
+                className="px-5 py-4 text-text-body text-sm font-medium transition-colors duration-300 hover:text-red-600 flex items-center gap-2 w-full text-left"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </>
           ) : (
             <Link
               href="/login"
