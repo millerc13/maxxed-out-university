@@ -1,0 +1,253 @@
+// Maxxed Out University - Database Schema
+// Run `npx prisma db push` to sync with database
+// Run `npx prisma generate` to generate client
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  passwordHash       String?   // Optional - for password auth
+  mustChangePassword Boolean   @default(false) // Force password change on first login
+  image              String?
+  role               Role      @default(STUDENT)
+  ghlContactId       String?   // GoHighLevel contact ID for sync
+  emailVerified      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  enrollments   Enrollment[]
+  progress      LessonProgress[]
+  certificates  Certificate[]
+  sessions      Session[]
+  accounts      Account[]
+  magicLinks    MagicLink[]
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+// NextAuth Account (for OAuth providers if needed later)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// NextAuth Session
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Magic Link tokens for passwordless auth
+model MagicLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+// ============================================
+// COURSE STRUCTURE
+// ============================================
+
+model Course {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  description  String?  @db.Text
+  shortDesc    String?  // For cards/previews
+  thumbnail    String?  // URL to course thumbnail
+  previewVideo String?  // Optional preview video URL
+  price        Int?     // Price in cents (null = free or GHL handles)
+  published    Boolean  @default(false)
+  featured     Boolean  @default(false)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  modules      Module[]
+  enrollments  Enrollment[]
+  certificates Certificate[]
+  products     ProductMapping[]
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  order       Int      @default(0)
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  lessons Lesson[]
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String
+  description   String?  @db.Text
+  videoUrl      String?  // Cloudflare Stream playback ID or full URL
+  videoProvider String?  @default("cloudflare") // cloudflare, mux, youtube, vimeo
+  videoDuration Int?     // Duration in seconds
+  content       String?  @db.Text // Rich text content (markdown or HTML)
+  order         Int      @default(0)
+  isFree        Boolean  @default(false) // Preview lessons
+  isPublished   Boolean  @default(true)
+  moduleId      String
+  module        Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  progress  LessonProgress[]
+  resources Resource[]
+
+  @@unique([moduleId, slug])
+  @@index([moduleId])
+}
+
+model Resource {
+  id        String   @id @default(cuid())
+  title     String
+  fileUrl   String
+  fileType  String   // pdf, xlsx, docx, zip, etc.
+  fileSize  Int?     // Size in bytes
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([lessonId])
+}
+
+// ============================================
+// ENROLLMENT & PROGRESS
+// ============================================
+
+model Enrollment {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId      String
+  course        Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrolledAt    DateTime  @default(now())
+  expiresAt     DateTime? // For time-limited access (null = lifetime)
+  source        String?   // "ghl", "stripe", "manual", "free"
+  transactionId String?   // External transaction reference
+  metadata      Json?     // Additional data from payment source
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId       String
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed      Boolean   @default(false)
+  watchedSeconds Int       @default(0) // For resume functionality
+  lastPosition   Int       @default(0) // Last video position in seconds
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+// ============================================
+// CERTIFICATES & ACHIEVEMENTS
+// ============================================
+
+model Certificate {
+  id             String   @id @default(cuid())
+  certificateId  String   @unique @default(cuid()) // Public ID for verification
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  issuedAt       DateTime @default(now())
+  certificateUrl String?  // Generated PDF URL
+
+  @@unique([userId, courseId])
+  @@index([certificateId])
+}
+
+// ============================================
+// GOHIGHLEVEL INTEGRATION
+// ============================================
+
+// Maps GHL product IDs to internal courses
+model ProductMapping {
+  id           String  @id @default(cuid())
+  ghlProductId String  @unique // Product ID from GoHighLevel
+  ghlProductName String? // For reference
+  courseId     String
+  course       Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  grantAll     Boolean @default(false) // If true, grants access to ALL courses
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ghlProductId])
+}
+
+// Webhook log for debugging integrations
+model WebhookLog {
+  id          String   @id @default(cuid())
+  source      String   // "ghl", "stripe", etc.
+  event       String   // Event type
+  payload     Json     // Raw payload
+  status      String   // "success", "failed", "ignored"
+  errorMessage String?
+  processedAt DateTime @default(now())
+
+  @@index([source, processedAt])
+}

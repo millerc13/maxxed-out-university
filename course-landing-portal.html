@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Training Center | MaxxedOut</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    /* ========== HEADER ========== */
+    .header {
+      background: #fff;
+      padding: 15px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 4px solid #0000FF;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      color: #222;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-img {
+      height: 40px;
+      width: auto;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 25px;
+    }
+
+    .nav > a {
+      color: #555;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+
+    .nav > a:hover {
+      color: #0000FF;
+    }
+
+    /* ========== HERO WITH MOSAIC ========== */
+    .hero {
+      position: relative;
+      height: 450px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0000FF, #0000CC);
+    }
+
+    .mosaic-container {
+      position: absolute;
+      top: -20px;
+      left: -50px;
+      right: -50px;
+      bottom: -20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transform: perspective(1000px) rotateX(5deg);
+      opacity: 0.6;
+    }
+
+    .mosaic-row {
+      display: flex;
+      gap: 10px;
+      animation: scrollLeft 60s linear infinite;
+    }
+
+    .mosaic-row:nth-child(even) {
+      animation: scrollRight 60s linear infinite;
+    }
+
+    @keyframes scrollLeft {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    @keyframes scrollRight {
+      0% { transform: translateX(-50%); }
+      100% { transform: translateX(0); }
+    }
+
+    .mosaic-item {
+      flex-shrink: 0;
+      width: 200px;
+      height: 130px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .mosaic-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hero-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 100%);
+      z-index: 2;
+    }
+
+    .hero-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 3;
+      color: #fff;
+    }
+
+    .hero-subtitle {
+      font-size: 14px;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      font-weight: 500;
+      opacity: 0.9;
+    }
+
+    .hero-title {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: 12px;
+      text-transform: uppercase;
+      margin-bottom: 15px;
+    }
+
+    .hero-tagline {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 3px;
+    }
+
+    .hero-tagline span {
+      display: block;
+      font-size: 16px;
+      opacity: 0.8;
+      margin-top: 5px;
+    }
+
+    /* ========== COURSES SECTION ========== */
+    .courses-section {
+      padding: 60px 40px;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    .courses-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+    }
+
+    .course-card {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+      transition: all 0.3s ease;
+    }
+
+    .course-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+    }
+
+    .course-thumbnail-placeholder {
+      width: 100%;
+      height: 180px;
+      background: linear-gradient(135deg, #1a2a6a, #0d1545);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .course-thumbnail-placeholder .course-thumb-title {
+      font-size: 18px;
+      font-weight: 800;
+      text-transform: uppercase;
+      line-height: 1.3;
+      margin-bottom: 10px;
+    }
+
+    .course-thumbnail-placeholder .course-thumb-badge {
+      font-size: 11px;
+      background: #0000FF;
+      padding: 5px 12px;
+      border-radius: 3px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .course-thumbnail-video {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .course-content {
+      padding: 25px;
+      text-align: center;
+    }
+
+    .course-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .course-author {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+
+    .course-learn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #555;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      margin-bottom: 20px;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .course-learn:hover {
+      color: #0000FF;
+    }
+
+    .course-learn svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s;
+    }
+
+    .course-learn:hover svg {
+      transform: translateX(3px);
+    }
+
+    .course-learn.active svg {
+      transform: rotate(90deg);
+    }
+
+    .course-learn-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-top: 0;
+    }
+
+    .course-learn-content.active {
+      max-height: 300px;
+      padding: 15px;
+      margin-top: 12px;
+    }
+
+    .course-learn-content ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .course-learn-content li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #555;
+      line-height: 1.4;
+    }
+
+    .course-learn-content li:last-child {
+      margin-bottom: 0;
+    }
+
+    .course-learn-content li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #0000FF;
+      font-weight: bold;
+    }
+
+    .course-cta {
+      display: inline-block;
+      padding: 12px 30px;
+      border: 2px solid #0000FF;
+      color: #0000FF;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: all 0.3s ease;
+    }
+
+    .course-cta:hover {
+      background: #0000FF;
+      color: #fff;
+    }
+
+    /* ========== TRAINING INFO SECTION ========== */
+    .training-info-section {
+      padding: 80px 40px;
+      background: #fff;
+    }
+
+    .training-info-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .training-info-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      margin-bottom: 70px;
+    }
+
+    .training-info-left h2 {
+      font-size: 42px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 15px;
+    }
+
+    .training-info-left .subtitle {
+      font-size: 18px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 25px;
+    }
+
+    .training-info-left ul {
+      list-style: none;
+      margin-bottom: 30px;
+    }
+
+    .training-info-left ul li {
+      position: relative;
+      padding-left: 25px;
+      margin-bottom: 12px;
+      font-size: 15px;
+      color: #555;
+    }
+
+    .training-info-left ul li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: #0000FF;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .training-info-right {
+      position: relative;
+    }
+
+    .training-info-right img,
+    .training-image {
+      width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      object-fit: cover;
+    }
+
+    .training-mockup {
+      width: 100%;
+      height: 320px;
+      background: linear-gradient(135deg, #0000FF, #0000AA);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+
+    .training-mockup::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23ffffff10" x="5" y="5" width="20" height="15" rx="2"/><rect fill="%23ffffff10" x="28" y="5" width="20" height="15" rx="2"/><rect fill="%23ffffff10" x="51" y="5" width="20" height="15" rx="2"/><rect fill="%23ffffff10" x="74" y="5" width="20" height="15" rx="2"/><rect fill="%23ffffff10" x="5" y="23" width="20" height="15" rx="2"/><rect fill="%23ffffff10" x="28" y="23" width="20" height="15" rx="2"/><rect fill="%23ffffff10" x="51" y="23" width="20" height="15" rx="2"/><rect fill="%23ffffff10" x="74" y="23" width="20" height="15" rx="2"/></svg>');
+      opacity: 0.3;
+    }
+
+    .training-mockup-content {
+      text-align: center;
+      color: #fff;
+      z-index: 1;
+    }
+
+    .training-mockup-content .small-text {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 10px;
+    }
+
+    .training-mockup-content .main-text {
+      font-size: 28px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #D4AF37;
+      margin-bottom: 5px;
+    }
+
+    .training-mockup-content .sub-text {
+      font-size: 14px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 15px;
+    }
+
+    .training-mockup-content .numbers {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .training-mockup-content .numbers span {
+      display: block;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    /* Benefits Icons Grid */
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 40px;
+      margin-bottom: 50px;
+    }
+
+    .benefit-item {
+      text-align: center;
+    }
+
+    .benefit-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .benefit-icon svg {
+      width: 60px;
+      height: 60px;
+      stroke: #D4AF37;
+      stroke-width: 3;
+      fill: none;
+    }
+
+    .benefit-item h4 {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #222;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+
+    .benefit-item p {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    /* CTA Buttons */
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 70px;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      padding: 16px 40px;
+      background: #0000FF;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      background: #0000CC;
+      transform: translateY(-2px);
+    }
+
+    .btn-outline {
+      display: inline-block;
+      padding: 16px 40px;
+      border: 2px solid #0000FF;
+      color: #0000FF;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-decoration: none;
+      border-radius: 5px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-outline:hover {
+      background: #0000FF;
+      color: #fff;
+    }
+
+    /* Testimonials Row */
+    .testimonials-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 25px;
+    }
+
+    .testimonial-item {
+      text-align: center;
+    }
+
+    .testimonial-photo {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin: 0 auto 15px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #ddd, #bbb);
+    }
+
+    .testimonial-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .testimonial-photo-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+      color: #888;
+      background: linear-gradient(135deg, #e0e0e0, #c0c0c0);
+    }
+
+    .testimonial-item h5 {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #222;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .testimonial-item .quote {
+      font-size: 12px;
+      color: #555;
+      font-style: italic;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    .testimonial-item .quote strong {
+      color: #0000FF;
+      font-weight: 700;
+    }
+
+    .testimonial-item .author {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .testimonial-item .author span {
+      display: block;
+      font-size: 10px;
+      color: #aaa;
+    }
+
+    .results-disclaimer {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 12px;
+      color: #999;
+      font-style: italic;
+    }
+
+    /* ========== LIVE EVENTS SECTION ========== */
+    .live-events-section {
+      background: #2d3436;
+      padding: 80px 40px;
+    }
+
+    .live-events-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .live-events-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .live-events-image {
+      position: relative;
+    }
+
+    .live-events-image img {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    .live-events-placeholder {
+      width: 100%;
+      height: 280px;
+      background: linear-gradient(135deg, #0000FF, #0000AA);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .live-events-placeholder::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle fill="%23ffffff15" cx="20" cy="70" r="8"/><circle fill="%23ffffff15" cx="35" cy="70" r="8"/><circle fill="%23ffffff15" cx="50" cy="70" r="8"/><circle fill="%23ffffff15" cx="65" cy="70" r="8"/><circle fill="%23ffffff15" cx="80" cy="70" r="8"/></svg>');
+    }
+
+    .live-events-placeholder-content {
+      text-align: center;
+      color: #fff;
+      z-index: 1;
+    }
+
+    .live-events-placeholder-content h3 {
+      font-size: 32px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .live-events-info h2 {
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 15px;
+    }
+
+    .live-events-info p {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+
+    .live-events-info ul {
+      list-style: none;
+    }
+
+    .live-events-info ul li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #ccc;
+    }
+
+    .live-events-info ul li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: #0000FF;
+    }
+
+    .live-events-tagline {
+      text-align: center;
+      font-size: 15px;
+      color: #ccc;
+      margin-bottom: 50px;
+      padding: 0 40px;
+    }
+
+    /* Events Grid */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 25px;
+      margin-bottom: 60px;
+    }
+
+    .event-card {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .event-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    .event-thumbnail {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+    }
+
+    .event-thumbnail-placeholder {
+      width: 100%;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+      text-transform: uppercase;
+      padding: 15px;
+    }
+
+    .event-card:nth-child(1) .event-thumbnail-placeholder { background: linear-gradient(135deg, #0000FF, #0000AA); }
+    .event-card:nth-child(2) .event-thumbnail-placeholder { background: linear-gradient(135deg, #1a3a7a, #0d2555); }
+    .event-card:nth-child(3) .event-thumbnail-placeholder { background: linear-gradient(135deg, #2a2a8a, #1a1a60); }
+    .event-card:nth-child(4) .event-thumbnail-placeholder { background: linear-gradient(135deg, #3a3a9a, #2a2a70); }
+    .event-card:nth-child(5) .event-thumbnail-placeholder { background: linear-gradient(135deg, #1a4a8a, #0d3060); }
+    .event-card:nth-child(6) .event-thumbnail-placeholder { background: linear-gradient(135deg, #2a3a7a, #1a2550); }
+
+    .event-content {
+      padding: 20px;
+      text-align: center;
+    }
+
+    .event-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 5px;
+    }
+
+    .event-author {
+      font-size: 10px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 15px;
+    }
+
+    .event-learn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #555;
+      font-size: 12px;
+      font-weight: 500;
+      text-decoration: none;
+      margin-bottom: 15px;
+      cursor: pointer;
+    }
+
+    .event-learn:hover {
+      color: #0000FF;
+    }
+
+    .event-cta {
+      display: inline-block;
+      padding: 10px 20px;
+      border: 2px solid #0000FF;
+      color: #0000FF;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: all 0.3s ease;
+    }
+
+    .event-cta:hover {
+      background: #0000FF;
+      color: #fff;
+    }
+
+    /* Bottom Testimonials */
+    .bottom-testimonials {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      flex-wrap: wrap;
+    }
+
+    .bottom-testimonial {
+      text-align: center;
+      max-width: 180px;
+    }
+
+    .bottom-testimonial-photo {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      margin: 0 auto 15px;
+      overflow: hidden;
+      border: 4px solid #D4AF37;
+      background: #333;
+    }
+
+    .bottom-testimonial-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .bottom-testimonial-photo-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+      color: #666;
+      background: linear-gradient(135deg, #444, #333);
+    }
+
+    .bottom-testimonial h5 {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #fff;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .bottom-testimonial .author {
+      font-size: 11px;
+      color: #888;
+    }
+
+    /* ========== FOOTER ========== */
+    /* Header Social Links */
+    .nav-social {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 20px;
+      margin-right: 5px;
+      border-right: 1px solid #ddd;
+    }
+
+    .nav-social a {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #f0f0f0;
+      color: #333;
+      transition: all 0.3s ease;
+    }
+
+    .nav-social a:hover {
+      transform: translateY(-2px);
+    }
+
+    .nav-social a.facebook:hover {
+      background: #1877f2;
+      color: white;
+    }
+
+    .nav-social a.instagram:hover {
+      background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+      color: white;
+    }
+
+    .nav-social a.youtube:hover {
+      background: #ff0000;
+      color: white;
+    }
+
+    .nav-social a.tiktok:hover {
+      background: #000000;
+      color: white;
+    }
+
+    .nav-social svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Footer */
+    .footer {
+      background: #0a0a0a;
+      color: #888;
+      padding: 60px 50px 30px;
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .footer-about h3 {
+      color: white;
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 15px;
+    }
+
+    .footer-about p {
+      line-height: 1.8;
+      margin-bottom: 20px;
+    }
+
+    .footer-social-links {
+      display: flex;
+      gap: 15px;
+    }
+
+    .footer-social-links a {
+      width: 40px;
+      height: 40px;
+      background: #1a1a1a;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .footer-social-links a:hover {
+      background: #0000FF;
+      color: white;
+      transform: translateY(-3px);
+    }
+
+    .footer-section h4 {
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .footer-section ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .footer-section ul li {
+      margin-bottom: 12px;
+    }
+
+    .footer-section ul li a {
+      color: #888;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .footer-section ul li a:hover {
+      color: #0000FF;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid #222;
+      padding-top: 30px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    /* ========== MOBILE RESPONSIVE ========== */
+
+    /* Mobile menu toggle */
+    .mobile-menu-toggle {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 5px;
+      z-index: 1001;
+    }
+
+    .mobile-menu-toggle span {
+      width: 25px;
+      height: 3px;
+      background: #333;
+      border-radius: 2px;
+      transition: all 0.3s ease;
+    }
+
+    .mobile-menu-toggle.active span:nth-child(1) {
+      transform: rotate(45deg) translate(5px, 5px);
+    }
+
+    .mobile-menu-toggle.active span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .mobile-menu-toggle.active span:nth-child(3) {
+      transform: rotate(-45deg) translate(7px, -6px);
+    }
+
+    @media (max-width: 1024px) {
+      .courses-grid,
+      .events-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .benefits-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .testimonials-row {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      /* Header & Navigation */
+      .header {
+        padding: 15px 20px;
+        position: relative;
+      }
+
+      .mobile-menu-toggle {
+        display: flex;
+      }
+
+      .nav {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff;
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      }
+
+      .nav.active {
+        max-height: 300px;
+      }
+
+      .nav a {
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+        display: block;
+      }
+
+      .nav a:last-child {
+        border-bottom: none;
+      }
+
+      /* Hero Section */
+      .hero {
+        height: 280px;
+      }
+
+      .hero-subtitle {
+        font-size: 12px;
+        letter-spacing: 4px;
+      }
+
+      .hero-title {
+        font-size: 28px;
+        letter-spacing: 4px;
+      }
+
+      .hero-tagline {
+        font-size: 16px;
+        letter-spacing: 2px;
+      }
+
+      .hero-tagline span {
+        font-size: 13px;
+      }
+
+      .mosaic-item {
+        width: 150px;
+        height: 100px;
+      }
+
+      /* Courses Section */
+      .courses-section,
+      .training-info-section,
+      .live-events-section {
+        padding: 40px 15px;
+      }
+
+      .courses-grid,
+      .events-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .course-card {
+        max-width: 400px;
+        margin: 0 auto;
+      }
+
+      .course-thumbnail-placeholder {
+        height: 160px;
+      }
+
+      .course-content {
+        padding: 20px;
+      }
+
+      .course-title {
+        font-size: 16px;
+      }
+
+      .course-learn-content li {
+        font-size: 12px;
+      }
+
+      /* Training Info Section */
+      .training-info-top,
+      .live-events-header {
+        grid-template-columns: 1fr;
+        gap: 30px;
+      }
+
+      .training-info-left h2 {
+        font-size: 28px;
+        text-align: center;
+      }
+
+      .training-info-left .subtitle {
+        text-align: center;
+        font-size: 16px;
+      }
+
+      .training-info-left ul {
+        text-align: left;
+      }
+
+      .training-mockup {
+        height: 250px;
+      }
+
+      .training-mockup-content .main-text {
+        font-size: 22px;
+      }
+
+      /* Benefits Grid */
+      .benefits-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+      }
+
+      .benefit-icon {
+        width: 60px;
+        height: 60px;
+      }
+
+      .benefit-icon svg {
+        width: 45px;
+        height: 45px;
+      }
+
+      .benefit-item h4 {
+        font-size: 12px;
+      }
+
+      .benefit-item p {
+        font-size: 11px;
+      }
+
+      /* CTA Buttons */
+      .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .btn-primary,
+      .btn-outline {
+        padding: 14px 30px;
+        font-size: 13px;
+        width: 100%;
+        max-width: 280px;
+        text-align: center;
+      }
+
+      /* Testimonials */
+      .testimonials-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+      }
+
+      .testimonial-photo {
+        width: 60px;
+        height: 60px;
+      }
+
+      .testimonial-item h5 {
+        font-size: 11px;
+      }
+
+      .testimonial-item .quote {
+        font-size: 11px;
+      }
+
+      /* Live Events */
+      .live-events-info h2 {
+        font-size: 28px;
+        text-align: center;
+      }
+
+      .live-events-info p {
+        text-align: center;
+      }
+
+      .live-events-placeholder {
+        height: 220px;
+      }
+
+      .live-events-placeholder-content h3 {
+        font-size: 24px;
+      }
+
+      .live-events-tagline {
+        padding: 0 10px;
+        font-size: 13px;
+      }
+
+      .event-card {
+        max-width: 400px;
+        margin: 0 auto;
+      }
+
+      /* Bottom Testimonials */
+      .bottom-testimonials {
+        gap: 30px;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .bottom-testimonial {
+        max-width: 250px;
+      }
+
+      /* Footer */
+      .footer {
+        padding: 40px 20px 20px;
+      }
+
+      .footer-content {
+        grid-template-columns: 1fr;
+        gap: 30px;
+        text-align: center;
+      }
+
+      .footer-about h3 {
+        font-size: 20px;
+      }
+
+      .footer-social-links {
+        justify-content: center;
+      }
+
+      .footer-section ul {
+        text-align: center;
+      }
+
+      /* Header social links on mobile */
+      .nav-social {
+        display: none;
+      }
+    }
+
+    /* Extra small devices (phones in portrait) */
+    @media (max-width: 480px) {
+      .hero {
+        height: 240px;
+      }
+
+      .hero-title {
+        font-size: 22px;
+        letter-spacing: 2px;
+      }
+
+      .hero-subtitle {
+        font-size: 10px;
+        letter-spacing: 3px;
+      }
+
+      .hero-tagline {
+        font-size: 14px;
+      }
+
+      .mosaic-item {
+        width: 120px;
+        height: 80px;
+      }
+
+      .courses-section,
+      .training-info-section,
+      .live-events-section {
+        padding: 30px 12px;
+      }
+
+      .training-info-left h2 {
+        font-size: 24px;
+      }
+
+      .training-info-left .subtitle {
+        font-size: 14px;
+      }
+
+      .training-mockup {
+        height: 200px;
+      }
+
+      .training-mockup-content .small-text {
+        font-size: 9px;
+      }
+
+      .training-mockup-content .main-text {
+        font-size: 18px;
+      }
+
+      .training-mockup-content .sub-text {
+        font-size: 11px;
+      }
+
+      .benefits-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .benefit-item {
+        display: flex;
+        align-items: center;
+        text-align: left;
+        gap: 15px;
+      }
+
+      .benefit-icon {
+        margin: 0;
+        flex-shrink: 0;
+      }
+
+      .benefit-item h4,
+      .benefit-item p {
+        text-align: left;
+      }
+
+      .testimonials-row {
+        grid-template-columns: 1fr;
+        gap: 25px;
+      }
+
+      .testimonial-photo {
+        width: 70px;
+        height: 70px;
+      }
+
+      .live-events-info h2 {
+        font-size: 24px;
+      }
+
+      .live-events-placeholder {
+        height: 180px;
+      }
+
+      .live-events-placeholder-content h3 {
+        font-size: 20px;
+      }
+
+      .event-thumbnail-placeholder {
+        height: 120px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <a href="#" class="logo">
+      <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png" alt="Maxxed Out" class="logo-img">
+      TODD PULTZ
+    </a>
+    <div class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <nav class="nav">
+      <div class="nav-social">
+        <a href="https://www.facebook.com/todd.pultz" target="_blank" class="facebook" aria-label="Facebook">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        </a>
+        <a href="https://www.instagram.com/toddpultzofficial/" target="_blank" class="instagram" aria-label="Instagram">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        </a>
+        <a href="https://www.youtube.com/@toddpultzofficial" target="_blank" class="youtube" aria-label="YouTube">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        </a>
+        <a href="https://www.tiktok.com/@toddpultzofficial" target="_blank" class="tiktok" aria-label="TikTok">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+        </a>
+      </div>
+      <a href="#">Training Center</a>
+      <a href="#">Webinars</a>
+      <a href="#">Real Estate</a>
+      <a href="#">Login</a>
+    </nav>
+  </header>
+
+  <!-- HERO WITH MOSAIC -->
+  <section class="hero">
+    <div class="mosaic-container">
+      <div class="mosaic-row">
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png" alt="Course"></div>
+      </div>
+      <div class="mosaic-row">
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png" alt="Course"></div>
+      </div>
+      <div class="mosaic-row">
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png" alt="Course"></div>
+        <div class="mosaic-item"><img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png" alt="Course"></div>
+      </div>
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-subtitle">MaxxedOut</div>
+      <h1 class="hero-title">Training Center</h1>
+      <div class="hero-tagline">
+        365 Days
+        <span>24/7 Access</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- COURSES SECTION -->
+  <section class="courses-section">
+    <div class="courses-grid">
+      <div class="course-card">
+        <video class="course-thumbnail-video" autoplay muted loop playsinline>
+          <source src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69324d4a81eaa15fa690858e.mp4" type="video/mp4">
+        </video>
+        <div class="course-content">
+          <h3 class="course-title">How to Find<br>Your First Deal</h3>
+          <p class="course-author">Delivered by Todd Pultz</p>
+          <a class="course-learn" onclick="toggleLearn(this)">What you'll learn <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></a>
+          <div class="course-learn-content">
+            <ul>
+              <li>How to identify motivated sellers in any market</li>
+              <li>The best lead sources for finding off-market deals</li>
+              <li>Analyzing deals quickly to know if they're worth pursuing</li>
+              <li>Scripts and strategies for making your first offer</li>
+              <li>Common mistakes beginners make and how to avoid them</li>
+            </ul>
+          </div>
+          <br>
+          <a href="https://landflipping.surge-dev.online/offers/how-to-find-your-first-deal-239062" class="course-cta">Get Access Now!</a>
+        </div>
+      </div>
+      <div class="course-card">
+        <video class="course-thumbnail-video" autoplay muted loop playsinline>
+          <source src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69324d4a81eaa1563990858c.mp4" type="video/mp4">
+        </video>
+        <div class="course-content">
+          <h3 class="course-title">Creative<br>Financing Secrets</h3>
+          <p class="course-author">Delivered by Todd Pultz</p>
+          <a class="course-learn" onclick="toggleLearn(this)">What you'll learn <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></a>
+          <div class="course-learn-content">
+            <ul>
+              <li>Subject-to financing and how to structure these deals</li>
+              <li>Seller financing strategies that work in any market</li>
+              <li>How to use lease options to control properties</li>
+              <li>Private money and hard money lending explained</li>
+              <li>Structuring deals with little to no money down</li>
+            </ul>
+          </div>
+          <br>
+          <a href="#" class="course-cta">Get Access Now!</a>
+        </div>
+      </div>
+      <div class="course-card">
+        <video class="course-thumbnail-video" autoplay muted loop playsinline>
+          <source src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69324d4a81eaa15fa690858e.mp4" type="video/mp4">
+        </video>
+        <div class="course-content">
+          <h3 class="course-title">Wholesale<br>Mastery</h3>
+          <p class="course-author">Delivered by Todd Pultz</p>
+          <a class="course-learn" onclick="toggleLearn(this)">What you'll learn <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></a>
+          <div class="course-learn-content">
+            <ul>
+              <li>The complete wholesaling process from start to finish</li>
+              <li>Building a buyers list that actually closes deals</li>
+              <li>How to properly assign contracts legally</li>
+              <li>Marketing strategies to find distressed properties</li>
+              <li>Calculating ARV and maximum allowable offer</li>
+            </ul>
+          </div>
+          <br>
+          <a href="#" class="course-cta">Get Access Now!</a>
+        </div>
+      </div>
+      <div class="course-card">
+        <video class="course-thumbnail-video" autoplay muted loop playsinline>
+          <source src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69324d4a81eaa158e490858a.mp4" type="video/mp4">
+        </video>
+        <div class="course-content">
+          <h3 class="course-title">Fix & Flip<br>Blueprint</h3>
+          <p class="course-author">Delivered by Todd Pultz</p>
+          <a class="course-learn" onclick="toggleLearn(this)">What you'll learn <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></a>
+          <div class="course-learn-content">
+            <ul>
+              <li>How to accurately estimate rehab costs</li>
+              <li>Finding and managing reliable contractors</li>
+              <li>The renovations that add the most value</li>
+              <li>Timeline management to maximize profits</li>
+              <li>Exit strategies: sell, rent, or refinance</li>
+            </ul>
+          </div>
+          <br>
+          <a href="#" class="course-cta">Get Access Now!</a>
+        </div>
+      </div>
+      <div class="course-card">
+        <video class="course-thumbnail-video" autoplay muted loop playsinline>
+          <source src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69324d4a81eaa15fa690858e.mp4" type="video/mp4">
+        </video>
+        <div class="course-content">
+          <h3 class="course-title">How to Become<br>a Millionaire</h3>
+          <p class="course-author">Delivered by Todd Pultz</p>
+          <a class="course-learn" onclick="toggleLearn(this)">What you'll learn <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></a>
+          <div class="course-learn-content">
+            <ul>
+              <li>The wealth-building mindset of millionaires</li>
+              <li>Creating multiple streams of income through real estate</li>
+              <li>How to scale from one deal to a portfolio</li>
+              <li>Tax strategies to keep more of what you make</li>
+              <li>Building systems that generate passive income</li>
+            </ul>
+          </div>
+          <br>
+          <a href="#" class="course-cta">Get Access Now!</a>
+        </div>
+      </div>
+      <div class="course-card">
+        <video class="course-thumbnail-video" autoplay muted loop playsinline>
+          <source src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69324d4a81eaa12fcf90858d.mp4" type="video/mp4">
+        </video>
+        <div class="course-content">
+          <h3 class="course-title">Negotiating &<br>Closing Deals</h3>
+          <p class="course-author">Delivered by Todd Pultz</p>
+          <a class="course-learn" onclick="toggleLearn(this)">What you'll learn <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></a>
+          <div class="course-learn-content">
+            <ul>
+              <li>Proven negotiation tactics that close deals</li>
+              <li>How to handle seller objections with confidence</li>
+              <li>Understanding what motivates sellers to accept offers</li>
+              <li>The closing process from contract to keys</li>
+              <li>Building rapport and trust quickly with sellers</li>
+            </ul>
+          </div>
+          <br>
+          <a href="#" class="course-cta">Get Access Now!</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRAINING INFO SECTION -->
+  <section class="training-info-section">
+    <div class="training-info-container">
+
+      <!-- Top: Info + Mockup -->
+      <div class="training-info-top">
+        <div class="training-info-left">
+          <h2>Real Estate Training Center</h2>
+          <p class="subtitle">Everything you need to know to grow your portfolio and your income!</p>
+          <ul>
+            <li>Learn the basics of real estate investing and wealth building</li>
+            <li>Tap into seller psychology and motivation</li>
+            <li>Develop YOUR perfect deal-finding process</li>
+            <li>Learn to negotiate and close like a pro</li>
+            <li>Master the phone and dominate cold calls</li>
+            <li>Learn to turn small deals into long-term wealth</li>
+          </ul>
+        </div>
+        <div class="training-info-right">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/693258af703784d198b268a5.jpeg" alt="Todd Pultz Training Center" class="training-image">
+        </div>
+      </div>
+
+      <!-- Benefits Grid -->
+      <div class="benefits-grid">
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg viewBox="0 0 64 64">
+              <rect x="8" y="8" width="48" height="40" rx="4"/>
+              <path d="M20 28l8 8 16-16"/>
+              <line x1="8" y1="52" x2="56" y2="52"/>
+              <line x1="24" y1="52" x2="24" y2="58"/>
+              <line x1="40" y1="52" x2="40" y2="58"/>
+            </svg>
+          </div>
+          <h4>Exclusive Content</h4>
+          <p>Gain access to the most comprehensive library of content designed to help you excel in your real estate business, your career, and your life.</p>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg viewBox="0 0 64 64">
+              <circle cx="32" cy="20" r="12"/>
+              <path d="M12 56c0-11 9-20 20-20s20 9 20 20"/>
+              <path d="M44 36l8 8-8 8"/>
+            </svg>
+          </div>
+          <h4>Real-World Application</h4>
+          <p>Develop real world skills that have a direct impact on your income and personal growth. Learn by doing with actionable strategies.</p>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg viewBox="0 0 64 64">
+              <circle cx="20" cy="24" r="10"/>
+              <circle cx="44" cy="24" r="10"/>
+              <circle cx="32" cy="48" r="10"/>
+              <line x1="26" y1="30" x2="38" y2="42"/>
+              <line x1="38" y1="30" x2="26" y2="42"/>
+            </svg>
+          </div>
+          <h4>Networking</h4>
+          <p>The first program of its kind and scale to provide industry leading content, live support and training, and connect with like-minded investors.</p>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg viewBox="0 0 64 64">
+              <path d="M32 8l6 18h18l-14 10 6 18-16-12-16 12 6-18-14-10h18z"/>
+            </svg>
+          </div>
+          <h4>10X Results</h4>
+          <p>The goal of the program is to provide members with the content, coaching and connections that will open the door to achieve 10X Results in their Business, Income, and Life.</p>
+        </div>
+      </div>
+
+      <!-- CTA Buttons -->
+      <div class="cta-buttons">
+        <a href="#" class="btn-primary">Enroll Today for Free!</a>
+        <a href="#" class="btn-outline">Learn More</a>
+      </div>
+
+      <!-- Testimonials Row -->
+      <div class="testimonials-row">
+        <div class="testimonial-item">
+          <div class="testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/52.jpg" alt="Gaurav Bhagat">
+          </div>
+          <h5>Business Doubled in 8 Months</h5>
+          <p class="quote">"Numbers don't lie, <strong>we've gone from $2M to over the $4M mark</strong>. We thought we could do it in one year... <strong>we did it in 8 months!</strong>"</p>
+          <p class="author">Gaurav Bhagat<span>Managing Director</span></p>
+        </div>
+        <div class="testimonial-item">
+          <div class="testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/22.jpg" alt="Justin Myers">
+          </div>
+          <h5>Increased Profit Over 300%</h5>
+          <p class="quote">"We more than doubled our year over year revenue and exceeded our yearly target. <strong>Our profitability increased 300% over last year.</strong>"</p>
+          <p class="author">Justin Myers<span>Owner - The Sign Chef</span></p>
+        </div>
+        <div class="testimonial-item">
+          <div class="testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/67.jpg" alt="William Ashurst">
+          </div>
+          <h5>Jumpstarted Their Business</h5>
+          <p class="quote">"This week we sold more advertising than in the last 8 months! We 10X our monthly sales in just one week. <strong>2 days this week we made more sales in a day than what we used to do in previous months!</strong>"</p>
+          <p class="author">William and Astrid Ashurst</p>
+        </div>
+        <div class="testimonial-item">
+          <div class="testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Amanda Marnier">
+          </div>
+          <h5>Went From $500K to Million in 1 Year</h5>
+          <p class="quote">"Last year we wanted to finish at $500k and we did just that. We're not satisfied, so this year we doubled again. <strong>We broke $1 million.</strong> We went from 2-4 sales per month to 12-14 sales per month."</p>
+          <p class="author">Amanda Marnier<span>Kivo Medical</span></p>
+        </div>
+        <div class="testimonial-item">
+          <div class="testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/18.jpg" alt="Nathaniel Colvin">
+          </div>
+          <h5>Became a Top Producer</h5>
+          <p class="quote">"I went from selling 1 car a month to 13! I'm 19 years old, youngest guy in the dealership, and the <strong>#1 salesman for volume and gross.</strong>"</p>
+          <p class="author">Nathaniel Colvin<span>Shumsky Buick GMC, L.P.</span></p>
+        </div>
+      </div>
+
+      <p class="results-disclaimer">*Your results will vary</p>
+
+    </div>
+  </section>
+
+  <!-- LIVE EVENTS SECTION -->
+  <section class="live-events-section">
+    <div class="live-events-container">
+
+      <!-- Header -->
+      <div class="live-events-header">
+        <div class="live-events-image">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/693258af703784d198b268a5.jpeg" alt="Todd Pultz Live Events">
+        </div>
+        <div class="live-events-info">
+          <h2>Live Events</h2>
+          <p>Todd Pultz is the top entrepreneurial and real estate speaker in the industry. He is the host of the largest real estate investing conferences featuring the world's top business experts and strategies.</p>
+          <ul>
+            <li>Extensive event video library available 24/7</li>
+            <li>Dozens of industry experts</li>
+            <li>CEO's of top companies share their know-how</li>
+            <li>Top marketing experts lay out their proven strategies</li>
+            <li>Motivational speaking legends share their wisdom</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="live-events-tagline">Now you can access the exclusive live event video library granting you front row access to content not available anywhere else.</p>
+
+      <!-- Events Grid -->
+      <div class="events-grid">
+        <div class="event-card">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png" alt="Real Estate Summit 2024" class="event-thumbnail">
+          <div class="event-content">
+            <h4 class="event-title">Real Estate Summit 2024</h4>
+            <p class="event-author">Delivered by Todd Pultz</p>
+            <a class="event-learn">What you'll learn →</a>
+            <br>
+            <a href="#" class="event-cta">Get Access Now!</a>
+          </div>
+        </div>
+        <div class="event-card">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png" alt="Real Estate Summit 2023" class="event-thumbnail">
+          <div class="event-content">
+            <h4 class="event-title">Real Estate Summit 2023</h4>
+            <p class="event-author">Delivered by Todd Pultz</p>
+            <a class="event-learn">What you'll learn →</a>
+            <br>
+            <a href="#" class="event-cta">Get Access Now!</a>
+          </div>
+        </div>
+        <div class="event-card">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png" alt="Real Estate Summit 2022" class="event-thumbnail">
+          <div class="event-content">
+            <h4 class="event-title">Real Estate Summit 2022</h4>
+            <p class="event-author">Delivered by Todd Pultz</p>
+            <a class="event-learn">What you'll learn →</a>
+            <br>
+            <a href="#" class="event-cta">Get Access Now!</a>
+          </div>
+        </div>
+        <div class="event-card">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png" alt="Investor Bootcamp 2024" class="event-thumbnail">
+          <div class="event-content">
+            <h4 class="event-title">Investor Bootcamp 2024</h4>
+            <p class="event-author">Delivered by Todd Pultz</p>
+            <a class="event-learn">What you'll learn →</a>
+            <br>
+            <a href="#" class="event-cta">Get Access Now!</a>
+          </div>
+        </div>
+        <div class="event-card">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png" alt="Wholesaling Masterclass" class="event-thumbnail">
+          <div class="event-content">
+            <h4 class="event-title">Wholesaling Masterclass</h4>
+            <p class="event-author">Delivered by Todd Pultz</p>
+            <a class="event-learn">What you'll learn →</a>
+            <br>
+            <a href="#" class="event-cta">Get Access Now!</a>
+          </div>
+        </div>
+        <div class="event-card">
+          <img src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png" alt="Sell or Be Sold Seminar" class="event-thumbnail">
+          <div class="event-content">
+            <h4 class="event-title">Sell or Be Sold Seminar</h4>
+            <p class="event-author">Delivered by Todd Pultz</p>
+            <a class="event-learn">What you'll learn →</a>
+            <br>
+            <a href="#" class="event-cta">Get Access Now!</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Testimonials -->
+      <div class="bottom-testimonials">
+        <div class="bottom-testimonial">
+          <div class="bottom-testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Steve Harvey">
+          </div>
+          <h5>"Todd teaches processes for domination, never shortcuts."</h5>
+          <p class="author">Steve Harvey</p>
+        </div>
+        <div class="bottom-testimonial">
+          <div class="bottom-testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/75.jpg" alt="Eric C. Maxwell">
+          </div>
+          <h5>"Todd is one of the greatest educators of our time."</h5>
+          <p class="author">Eric C. Maxwell</p>
+        </div>
+        <div class="bottom-testimonial">
+          <div class="bottom-testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/44.jpg" alt="Raymond John">
+          </div>
+          <h5>"Todd has helped me pick a millionaire mindset."</h5>
+          <p class="author">Raymond John</p>
+        </div>
+        <div class="bottom-testimonial">
+          <div class="bottom-testimonial-photo">
+            <img src="https://randomuser.me/api/portraits/men/86.jpg" alt="Russell Brunson">
+          </div>
+          <h5>"Todd is a modern social media master."</h5>
+          <p class="author">Russell Brunson</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-about">
+        <h3>MAXXEDOUT TRAINING</h3>
+        <p>Master real estate investing with comprehensive training from Todd Pultz. Access expert courses, live webinars, and proven strategies to build your real estate portfolio.</p>
+        <div class="footer-social-links">
+          <a href="https://www.facebook.com/todd.pultz" target="_blank" aria-label="Facebook">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          </a>
+          <a href="https://www.instagram.com/toddpultzofficial/" target="_blank" aria-label="Instagram">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          </a>
+          <a href="https://www.youtube.com/@toddpultzofficial" target="_blank" aria-label="YouTube">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          </a>
+          <a href="https://www.tiktok.com/@toddpultzofficial" target="_blank" aria-label="TikTok">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+          </a>
+        </div>
+      </div>
+      <div class="footer-section">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="tel:937-889-9097">937-889-9097</a></li>
+          <li><a href="mailto:btttillc@gmail.com">btttillc@gmail.com</a></li>
+          <li>4126 Linden Ave Suite 100</li>
+          <li>Dayton, OH 45432</li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="https://maxxedout.com/terms-and-conditions">Terms & Conditions</a></li>
+          <li><a href="https://maxxedout.com/privacy-policy">Privacy Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2024 Maxxed Out Realty. All rights reserved.</p>
+    </div>
+  </footer>
+
+<script>
+  function toggleLearn(element) {
+    element.classList.toggle('active');
+    const content = element.nextElementSibling;
+    content.classList.toggle('active');
+  }
+
+  function toggleMobileMenu() {
+    const toggle = document.querySelector('.mobile-menu-toggle');
+    const nav = document.querySelector('.nav');
+    toggle.classList.toggle('active');
+    nav.classList.toggle('active');
+  }
+
+  // Close mobile menu when clicking on a link
+  document.querySelectorAll('.nav a').forEach(link => {
+    link.addEventListener('click', () => {
+      const toggle = document.querySelector('.mobile-menu-toggle');
+      const nav = document.querySelector('.nav');
+      toggle.classList.remove('active');
+      nav.classList.remove('active');
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* MaxxedOut.com Color Scheme */
+    --background: 0 0% 96%; /* #f5f5f5 */
+    --foreground: 0 0% 20%; /* #333 */
+
+    --card: 0 0% 100%; /* #ffffff */
+    --card-foreground: 0 0% 13%; /* #222 */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+
+    /* Primary Blue #0000FF */
+    --primary: 240 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary Dark Blue #0000CC */
+    --secondary: 240 100% 40%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 97%; /* #f8f9fa */
+    --muted-foreground: 0 0% 53%; /* #888 */
+
+    /* Gold Accent #D4AF37 */
+    --accent: 43 65% 52%;
+    --accent-foreground: 0 0% 13%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 240 100% 50%;
+    --radius: 0.75rem;
+
+    /* Custom MaxxedOut Colors */
+    --dark-bg: 0 0% 4%; /* #0a0a0a */
+    --dark-section: 195 5% 21%; /* #2d3436 */
+    --text-dark: 0 0% 13%; /* #222 */
+    --text-body: 0 0% 33%; /* #555 */
+    --text-light: 0 0% 53%; /* #888 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Montserrat', sans-serif;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground));
+}
+
+/* Custom utility classes for MaxxedOut branding */
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, #0000FF, #0000CC);
+  }
+
+  .gradient-dark {
+    background: linear-gradient(135deg, #1a2a6a, #0d1545);
+  }
+
+  .gradient-hero-overlay {
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 100%);
+  }
+
+  .text-gold {
+    color: #D4AF37;
+  }
+
+  .bg-dark-section {
+    background-color: #2d3436;
+  }
+
+  .bg-dark-footer {
+    background-color: #0a0a0a;
+  }
+}
