@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Facebook, Instagram, Youtube, Menu, X } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
+import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 
 const socialLinks = [
   { href: 'https://www.facebook.com/todd.pultz', icon: Facebook, label: 'Facebook', hoverClass: 'hover:bg-[#1877f2]' },
@@ -15,7 +16,6 @@ const navLinks = [
   { href: '/', label: 'Training Center' },
   { href: '/webinars', label: 'Webinars' },
   { href: '/real-estate', label: 'Real Estate' },
-  { href: '/login', label: 'Login' },
 ];
 
 // TikTok icon component (not in Lucide)
@@ -29,6 +29,13 @@ function TikTokIcon({ className }: { className?: string }) {
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { data: session, status } = useSession();
+
+  const isLoading = status === 'loading';
+  const isAuthenticated = status === 'authenticated';
+  const userName = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
+  const userInitial = userName.charAt(0).toUpperCase();
 
   return (
     <header className="bg-white border-t-4 border-maxxed-blue shadow-header sticky top-0 z-50">
@@ -95,24 +102,102 @@ export function Header() {
               {link.label}
             </Link>
           ))}
+
+          {/* Auth Section */}
+          {isLoading ? (
+            <div className="w-20 h-8 bg-gray-100 rounded animate-pulse" />
+          ) : isAuthenticated ? (
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 text-text-body text-sm font-medium hover:text-maxxed-blue transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-maxxed-blue text-white flex items-center justify-center text-sm font-bold">
+                  {userInitial}
+                </div>
+                <span className="hidden lg:inline">{userName}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50">
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-text-body hover:bg-gray-50 hover:text-maxxed-blue"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <User className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      signOut({ callbackUrl: '/login' });
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-text-body hover:bg-gray-50 hover:text-red-600 w-full text-left"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
+            >
+              Login
+            </Link>
+          )}
         </nav>
 
         {/* Mobile Navigation */}
         <nav
           className={`md:hidden absolute top-full left-0 right-0 bg-white flex-col shadow-lg transition-all duration-300 overflow-hidden ${
-            mobileMenuOpen ? 'max-h-80 flex' : 'max-h-0'
+            mobileMenuOpen ? 'max-h-96 flex' : 'max-h-0'
           }`}
         >
           {navLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
-              className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue last:border-b-0"
+              className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
               onClick={() => setMobileMenuOpen(false)}
             >
               {link.label}
             </Link>
           ))}
+          {isAuthenticated ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <User className="w-4 h-4" />
+                Dashboard
+              </Link>
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  signOut({ callbackUrl: '/login' });
+                }}
+                className="px-5 py-4 text-text-body text-sm font-medium transition-colors duration-300 hover:text-red-600 flex items-center gap-2 w-full text-left"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="px-5 py-4 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Login
+            </Link>
+          )}
         </nav>
       </div>
     </header>
