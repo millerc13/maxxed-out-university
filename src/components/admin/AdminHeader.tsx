@@ -32,12 +32,12 @@ interface AdminHeaderProps {
 const mobileNavItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/courses', label: 'Courses', icon: BookOpen },
+  { href: '/admin/quizzes', label: 'Quizzes', icon: FileText },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
+  { href: '/admin/import', label: 'CSV Import', icon: Settings },
   { href: '/admin/products', label: 'GHL Products', icon: Link2 },
   { href: '/admin/webhooks', label: 'Webhook Logs', icon: FileText },
-  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export function AdminHeader({ user }: AdminHeaderProps) {

@@ -251,3 +251,77 @@ model WebhookLog {
 
   @@index([source, processedAt])
 }
+
+// ============================================
+// QUIZZES
+// ============================================
+
+model Quiz {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  moduleId    String?  // Optional: attach to a module
+  courseId    String?  // Optional: attach to a course
+  passingScore Int     @default(70) // Percentage required to pass
+  timeLimit   Int?     // Time limit in minutes (null = no limit)
+  published   Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions   Question[]
+  attempts    QuizAttempt[]
+
+  @@index([moduleId])
+  @@index([courseId])
+}
+
+model Question {
+  id           String   @id @default(cuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text         String   @db.Text
+  explanation  String?  @db.Text // Shown after answering
+  type         QuestionType @default(MULTIPLE_CHOICE)
+  points       Int      @default(1)
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  answers      Answer[]
+
+  @@index([quizId])
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE  // Single correct answer
+  MULTIPLE_SELECT  // Multiple correct answers
+  TRUE_FALSE
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id           String    @id @default(cuid())
+  quizId       String
+  quiz         Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId       String
+  score        Int       // Percentage score
+  passed       Boolean
+  answers      Json      // { questionId: [answerId, ...] }
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  timeSpent    Int?      // Seconds spent
+
+  @@index([quizId])
+  @@index([userId])
+}

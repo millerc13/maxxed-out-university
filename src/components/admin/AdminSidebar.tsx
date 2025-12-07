@@ -11,17 +11,19 @@ import {
   FileText,
   BarChart3,
   GraduationCap,
+  FileQuestion,
+  Upload,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/courses', label: 'Courses', icon: BookOpen },
+  { href: '/admin/quizzes', label: 'Quizzes', icon: FileQuestion },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
+  { href: '/admin/import', label: 'CSV Import', icon: Upload },
   { href: '/admin/products', label: 'GHL Products', icon: Link2 },
   { href: '/admin/webhooks', label: 'Webhook Logs', icon: FileText },
-  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export function AdminSidebar() {
