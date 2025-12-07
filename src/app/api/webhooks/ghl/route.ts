@@ -178,6 +178,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Generate signature for auto-login link
+    const sig = createHmac('sha256', process.env.AUTH_SECRET || 'fallback-secret')
+      .update(user.email.toLowerCase())
+      .digest('hex')
+      .slice(0, 16);
+
+    const autoLoginLink = `${baseUrl}/api/auth/auto-login?email=${encodeURIComponent(user.email)}&sig=${sig}`;
+
     return NextResponse.json({
       success: true,
       message: 'Enrollment created successfully',
@@ -186,8 +194,10 @@ export async function POST(request: NextRequest) {
       isNewUser,
       email: user.email,
       firstName: user.name?.split(' ')[0] || '',
-      // Magic link for GHL to include in welcome email
+      // Links for GHL to use in email
       magicLink: magicLink,
+      autoLoginLink: autoLoginLink,
+      signature: sig,
       loginUrl: `${baseUrl}/login`,
     });
 
