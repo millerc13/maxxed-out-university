@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight } from 'lucide-react';
+import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -15,7 +15,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
   const { slug } = await params;
   const session = await auth();
 
-  // Get the course with all modules and lessons
+  // Get the course with all modules, lessons, and quizzes
   const course = await prisma.course.findUnique({
     where: { slug, published: true },
     include: {
@@ -24,6 +24,13 @@ export default async function CoursePage({ params }: CoursePageProps) {
           lessons: {
             orderBy: { order: 'asc' },
           },
+        },
+        orderBy: { order: 'asc' },
+      },
+      quizzes: {
+        where: { published: true },
+        include: {
+          _count: { select: { questions: true } },
         },
         orderBy: { order: 'asc' },
       },
@@ -59,6 +66,24 @@ export default async function CoursePage({ params }: CoursePageProps) {
     : [];
 
   const progressMap = new Map(progress.map((p) => [p.lessonId, p]));
+
+  // Get user's quiz attempts
+  const quizAttempts = session?.user?.id
+    ? await prisma.quizAttempt.findMany({
+        where: {
+          userId: session.user.id,
+          quizId: { in: course.quizzes.map((q) => q.id) },
+        },
+        orderBy: { startedAt: 'desc' },
+      })
+    : [];
+
+  const quizAttemptsMap = new Map<string, typeof quizAttempts>();
+  for (const attempt of quizAttempts) {
+    const existing = quizAttemptsMap.get(attempt.quizId) || [];
+    existing.push(attempt);
+    quizAttemptsMap.set(attempt.quizId, existing);
+  }
 
   // Calculate stats
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
@@ -284,6 +309,81 @@ export default async function CoursePage({ params }: CoursePageProps) {
               </Card>
             ))}
           </div>
+
+          {/* Quizzes Section */}
+          {course.quizzes.length > 0 && (
+            <div className="mt-10">
+              <h2 className="text-2xl font-bold text-text-dark mb-6">Course Quizzes</h2>
+              <div className="space-y-4">
+                {course.quizzes.map((quiz) => {
+                  const attempts = quizAttemptsMap.get(quiz.id) || [];
+                  const bestAttempt = attempts.find((a) => a.passed) || attempts[0];
+                  const hasPassed = attempts.some((a) => a.passed);
+
+                  return (
+                    <Card key={quiz.id} className="shadow-card overflow-hidden">
+                      <CardContent className="p-5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                              hasPassed ? 'bg-green-100' : 'bg-maxxed-blue/10'
+                            }`}>
+                              {hasPassed ? (
+                                <Trophy className="w-6 h-6 text-green-600" />
+                              ) : (
+                                <FileQuestion className="w-6 h-6 text-maxxed-blue" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-text-dark">{quiz.title}</h3>
+                              {quiz.description && (
+                                <p className="text-sm text-text-muted mt-0.5">{quiz.description}</p>
+                              )}
+                              <div className="flex items-center gap-4 mt-2 text-sm text-text-muted">
+                                <span>{quiz._count.questions} questions</span>
+                                <span>{quiz.passingScore}% to pass</span>
+                                {quiz.timeLimit && <span>{quiz.timeLimit} min limit</span>}
+                              </div>
+                              {bestAttempt && (
+                                <div className={`mt-2 text-sm font-medium ${
+                                  bestAttempt.passed ? 'text-green-600' : 'text-orange-600'
+                                }`}>
+                                  {bestAttempt.passed ? (
+                                    <>Best Score: {bestAttempt.score}% - Passed!</>
+                                  ) : (
+                                    <>Last Score: {bestAttempt.score}% - {attempts.length} attempt{attempts.length !== 1 ? 's' : ''}</>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            {isEnrolled ? (
+                              <Link
+                                href={`/courses/${course.slug}/quiz/${quiz.id}`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded font-medium transition-colors ${
+                                  hasPassed
+                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    : 'bg-maxxed-blue text-white hover:bg-maxxed-blue-dark'
+                                }`}
+                              >
+                                {hasPassed ? 'Retake Quiz' : attempts.length > 0 ? 'Try Again' : 'Start Quiz'}
+                              </Link>
+                            ) : (
+                              <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded">
+                                <Lock className="w-4 h-4" />
+                                Locked
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <Footer />
