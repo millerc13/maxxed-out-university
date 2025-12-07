@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard } from 'lucide-react';
 
 const socialLinks = [
   { href: 'https://www.facebook.com/todd.pultz', icon: Facebook, label: 'Facebook', hoverClass: 'hover:bg-[#1877f2]' },
@@ -13,9 +13,8 @@ const socialLinks = [
 ];
 
 const navLinks = [
-  { href: '/', label: 'Training Center' },
-  { href: '/webinars', label: 'Webinars' },
-  { href: '/real-estate', label: 'Real Estate' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, authRequired: true },
+  { href: '/courses', label: 'Courses', icon: BookOpen, authRequired: false },
 ];
 
 // TikTok icon component (not in Lucide)
@@ -93,15 +92,18 @@ export function Header() {
           </div>
 
           {/* Nav Links */}
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks
+            .filter((link) => !link.authRequired || isAuthenticated)
+            .map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="flex items-center gap-1.5 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
+              >
+                <link.icon className="w-4 h-4" />
+                {link.label}
+              </Link>
+            ))}
 
           {/* Auth Section */}
           {isLoading ? (
@@ -126,9 +128,18 @@ export function Header() {
                     className="flex items-center gap-2 px-4 py-2 text-sm text-text-body hover:bg-gray-50 hover:text-maxxed-blue"
                     onClick={() => setUserMenuOpen(false)}
                   >
-                    <User className="w-4 h-4" />
-                    Dashboard
+                    <LayoutDashboard className="w-4 h-4" />
+                    My Dashboard
                   </Link>
+                  <Link
+                    href="/courses"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-text-body hover:bg-gray-50 hover:text-maxxed-blue"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Browse Courses
+                  </Link>
+                  <div className="border-t border-gray-100 my-1" />
                   <button
                     onClick={() => {
                       setUserMenuOpen(false);
@@ -158,43 +169,37 @@ export function Header() {
             mobileMenuOpen ? 'max-h-96 flex' : 'max-h-0'
           }`}
         >
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
-          {isAuthenticated ? (
-            <>
+          {navLinks
+            .filter((link) => !link.authRequired || isAuthenticated)
+            .map((link) => (
               <Link
-                href="/dashboard"
+                key={link.label}
+                href={link.href}
                 className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <User className="w-4 h-4" />
-                Dashboard
+                <link.icon className="w-4 h-4" />
+                {link.label}
               </Link>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  signOut({ callbackUrl: '/login' });
-                }}
-                className="px-5 py-4 text-text-body text-sm font-medium transition-colors duration-300 hover:text-red-600 flex items-center gap-2 w-full text-left"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
-            </>
+            ))}
+          {isAuthenticated ? (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                signOut({ callbackUrl: '/login' });
+              }}
+              className="px-5 py-4 text-text-body text-sm font-medium transition-colors duration-300 hover:text-red-600 flex items-center gap-2 w-full text-left"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
           ) : (
             <Link
               href="/login"
-              className="px-5 py-4 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
+              className="px-5 py-4 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"
               onClick={() => setMobileMenuOpen(false)}
             >
+              <User className="w-4 h-4" />
               Login
             </Link>
           )}
