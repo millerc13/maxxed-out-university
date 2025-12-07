@@ -44,18 +44,20 @@ export async function GET(request: NextRequest) {
       data: { emailVerified: new Date() },
     });
 
-    // Create a session token for the user
-    // Since we're using JWT strategy, we need to redirect to a page that will handle the sign in
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
     // Check if user has a password set
     const hasPassword = !!magicLink.user.passwordHash;
 
-    // Redirect to a callback page that will complete the sign in
-    // Pass needsPassword flag so callback knows whether to redirect to setup-password
-    return NextResponse.redirect(
-      new URL(`/login/callback?userId=${magicLink.userId}&email=${encodeURIComponent(magicLink.user.email)}&needsPassword=${!hasPassword}`, baseUrl)
-    );
+    // If user needs to set up a password, redirect directly to setup page
+    if (!hasPassword) {
+      return NextResponse.redirect(
+        new URL(`/setup-password?email=${encodeURIComponent(magicLink.user.email)}&userId=${magicLink.userId}`, baseUrl)
+      );
+    }
+
+    // User has a password, redirect to dashboard
+    return NextResponse.redirect(new URL('/dashboard', baseUrl));
   } catch (error) {
     console.error('Magic link verification error:', error);
     return NextResponse.redirect(new URL('/login/error?error=server_error', request.url));
