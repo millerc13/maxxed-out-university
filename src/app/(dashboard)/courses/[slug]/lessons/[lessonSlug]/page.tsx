@@ -34,10 +34,13 @@ export default async function LessonPage({ params }: LessonPageProps) {
   }
 
   // Find the current lesson
-  let currentLesson = null;
-  let currentModule = null;
+  type LessonType = typeof course.modules[0]['lessons'][0];
+  type ModuleType = typeof course.modules[0];
+
+  let currentLesson: LessonType | null = null;
+  let currentModule: ModuleType | null = null;
   let lessonIndex = 0;
-  const allLessons: Array<{ lesson: typeof currentLesson; module: typeof currentModule; globalIndex: number }> = [];
+  const allLessons: Array<{ lesson: LessonType; module: ModuleType; globalIndex: number }> = [];
 
   for (const module of course.modules) {
     for (const lesson of module.lessons) {
