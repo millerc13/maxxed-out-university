@@ -58,7 +58,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
   }
 
   // Check access
-  const enrollment = session?.user
+  const enrollment = session?.user?.id
     ? await prisma.enrollment.findUnique({
         where: {
           userId_courseId: {
@@ -77,7 +77,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
   }
 
   // Get user's progress for all lessons
-  const progress = session?.user
+  const progress = session?.user?.id
     ? await prisma.lessonProgress.findMany({
         where: {
           userId: session.user.id,
