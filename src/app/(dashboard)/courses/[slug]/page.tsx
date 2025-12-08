@@ -213,177 +213,243 @@ export default async function CoursePage({ params }: CoursePageProps) {
           <h2 className="text-2xl font-bold text-text-dark mb-6">Course Content</h2>
 
           <div className="space-y-4">
-            {course.modules.map((module, moduleIndex) => (
-              <Card key={module.id} className="shadow-card overflow-hidden">
-                <div className="bg-gray-50 px-5 py-4 border-b">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-text-dark">
-                      Module {moduleIndex + 1}: {module.title}
-                    </h3>
-                    <span className="text-sm text-text-muted">
-                      {module.lessons.length} lessons
-                    </span>
-                  </div>
-                  {module.description && (
-                    <p className="text-sm text-text-muted mt-1">{module.description}</p>
-                  )}
-                </div>
-                <div className="divide-y">
-                  {module.lessons.map((lesson, lessonIndex) => {
-                    const lessonProgress = progressMap.get(lesson.id);
-                    const isCompleted = lessonProgress?.completed;
-                    const isAccessible = isEnrolled || lesson.isFree;
-                    const durationMin = Math.ceil((lesson.videoDuration || 0) / 60);
+            {course.modules.map((module, moduleIndex) => {
+              // Find quiz for this module (quiz order matches module index)
+              const moduleQuiz = course.quizzes.find((q) => q.order === moduleIndex);
+              const quizAttempts_module = moduleQuiz ? quizAttemptsMap.get(moduleQuiz.id) || [] : [];
+              const bestAttempt_module = quizAttempts_module.find((a) => a.passed) || quizAttempts_module[0];
+              const hasPassed_module = quizAttempts_module.some((a) => a.passed);
 
-                    return (
-                      <div
-                        key={lesson.id}
-                        className={`px-5 py-4 flex items-center gap-4 ${
-                          isAccessible ? 'hover:bg-gray-50' : 'opacity-60'
-                        }`}
-                      >
-                        {/* Status Icon */}
-                        <div className="flex-shrink-0">
-                          {isCompleted ? (
-                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                              <CheckCircle className="w-5 h-5 text-green-600" />
-                            </div>
-                          ) : isAccessible ? (
-                            <div className="w-8 h-8 rounded-full bg-maxxed-blue/10 flex items-center justify-center">
-                              <Play className="w-4 h-4 text-maxxed-blue" />
-                            </div>
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                              <Lock className="w-4 h-4 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Lesson Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-text-muted">
-                              {moduleIndex + 1}.{lessonIndex + 1}
-                            </span>
-                            {isAccessible ? (
-                              <Link
-                                href={`/courses/${course.slug}/lessons/${lesson.slug}`}
-                                className="font-medium text-text-dark hover:text-maxxed-blue truncate"
-                              >
-                                {lesson.title}
-                              </Link>
-                            ) : (
-                              <span className="font-medium text-text-dark truncate">
-                                {lesson.title}
-                              </span>
-                            )}
-                            {lesson.isFree && !isEnrolled && (
-                              <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">
-                                Free Preview
-                              </span>
-                            )}
-                          </div>
-                          {lesson.description && (
-                            <p className="text-sm text-text-muted truncate mt-0.5">
-                              {lesson.description}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Duration & Action */}
-                        <div className="flex items-center gap-4 flex-shrink-0">
-                          <span className="text-sm text-text-muted">{durationMin} min</span>
-                          {isAccessible && (
-                            <Link
-                              href={`/courses/${course.slug}/lessons/${lesson.slug}`}
-                              className="text-maxxed-blue hover:text-maxxed-blue-dark"
-                            >
-                              <ChevronRight className="w-5 h-5" />
-                            </Link>
-                          )}
-                        </div>
+              return (
+                <div key={module.id} className="space-y-4">
+                  <Card className="shadow-card overflow-hidden">
+                    <div className="bg-gray-50 px-5 py-4 border-b">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-text-dark">
+                          Module {moduleIndex + 1}: {module.title}
+                        </h3>
+                        <span className="text-sm text-text-muted">
+                          {module.lessons.length} lessons
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            ))}
-          </div>
+                      {module.description && (
+                        <p className="text-sm text-text-muted mt-1">{module.description}</p>
+                      )}
+                    </div>
+                    <div className="divide-y">
+                      {module.lessons.map((lesson, lessonIndex) => {
+                        const lessonProgress = progressMap.get(lesson.id);
+                        const isCompleted = lessonProgress?.completed;
+                        const isAccessible = isEnrolled || lesson.isFree;
+                        const durationMin = Math.ceil((lesson.videoDuration || 0) / 60);
 
-          {/* Quizzes Section */}
-          {course.quizzes.length > 0 && (
-            <div className="mt-10">
-              <h2 className="text-2xl font-bold text-text-dark mb-6">Course Quizzes</h2>
-              <div className="space-y-4">
-                {course.quizzes.map((quiz) => {
-                  const attempts = quizAttemptsMap.get(quiz.id) || [];
-                  const bestAttempt = attempts.find((a) => a.passed) || attempts[0];
-                  const hasPassed = attempts.some((a) => a.passed);
-
-                  return (
-                    <Card key={quiz.id} className="shadow-card overflow-hidden">
-                      <CardContent className="p-5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                              hasPassed ? 'bg-green-100' : 'bg-maxxed-blue/10'
-                            }`}>
-                              {hasPassed ? (
-                                <Trophy className="w-6 h-6 text-green-600" />
+                        return (
+                          <div
+                            key={lesson.id}
+                            className={`px-5 py-4 flex items-center gap-4 ${
+                              isAccessible ? 'hover:bg-gray-50' : 'opacity-60'
+                            }`}
+                          >
+                            {/* Status Icon */}
+                            <div className="flex-shrink-0">
+                              {isCompleted ? (
+                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                  <CheckCircle className="w-5 h-5 text-green-600" />
+                                </div>
+                              ) : isAccessible ? (
+                                <div className="w-8 h-8 rounded-full bg-maxxed-blue/10 flex items-center justify-center">
+                                  <Play className="w-4 h-4 text-maxxed-blue" />
+                                </div>
                               ) : (
-                                <FileQuestion className="w-6 h-6 text-maxxed-blue" />
-                              )}
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-text-dark">{quiz.title}</h3>
-                              {quiz.description && (
-                                <p className="text-sm text-text-muted mt-0.5">{quiz.description}</p>
-                              )}
-                              <div className="flex items-center gap-4 mt-2 text-sm text-text-muted">
-                                <span>{quiz._count.questions} questions</span>
-                                <span>{quiz.passingScore}% to pass</span>
-                                {quiz.timeLimit && <span>{quiz.timeLimit} min limit</span>}
-                              </div>
-                              {bestAttempt && (
-                                <div className={`mt-2 text-sm font-medium ${
-                                  bestAttempt.passed ? 'text-green-600' : 'text-orange-600'
-                                }`}>
-                                  {bestAttempt.passed ? (
-                                    <>Best Score: {bestAttempt.score}% - Passed!</>
-                                  ) : (
-                                    <>Last Score: {bestAttempt.score}% - {attempts.length} attempt{attempts.length !== 1 ? 's' : ''}</>
-                                  )}
+                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                  <Lock className="w-4 h-4 text-gray-400" />
                                 </div>
                               )}
                             </div>
-                          </div>
-                          <div>
-                            {isEnrolled ? (
-                              <Link
-                                href={`/courses/${course.slug}/quiz/${quiz.id}`}
-                                className={`flex items-center gap-2 px-4 py-2 rounded font-medium transition-colors ${
-                                  hasPassed
-                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    : 'bg-maxxed-blue text-white hover:bg-maxxed-blue-dark'
-                                }`}
-                              >
-                                {hasPassed ? 'Retake Quiz' : attempts.length > 0 ? 'Try Again' : 'Start Quiz'}
-                              </Link>
-                            ) : (
-                              <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 rounded">
-                                <Lock className="w-4 h-4" />
-                                Locked
+
+                            {/* Lesson Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-text-muted">
+                                  {moduleIndex + 1}.{lessonIndex + 1}
+                                </span>
+                                {isAccessible ? (
+                                  <Link
+                                    href={`/courses/${course.slug}/lessons/${lesson.slug}`}
+                                    className="font-medium text-text-dark hover:text-maxxed-blue truncate"
+                                  >
+                                    {lesson.title}
+                                  </Link>
+                                ) : (
+                                  <span className="font-medium text-text-dark truncate">
+                                    {lesson.title}
+                                  </span>
+                                )}
+                                {lesson.isFree && !isEnrolled && (
+                                  <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">
+                                    Free Preview
+                                  </span>
+                                )}
                               </div>
+                              {lesson.description && (
+                                <p className="text-sm text-text-muted truncate mt-0.5">
+                                  {lesson.description}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Duration & Action */}
+                            <div className="flex items-center gap-4 flex-shrink-0">
+                              <span className="text-sm text-text-muted">{durationMin} min</span>
+                              {isAccessible && (
+                                <Link
+                                  href={`/courses/${course.slug}/lessons/${lesson.slug}`}
+                                  className="text-maxxed-blue hover:text-maxxed-blue-dark"
+                                >
+                                  <ChevronRight className="w-5 h-5" />
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Module Quiz Row */}
+                      {moduleQuiz && (
+                        <div className={`px-5 py-4 flex items-center gap-4 bg-purple-50/50 ${isEnrolled ? 'hover:bg-purple-50' : 'opacity-60'}`}>
+                          <div className="flex-shrink-0">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              hasPassed_module ? 'bg-green-100' : 'bg-purple-100'
+                            }`}>
+                              {hasPassed_module ? (
+                                <Trophy className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <FileQuestion className="w-4 h-4 text-purple-600" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-purple-600 font-medium">Quiz</span>
+                              {isEnrolled ? (
+                                <Link
+                                  href={`/courses/${course.slug}/quiz/${moduleQuiz.id}`}
+                                  className="font-medium text-text-dark hover:text-purple-700 truncate"
+                                >
+                                  Module {moduleIndex + 1} Quiz
+                                </Link>
+                              ) : (
+                                <span className="font-medium text-text-dark truncate">
+                                  Module {moduleIndex + 1} Quiz
+                                </span>
+                              )}
+                              {hasPassed_module && (
+                                <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">
+                                  Passed
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-text-muted mt-0.5">
+                              {moduleQuiz._count.questions} questions • {moduleQuiz.passingScore}% to pass
+                              {bestAttempt_module && !hasPassed_module && (
+                                <span className="text-orange-600 ml-2">Last: {bestAttempt_module.score}%</span>
+                              )}
+                              {bestAttempt_module && hasPassed_module && (
+                                <span className="text-green-600 ml-2">Score: {bestAttempt_module.score}%</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-4 flex-shrink-0">
+                            {isEnrolled && (
+                              <Link
+                                href={`/courses/${course.slug}/quiz/${moduleQuiz.id}`}
+                                className="text-purple-600 hover:text-purple-800"
+                              >
+                                <ChevronRight className="w-5 h-5" />
+                              </Link>
                             )}
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                      )}
+                    </div>
+                  </Card>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Final Exam Section */}
+          {(() => {
+            const finalExam = course.quizzes.find((q) => q.order >= course.modules.length);
+            if (!finalExam) return null;
+
+            const attempts = quizAttemptsMap.get(finalExam.id) || [];
+            const bestAttempt = attempts.find((a) => a.passed) || attempts[0];
+            const hasPassed = attempts.some((a) => a.passed);
+
+            return (
+              <div className="mt-8">
+                <Card className="shadow-card overflow-hidden border-2 border-maxxed-gold">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
+                          hasPassed ? 'bg-green-100' : 'bg-maxxed-gold/20'
+                        }`}>
+                          {hasPassed ? (
+                            <Trophy className="w-7 h-7 text-green-600" />
+                          ) : (
+                            <Trophy className="w-7 h-7 text-maxxed-gold" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg text-text-dark">{finalExam.title}</h3>
+                          {finalExam.description && (
+                            <p className="text-sm text-text-muted mt-0.5">{finalExam.description}</p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2 text-sm text-text-muted">
+                            <span>{finalExam._count.questions} questions</span>
+                            <span>{finalExam.passingScore}% to pass</span>
+                            {finalExam.timeLimit && <span>{finalExam.timeLimit} min limit</span>}
+                          </div>
+                          {bestAttempt && (
+                            <div className={`mt-2 text-sm font-medium ${
+                              bestAttempt.passed ? 'text-green-600' : 'text-orange-600'
+                            }`}>
+                              {bestAttempt.passed ? (
+                                <>Best Score: {bestAttempt.score}% - Certified!</>
+                              ) : (
+                                <>Last Score: {bestAttempt.score}% - {attempts.length} attempt{attempts.length !== 1 ? 's' : ''}</>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        {isEnrolled ? (
+                          <Link
+                            href={`/courses/${course.slug}/quiz/${finalExam.id}`}
+                            className={`flex items-center gap-2 px-5 py-3 rounded-lg font-bold transition-colors ${
+                              hasPassed
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                : 'bg-maxxed-gold text-white hover:bg-yellow-600'
+                            }`}
+                          >
+                            {hasPassed ? 'View Certificate' : attempts.length > 0 ? 'Retake Exam' : 'Take Final Exam'}
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-2 px-5 py-3 bg-gray-100 text-gray-500 rounded-lg">
+                            <Lock className="w-4 h-4" />
+                            Locked
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </main>
       <Footer />
