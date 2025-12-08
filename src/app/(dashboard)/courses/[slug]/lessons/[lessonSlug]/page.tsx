@@ -269,6 +269,15 @@ export default async function LessonPage({ params }: LessonPageProps) {
                         const quizAttemptsList = moduleQuiz ? quizAttemptsMap.get(moduleQuiz.id) || [] : [];
                         const hasPassed = quizAttemptsList.some((a) => a.passed);
 
+                        // Check if all lessons in this module AND all prior modules are completed
+                        const allPriorModulesCompleted = course.modules
+                          .slice(0, moduleIndex)
+                          .every((m) => m.lessons.every((l) => progressMap.get(l.id)?.completed));
+                        const allModuleLessonsCompleted = module.lessons.every(
+                          (l) => progressMap.get(l.id)?.completed
+                        );
+                        const quizUnlocked = allPriorModulesCompleted && allModuleLessonsCompleted;
+
                         return (
                           <div key={module.id}>
                             <div className="px-4 py-2 bg-gray-50 text-sm font-medium text-text-muted border-b">
@@ -310,19 +319,28 @@ export default async function LessonPage({ params }: LessonPageProps) {
                             })}
                             {/* Module Quiz */}
                             {moduleQuiz && isEnrolled && (
-                              <Link
-                                href={`/courses/${slug}/quiz/${moduleQuiz.id}`}
-                                className="flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors bg-purple-50 hover:bg-purple-100"
-                              >
-                                {hasPassed ? (
-                                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                ) : (
-                                  <FileQuestion className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                                )}
-                                <span className="truncate text-purple-700 font-medium">
-                                  Quiz: {moduleQuiz.title}
-                                </span>
-                              </Link>
+                              quizUnlocked ? (
+                                <Link
+                                  href={`/courses/${slug}/quiz/${moduleQuiz.id}`}
+                                  className="flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors bg-purple-50 hover:bg-purple-100"
+                                >
+                                  {hasPassed ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                  ) : (
+                                    <FileQuestion className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                  )}
+                                  <span className="truncate font-medium text-purple-700">
+                                    Quiz: {moduleQuiz.title}
+                                  </span>
+                                </Link>
+                              ) : (
+                                <div className="flex items-center gap-3 px-4 py-3 border-b text-sm bg-gray-100 opacity-60 cursor-not-allowed">
+                                  <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  <span className="truncate font-medium text-gray-500">
+                                    Quiz: {moduleQuiz.title}
+                                  </span>
+                                </div>
+                              )
                             )}
                           </div>
                         );
@@ -333,7 +351,11 @@ export default async function LessonPage({ params }: LessonPageProps) {
                         if (!finalExam || !isEnrolled) return null;
                         const finalAttempts = quizAttemptsMap.get(finalExam.id) || [];
                         const finalPassed = finalAttempts.some((a) => a.passed);
-                        return (
+                        // Final exam requires ALL lessons completed
+                        const allLessonsCompleted = allLessons.every(
+                          (l) => progressMap.get(l.lesson.id)?.completed
+                        );
+                        return allLessonsCompleted ? (
                           <Link
                             href={`/courses/${slug}/quiz/${finalExam.id}`}
                             className="flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors bg-amber-50 hover:bg-amber-100"
@@ -343,10 +365,17 @@ export default async function LessonPage({ params }: LessonPageProps) {
                             ) : (
                               <Trophy className="w-4 h-4 text-amber-600 flex-shrink-0" />
                             )}
-                            <span className="truncate text-amber-700 font-medium">
+                            <span className="truncate font-medium text-amber-700">
                               {finalExam.title}
                             </span>
                           </Link>
+                        ) : (
+                          <div className="flex items-center gap-3 px-4 py-3 border-b text-sm bg-gray-100 opacity-60 cursor-not-allowed">
+                            <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="truncate font-medium text-gray-500">
+                              {finalExam.title}
+                            </span>
+                          </div>
                         );
                       })()}
                     </div>

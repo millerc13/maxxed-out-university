@@ -50,6 +50,57 @@ export async function GET(
     if (!enrollment) {
       return NextResponse.json({ error: 'Not enrolled in course' }, { status: 403 });
     }
+
+    // Check if user has completed prerequisite lessons
+    // Quiz order corresponds to module index (0-9 = module quizzes, 10+ = final exam)
+    const course = await prisma.course.findUnique({
+      where: { id: quiz.courseId },
+      include: {
+        modules: {
+          include: {
+            lessons: { select: { id: true } },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (course) {
+      // Get all lesson IDs that must be completed before this quiz
+      let requiredLessonIds: string[] = [];
+
+      if (quiz.order >= course.modules.length) {
+        // Final exam - requires ALL lessons completed
+        requiredLessonIds = course.modules.flatMap((m) => m.lessons.map((l) => l.id));
+      } else {
+        // Module quiz - requires all lessons up to and including this module
+        for (let i = 0; i <= quiz.order; i++) {
+          if (course.modules[i]) {
+            requiredLessonIds.push(...course.modules[i].lessons.map((l) => l.id));
+          }
+        }
+      }
+
+      // Check if user has completed all required lessons
+      const completedProgress = await prisma.lessonProgress.findMany({
+        where: {
+          userId: session.user.id,
+          lessonId: { in: requiredLessonIds },
+          completed: true,
+        },
+      });
+
+      if (completedProgress.length < requiredLessonIds.length) {
+        const remainingLessons = requiredLessonIds.length - completedProgress.length;
+        return NextResponse.json(
+          {
+            error: 'Prerequisites not met',
+            message: `Complete ${remainingLessons} more lesson${remainingLessons !== 1 ? 's' : ''} to unlock this quiz`,
+          },
+          { status: 403 }
+        );
+      }
+    }
   }
 
   return NextResponse.json(quiz);

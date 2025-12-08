@@ -12,7 +12,8 @@ import {
   XCircle,
   Trophy,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -68,12 +69,16 @@ export default function QuizPage({ params }: QuizPageProps) {
       try {
         const res = await fetch(`/api/quiz/${quizId}`);
         if (!res.ok) {
+          const data = await res.json();
+          if (data.error === 'Prerequisites not met') {
+            throw new Error(data.message || 'Complete all lessons before taking this quiz');
+          }
           throw new Error('Failed to load quiz');
         }
         const data = await res.json();
         setQuiz(data);
-      } catch (err) {
-        setError('Failed to load quiz. Please try again.');
+      } catch (err: any) {
+        setError(err.message || 'Failed to load quiz. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -164,6 +169,7 @@ export default function QuizPage({ params }: QuizPageProps) {
   }
 
   if (error || !quiz) {
+    const isPrerequisiteError = error?.includes('lesson');
     return (
       <>
         <Header />
@@ -171,8 +177,14 @@ export default function QuizPage({ params }: QuizPageProps) {
           <div className="max-w-3xl mx-auto px-5 py-12">
             <Card>
               <CardContent className="p-8 text-center">
-                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Error</h2>
+                {isPrerequisiteError ? (
+                  <Lock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                ) : (
+                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                )}
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  {isPrerequisiteError ? 'Quiz Locked' : 'Error'}
+                </h2>
                 <p className="text-gray-600 mb-6">{error || 'Quiz not found'}</p>
                 <Link
                   href={`/courses/${courseSlug}`}

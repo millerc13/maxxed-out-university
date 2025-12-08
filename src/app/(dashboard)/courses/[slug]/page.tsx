@@ -220,6 +220,15 @@ export default async function CoursePage({ params }: CoursePageProps) {
               const bestAttempt_module = quizAttempts_module.find((a) => a.passed) || quizAttempts_module[0];
               const hasPassed_module = quizAttempts_module.some((a) => a.passed);
 
+              // Check if all lessons in this module AND all prior modules are completed
+              const allPriorModulesCompleted = course.modules
+                .slice(0, moduleIndex)
+                .every((m) => m.lessons.every((l) => progressMap.get(l.id)?.completed));
+              const allModuleLessonsCompleted = module.lessons.every(
+                (l) => progressMap.get(l.id)?.completed
+              );
+              const quizUnlocked = isEnrolled && allPriorModulesCompleted && allModuleLessonsCompleted;
+
               return (
                 <div key={module.id} className="space-y-4">
                   <Card className="shadow-card overflow-hidden">
@@ -316,22 +325,28 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
                       {/* Module Quiz Row */}
                       {moduleQuiz && (
-                        <div className={`px-5 py-4 flex items-center gap-4 bg-purple-50/50 ${isEnrolled ? 'hover:bg-purple-50' : 'opacity-60'}`}>
+                        <div className={`px-5 py-4 flex items-center gap-4 ${
+                          quizUnlocked
+                            ? 'bg-purple-50/50 hover:bg-purple-50'
+                            : 'bg-gray-50 opacity-60'
+                        }`}>
                           <div className="flex-shrink-0">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              hasPassed_module ? 'bg-green-100' : 'bg-purple-100'
+                              hasPassed_module ? 'bg-green-100' : quizUnlocked ? 'bg-purple-100' : 'bg-gray-200'
                             }`}>
                               {hasPassed_module ? (
                                 <Trophy className="w-4 h-4 text-green-600" />
-                              ) : (
+                              ) : quizUnlocked ? (
                                 <FileQuestion className="w-4 h-4 text-purple-600" />
+                              ) : (
+                                <Lock className="w-4 h-4 text-gray-400" />
                               )}
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-purple-600 font-medium">Quiz</span>
-                              {isEnrolled ? (
+                              <span className={`text-sm font-medium ${quizUnlocked ? 'text-purple-600' : 'text-gray-500'}`}>Quiz</span>
+                              {quizUnlocked ? (
                                 <Link
                                   href={`/courses/${course.slug}/quiz/${moduleQuiz.id}`}
                                   className="font-medium text-text-dark hover:text-purple-700 truncate"
@@ -339,13 +354,18 @@ export default async function CoursePage({ params }: CoursePageProps) {
                                   Module {moduleIndex + 1} Quiz
                                 </Link>
                               ) : (
-                                <span className="font-medium text-text-dark truncate">
+                                <span className="font-medium text-gray-500 truncate">
                                   Module {moduleIndex + 1} Quiz
                                 </span>
                               )}
                               {hasPassed_module && (
                                 <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded">
                                   Passed
+                                </span>
+                              )}
+                              {!quizUnlocked && !hasPassed_module && (
+                                <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded">
+                                  Complete lessons first
                                 </span>
                               )}
                             </div>
@@ -360,7 +380,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                             </p>
                           </div>
                           <div className="flex items-center gap-4 flex-shrink-0">
-                            {isEnrolled && (
+                            {quizUnlocked && (
                               <Link
                                 href={`/courses/${course.slug}/quiz/${moduleQuiz.id}`}
                                 className="text-purple-600 hover:text-purple-800"
@@ -387,23 +407,35 @@ export default async function CoursePage({ params }: CoursePageProps) {
             const bestAttempt = attempts.find((a) => a.passed) || attempts[0];
             const hasPassed = attempts.some((a) => a.passed);
 
+            // Final exam requires ALL lessons completed
+            const allLessonsCompleted = course.modules.every((m) =>
+              m.lessons.every((l) => progressMap.get(l.id)?.completed)
+            );
+            const finalExamUnlocked = isEnrolled && allLessonsCompleted;
+
             return (
               <div className="mt-8">
-                <Card className="shadow-card overflow-hidden border-2 border-maxxed-gold">
+                <Card className={`shadow-card overflow-hidden border-2 ${
+                  finalExamUnlocked ? 'border-maxxed-gold' : 'border-gray-200'
+                }`}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                          hasPassed ? 'bg-green-100' : 'bg-maxxed-gold/20'
+                          hasPassed ? 'bg-green-100' : finalExamUnlocked ? 'bg-maxxed-gold/20' : 'bg-gray-100'
                         }`}>
                           {hasPassed ? (
                             <Trophy className="w-7 h-7 text-green-600" />
-                          ) : (
+                          ) : finalExamUnlocked ? (
                             <Trophy className="w-7 h-7 text-maxxed-gold" />
+                          ) : (
+                            <Lock className="w-7 h-7 text-gray-400" />
                           )}
                         </div>
                         <div>
-                          <h3 className="font-bold text-lg text-text-dark">{finalExam.title}</h3>
+                          <h3 className={`font-bold text-lg ${finalExamUnlocked ? 'text-text-dark' : 'text-gray-500'}`}>
+                            {finalExam.title}
+                          </h3>
                           {finalExam.description && (
                             <p className="text-sm text-text-muted mt-0.5">{finalExam.description}</p>
                           )}
@@ -412,6 +444,11 @@ export default async function CoursePage({ params }: CoursePageProps) {
                             <span>{finalExam.passingScore}% to pass</span>
                             {finalExam.timeLimit && <span>{finalExam.timeLimit} min limit</span>}
                           </div>
+                          {!finalExamUnlocked && !hasPassed && (
+                            <div className="mt-2 text-sm text-gray-500">
+                              Complete all {totalLessons} lessons to unlock the final exam
+                            </div>
+                          )}
                           {bestAttempt && (
                             <div className={`mt-2 text-sm font-medium ${
                               bestAttempt.passed ? 'text-green-600' : 'text-orange-600'
@@ -426,7 +463,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         </div>
                       </div>
                       <div>
-                        {isEnrolled ? (
+                        {finalExamUnlocked ? (
                           <Link
                             href={`/courses/${course.slug}/quiz/${finalExam.id}`}
                             className={`flex items-center gap-2 px-5 py-3 rounded-lg font-bold transition-colors ${
@@ -440,7 +477,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         ) : (
                           <div className="flex items-center gap-2 px-5 py-3 bg-gray-100 text-gray-500 rounded-lg">
                             <Lock className="w-4 h-4" />
-                            Locked
+                            {isEnrolled ? 'Complete Lessons' : 'Locked'}
                           </div>
                         )}
                       </div>
