@@ -1,98 +1,82 @@
-'use client';
-
+import { prisma } from '@/lib/prisma';
 import { CourseCard } from './CourseCard';
+import { Clock } from 'lucide-react';
 
-// Sample courses data - will be replaced with real data from database
-const sampleCourses = [
-  {
-    id: '1',
-    title: 'Real Estate Fundamentals',
-    slug: 'real-estate-fundamentals',
-    badge: 'BEGINNER',
-    learningPoints: [
-      'Understanding real estate market basics',
-      'How to analyze potential deals',
-      'Financing options and strategies',
-      'Building your investment portfolio',
-    ],
-  },
-  {
-    id: '2',
-    title: 'Advanced Deal Analysis',
-    slug: 'advanced-deal-analysis',
-    badge: 'ADVANCED',
-    learningPoints: [
-      'Deep dive into property valuation',
-      'Cash flow analysis techniques',
-      'Risk assessment strategies',
-      'Exit strategy planning',
-    ],
-  },
-  {
-    id: '3',
-    title: 'Creative Financing',
-    slug: 'creative-financing',
-    badge: 'INTERMEDIATE',
-    learningPoints: [
-      'Seller financing strategies',
-      'Subject-to transactions',
-      'Lease options explained',
-      'Private money lending',
-    ],
-  },
-  {
-    id: '4',
-    title: 'Wholesaling Mastery',
-    slug: 'wholesaling-mastery',
-    badge: 'COURSE',
-    learningPoints: [
-      'Finding motivated sellers',
-      'Contract negotiation tactics',
-      'Building your buyers list',
-      'Assignment fee maximization',
-    ],
-  },
-  {
-    id: '5',
-    title: 'Fix & Flip Blueprint',
-    slug: 'fix-flip-blueprint',
-    badge: 'COURSE',
-    learningPoints: [
-      'Identifying profitable flips',
-      'Renovation budgeting',
-      'Contractor management',
-      'Selling for maximum profit',
-    ],
-  },
-  {
-    id: '6',
-    title: 'Rental Property Empire',
-    slug: 'rental-property-empire',
-    badge: 'ADVANCED',
-    learningPoints: [
-      'Building passive income streams',
-      'Property management essentials',
-      'Scaling your rental portfolio',
-      'Tax optimization strategies',
-    ],
-  },
-];
+export async function CoursesSection() {
+  // Fetch all published courses from database
+  const courses = await prisma.course.findMany({
+    where: { published: true },
+    include: {
+      modules: {
+        include: {
+          lessons: true,
+        },
+      },
+    },
+    orderBy: { order: 'asc' },
+  });
 
-export function CoursesSection() {
+  // Separate active courses (with lessons) from coming soon courses (no lessons)
+  const activeCourses = courses.filter(
+    (course) => course.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0
+  );
+  const comingSoonCourses = courses.filter(
+    (course) => course.modules.reduce((acc, m) => acc + m.lessons.length, 0) === 0
+  );
+
   return (
     <section className="py-16 px-5 md:px-10 max-w-[1300px] mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {sampleCourses.map((course) => (
-          <CourseCard
-            key={course.id}
-            id={course.id}
-            title={course.title}
-            slug={course.slug}
-            badge={course.badge}
-            learningPoints={course.learningPoints}
-          />
-        ))}
-      </div>
+      {/* Active Courses */}
+      {activeCourses.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+          {activeCourses.map((course) => (
+            <CourseCard
+              key={course.id}
+              id={course.id}
+              title={course.title}
+              slug={course.slug}
+              thumbnail={course.thumbnail || undefined}
+              badge="COURSE"
+              learningPoints={[]}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Coming Soon Section */}
+      {comingSoonCourses.length > 0 && (
+        <>
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-text-dark mb-2 flex items-center gap-2">
+              <Clock className="w-6 h-6 text-amber-500" />
+              Coming Soon
+            </h2>
+            <p className="text-text-body">
+              These courses are currently in development. Stay tuned!
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {comingSoonCourses.map((course) => (
+              <CourseCard
+                key={course.id}
+                id={course.id}
+                title={course.title}
+                slug={course.slug}
+                thumbnail={course.thumbnail || undefined}
+                badge="COMING SOON"
+                learningPoints={[]}
+                comingSoon={true}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {courses.length === 0 && (
+        <div className="text-center py-16">
+          <p className="text-text-muted text-lg">No courses available yet. Check back soon!</p>
+        </div>
+      )}
     </section>
   );
 }
