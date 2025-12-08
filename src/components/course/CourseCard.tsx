@@ -30,12 +30,12 @@ export function CourseCard({
     <div className="bg-white rounded-xl overflow-hidden shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-card-hover">
       {/* Thumbnail */}
       {thumbnail ? (
-        <div className="w-full h-[180px] relative bg-gradient-to-br from-[#1a3a4a] to-[#0d1f29]">
+        <div className="w-full aspect-video relative bg-gradient-to-br from-[#1a3a4a] to-[#0d1f29]">
           <Image
             src={thumbnail}
             alt={title}
             fill
-            className="object-contain"
+            className="object-cover"
           />
         </div>
       ) : (
