@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, Check, Clock } from 'lucide-react';
+import { ChevronRight, Check } from 'lucide-react';
 
 interface CourseCardProps {
   id: string;
@@ -60,19 +60,7 @@ export function CourseCard({
           </div>
         )}
 
-        {/* Coming Soon Overlay */}
-        {comingSoon && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-2 rounded-lg shadow-lg transform -rotate-3">
-              <span className="text-white font-bold text-lg uppercase tracking-wide flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Coming Soon
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Coming Soon Tag */}
+        {/* Coming Soon Tag - only show badge, no overlay */}
         {comingSoon && (
           <div className="absolute top-3 right-3">
             <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
