@@ -128,22 +128,33 @@ export default async function LessonPage({ params }: LessonPageProps) {
       <main className="min-h-screen bg-gray-900">
         <div className="max-w-7xl mx-auto">
           {/* Video Player Area */}
-          <div className="aspect-video bg-black flex items-center justify-center relative">
-            {/* Placeholder for video - in production would use Cloudflare Stream or similar */}
-            <div className="text-center text-white">
-              <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 cursor-pointer hover:bg-white/30 transition-colors">
-                <Play className="w-12 h-12 text-white ml-1" />
+          <div className="aspect-video bg-black relative">
+            {currentLesson.videoUrl ? (
+              <video
+                className="w-full h-full"
+                controls
+                autoPlay={false}
+                playsInline
+                poster=""
+              >
+                <source src={currentLesson.videoUrl} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-center text-white">
+                <div>
+                  <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
+                    <Play className="w-12 h-12 text-white ml-1" />
+                  </div>
+                  <p className="text-xl font-medium">{currentLesson.title}</p>
+                  <p className="text-gray-400 mt-2">Video coming soon</p>
+                </div>
               </div>
-              <p className="text-xl font-medium">{currentLesson.title}</p>
-              <p className="text-gray-400 mt-2">Video player placeholder</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Duration: {Math.floor((currentLesson.videoDuration || 0) / 60)} minutes
-              </p>
-            </div>
+            )}
 
             {/* Completion Badge */}
             {currentProgress?.completed && (
-              <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+              <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 z-10">
                 <CheckCircle className="w-4 h-4" />
                 Completed
               </div>
