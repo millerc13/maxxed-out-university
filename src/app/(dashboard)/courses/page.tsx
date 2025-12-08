@@ -190,23 +190,14 @@ export default async function CoursesPage() {
                           src={course.thumbnail}
                           alt={course.title}
                           fill
-                          className="object-cover grayscale"
+                          className="object-cover grayscale opacity-70"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center grayscale">
+                        <div className="w-full h-full flex items-center justify-center grayscale opacity-70">
                           <BookOpen className="w-12 h-12 text-gray-400" />
                         </div>
                       )}
-                      {/* Overlay */}
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2 rounded-lg shadow-lg transform -rotate-3">
-                          <span className="text-white font-bold text-sm uppercase tracking-wide flex items-center gap-2">
-                            <Clock className="w-4 h-4" />
-                            Coming Soon
-                          </span>
-                        </div>
-                      </div>
-                      {/* Tag */}
+                      {/* Coming Soon Tag */}
                       <div className="absolute top-2 right-2">
                         <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shadow-md">
                           Coming Soon
