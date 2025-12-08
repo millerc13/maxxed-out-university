@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List } from 'lucide-react';
+import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
@@ -14,7 +14,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
   const { slug, lessonSlug } = await params;
   const session = await auth();
 
-  // Get the course with all modules and lessons
+  // Get the course with all modules, lessons, and quizzes
   const course = await prisma.course.findUnique({
     where: { slug, published: true },
     include: {
@@ -25,6 +25,15 @@ export default async function LessonPage({ params }: LessonPageProps) {
           },
         },
         orderBy: { order: 'asc' },
+      },
+      quizzes: {
+        where: { published: true },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          title: true,
+          order: true,
+        },
       },
     },
   });
@@ -88,6 +97,25 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   const progressMap = new Map(progress.map((p) => [p.lessonId, p]));
   const currentProgress = progressMap.get(currentLesson.id);
+
+  // Get quiz attempts for this course's quizzes
+  const quizAttempts = session?.user?.id
+    ? await prisma.quizAttempt.findMany({
+        where: {
+          userId: session.user.id,
+          quizId: { in: course.quizzes.map((q) => q.id) },
+        },
+        orderBy: { completedAt: 'desc' },
+      })
+    : [];
+
+  // Group quiz attempts by quizId
+  const quizAttemptsMap = new Map<string, typeof quizAttempts>();
+  for (const attempt of quizAttempts) {
+    const existing = quizAttemptsMap.get(attempt.quizId) || [];
+    existing.push(attempt);
+    quizAttemptsMap.set(attempt.quizId, existing);
+  }
 
   // Navigation
   const prevLesson = lessonIndex > 0 ? allLessons[lessonIndex - 1] : null;
@@ -235,47 +263,92 @@ export default async function LessonPage({ params }: LessonPageProps) {
                       </p>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
-                      {course.modules.map((module) => (
-                        <div key={module.id}>
-                          <div className="px-4 py-2 bg-gray-50 text-sm font-medium text-text-muted border-b">
-                            {module.title}
-                          </div>
-                          {module.lessons.map((lesson) => {
-                            const lProgress = progressMap.get(lesson.id);
-                            const isCurrent = lesson.id === currentLesson.id;
-                            const isLocked = !isEnrolled && !lesson.isFree;
+                      {course.modules.map((module, moduleIndex) => {
+                        // Find quiz for this module (quiz order matches module index)
+                        const moduleQuiz = course.quizzes.find((q) => q.order === moduleIndex);
+                        const quizAttemptsList = moduleQuiz ? quizAttemptsMap.get(moduleQuiz.id) || [] : [];
+                        const hasPassed = quizAttemptsList.some((a) => a.passed);
 
-                            return (
-                              <Link
-                                key={lesson.id}
-                                href={isLocked ? '#' : `/courses/${slug}/lessons/${lesson.slug}`}
-                                className={`flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors ${
-                                  isCurrent
-                                    ? 'bg-maxxed-blue/10 border-l-4 border-l-maxxed-blue'
-                                    : isLocked
-                                    ? 'opacity-50 cursor-not-allowed'
-                                    : 'hover:bg-gray-50'
-                                }`}
-                              >
-                                {lProgress?.completed ? (
-                                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                ) : isLocked ? (
-                                  <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                ) : (
-                                  <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                )}
-                                <span
-                                  className={`truncate ${
-                                    isCurrent ? 'font-medium text-maxxed-blue' : 'text-text-body'
+                        return (
+                          <div key={module.id}>
+                            <div className="px-4 py-2 bg-gray-50 text-sm font-medium text-text-muted border-b">
+                              {module.title}
+                            </div>
+                            {module.lessons.map((lesson) => {
+                              const lProgress = progressMap.get(lesson.id);
+                              const isCurrent = lesson.id === currentLesson.id;
+                              const isLocked = !isEnrolled && !lesson.isFree;
+
+                              return (
+                                <Link
+                                  key={lesson.id}
+                                  href={isLocked ? '#' : `/courses/${slug}/lessons/${lesson.slug}`}
+                                  className={`flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors ${
+                                    isCurrent
+                                      ? 'bg-maxxed-blue/10 border-l-4 border-l-maxxed-blue'
+                                      : isLocked
+                                      ? 'opacity-50 cursor-not-allowed'
+                                      : 'hover:bg-gray-50'
                                   }`}
                                 >
-                                  {lesson.title}
+                                  {lProgress?.completed ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                  ) : isLocked ? (
+                                    <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  ) : (
+                                    <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  )}
+                                  <span
+                                    className={`truncate ${
+                                      isCurrent ? 'font-medium text-maxxed-blue' : 'text-text-body'
+                                    }`}
+                                  >
+                                    {lesson.title}
+                                  </span>
+                                </Link>
+                              );
+                            })}
+                            {/* Module Quiz */}
+                            {moduleQuiz && isEnrolled && (
+                              <Link
+                                href={`/courses/${slug}/quiz/${moduleQuiz.id}`}
+                                className="flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors bg-purple-50 hover:bg-purple-100"
+                              >
+                                {hasPassed ? (
+                                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                ) : (
+                                  <FileQuestion className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                )}
+                                <span className="truncate text-purple-700 font-medium">
+                                  Quiz: {moduleQuiz.title}
                                 </span>
                               </Link>
-                            );
-                          })}
-                        </div>
-                      ))}
+                            )}
+                          </div>
+                        );
+                      })}
+                      {/* Final Exam at the bottom */}
+                      {(() => {
+                        const finalExam = course.quizzes.find((q) => q.order >= course.modules.length);
+                        if (!finalExam || !isEnrolled) return null;
+                        const finalAttempts = quizAttemptsMap.get(finalExam.id) || [];
+                        const finalPassed = finalAttempts.some((a) => a.passed);
+                        return (
+                          <Link
+                            href={`/courses/${slug}/quiz/${finalExam.id}`}
+                            className="flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors bg-amber-50 hover:bg-amber-100"
+                          >
+                            {finalPassed ? (
+                              <Trophy className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            ) : (
+                              <Trophy className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                            )}
+                            <span className="truncate text-amber-700 font-medium">
+                              {finalExam.title}
+                            </span>
+                          </Link>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
