@@ -46,8 +46,9 @@ export function Header() {
             src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png"
             alt="Maxxed Out"
             width={180}
-            height={50}
+            height={71}
             className="h-12 w-auto"
+            unoptimized
           />
           <span className="hidden sm:inline">TODD PULTZ</span>
         </Link>
