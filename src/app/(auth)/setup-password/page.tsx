@@ -2,7 +2,6 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,30 +53,13 @@ function SetupPasswordContent() {
         return;
       }
 
-      // Try to sign in with the new password
-      const result = await signIn('credentials', {
-        email: email.toLowerCase().trim(),
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        console.error('Sign in error after password setup:', result.error);
-        // Password was set successfully, just redirect to login
-        setSuccess(true);
-        setTimeout(() => router.push('/login?message=password_set'), 1500);
-        return;
-      }
-
-      if (result?.ok) {
-        setSuccess(true);
-        setTimeout(() => router.push('/dashboard'), 1500);
-        return;
-      }
-
-      // Fallback - password set, redirect to login
+      // Password set successfully - user should already be logged in from the magic link
+      // Just redirect to dashboard
       setSuccess(true);
-      setTimeout(() => router.push('/login?message=password_set'), 1500);
+      setTimeout(() => {
+        // Force a full page reload to ensure session is picked up
+        window.location.href = '/dashboard';
+      }, 1500);
     } catch (err) {
       console.error('Setup password error:', err);
       setError('Something went wrong. Please try again.');

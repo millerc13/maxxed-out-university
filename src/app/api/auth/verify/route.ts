@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { signIn } from '@/lib/auth';
+import { encode } from 'next-auth/jwt';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
@@ -45,14 +45,45 @@ export async function GET(request: NextRequest) {
     });
 
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const user = magicLink.user;
 
     // Check if user has a password set
-    const hasPassword = !!magicLink.user.passwordHash;
+    const hasPassword = !!user.passwordHash;
 
-    // If user needs to set up a password, redirect directly to setup page
+    // Create JWT session token
+    const secret = process.env.AUTH_SECRET!;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieName = isProduction ? '__Secure-authjs.session-token' : 'authjs.session-token';
+
+    const sessionToken = await encode({
+      token: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+        sub: user.id,
+      },
+      secret,
+      salt: cookieName,
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+
+    // Set the session cookie
+    const cookieStore = await cookies();
+
+    cookieStore.set(cookieName, sessionToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    });
+
+    // If user needs to set up a password, redirect to setup page (but they're logged in)
     if (!hasPassword) {
       return NextResponse.redirect(
-        new URL(`/setup-password?email=${encodeURIComponent(magicLink.user.email)}&userId=${magicLink.userId}`, baseUrl)
+        new URL(`/setup-password?email=${encodeURIComponent(user.email)}&userId=${user.id}`, baseUrl)
       );
     }
 
