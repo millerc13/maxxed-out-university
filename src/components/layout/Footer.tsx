@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Facebook, Instagram, Youtube } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 // TikTok icon component
 function TikTokIcon({ className }: { className?: string }) {
@@ -34,6 +35,13 @@ const legalLinks = [
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
+
+  // Filter out Member Login if user is authenticated
+  const filteredQuickLinks = isAuthenticated
+    ? quickLinks.filter(link => link.label !== 'Member Login')
+    : quickLinks;
 
   return (
     <footer className="bg-maxxed-dark text-text-muted pt-16 pb-8 px-5 md:px-12">
@@ -82,7 +90,7 @@ export function Footer() {
               Quick Links
             </h4>
             <ul className="list-none p-0 m-0">
-              {quickLinks.map((link) => (
+              {filteredQuickLinks.map((link) => (
                 <li key={link.label} className="mb-3">
                   <Link
                     href={link.href}
