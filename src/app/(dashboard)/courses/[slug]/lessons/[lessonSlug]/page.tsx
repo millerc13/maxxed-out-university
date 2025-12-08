@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
+import { MarkdownContent } from '@/components/ui/markdown-content';
 import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -208,10 +209,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
                       <p className="text-text-body mb-6">{currentLesson.description}</p>
                     )}
                     {currentLesson.content ? (
-                      <div
-                        className="prose prose-blue max-w-none"
-                        dangerouslySetInnerHTML={{ __html: currentLesson.content }}
-                      />
+                      <MarkdownContent content={currentLesson.content} />
                     ) : (
                       <p className="text-text-muted italic">
                         No additional content for this lesson.
