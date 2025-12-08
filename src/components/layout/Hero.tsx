@@ -2,19 +2,29 @@
 
 import Image from 'next/image';
 
-// Sample images for the mosaic - these would be real course/event images
+// Course images for the mosaic
 const mosaicImages = [
-  '/images/BBV LIVE Day 1-134 (1).JPEG',
-  '/images/book-cover.jpg',
-  '/images/Screenshot 2025-12-01 at 12.48.27 PM.png',
-  '/images/temp (1).webp',
-  '/images/IMG_6643 (1).PNG',
-  '/images/IMG_6645 (2).PNG',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png',
 ];
 
-function MosaicRow({ reverse = false }: { reverse?: boolean }) {
-  // Duplicate images for seamless scrolling
-  const images = [...mosaicImages, ...mosaicImages, ...mosaicImages];
+function MosaicRow({ reverse = false, offset = 0 }: { reverse?: boolean; offset?: number }) {
+  // Duplicate images for seamless scrolling, with offset for variety
+  const offsetImages = [...mosaicImages.slice(offset), ...mosaicImages.slice(0, offset)];
+  const images = [...offsetImages, ...offsetImages, ...offsetImages];
 
   return (
     <div
@@ -29,10 +39,11 @@ function MosaicRow({ reverse = false }: { reverse?: boolean }) {
         >
           <Image
             src={src}
-            alt={`Training moment ${index + 1}`}
+            alt={`Course ${index + 1}`}
             width={200}
             height={130}
             className="w-full h-full object-cover"
+            unoptimized
           />
         </div>
       ))}
@@ -48,11 +59,11 @@ export function Hero() {
         className="absolute -top-5 -left-12 -right-12 -bottom-5 flex flex-col gap-2.5 opacity-60"
         style={{ transform: 'perspective(1000px) rotateX(5deg)' }}
       >
-        <MosaicRow />
-        <MosaicRow reverse />
-        <MosaicRow />
-        <MosaicRow reverse />
-        <MosaicRow />
+        <MosaicRow offset={0} />
+        <MosaicRow reverse offset={5} />
+        <MosaicRow offset={10} />
+        <MosaicRow reverse offset={3} />
+        <MosaicRow offset={8} />
       </div>
 
       {/* Dark Overlay */}
