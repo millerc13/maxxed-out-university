@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper endpoint to generate a signed link (for testing)
+// Helper endpoint to generate a signed link
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
@@ -68,18 +68,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
     }
 
-    const sig = generateSignature(email);
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const autoLoginLink = `${baseUrl}/api/auth/auto-login?email=${encodeURIComponent(email)}&sig=${sig}`;
+    // Verify the user exists before generating a link
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
 
-    return NextResponse.json({
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const sig = generateSignature(email.toLowerCase());
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const autoLoginLink = `${baseUrl}/api/auth/auto-login?email=${encodeURIComponent(email.toLowerCase())}&sig=${sig}`;
+
+    const response = NextResponse.json({
       success: true,
-      email,
+      email: email.toLowerCase(),
       signature: sig,
       autoLoginLink,
     });
+
+    // Add CORS headers for GHL pages
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    return response;
   } catch (error) {
     console.error('Generate link error:', error);
     return NextResponse.json({ error: 'Failed to generate link' }, { status: 500 });
   }
+}
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 200 });
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  return response;
 }
