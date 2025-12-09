@@ -97,10 +97,39 @@ export async function POST(request: NextRequest) {
 
     const courseComplete = completedLessons === allLessons.length;
 
-    // If form submission, redirect back
+    // Find the next lesson
+    const allLessonsOrdered = await prisma.lesson.findMany({
+      where: { module: { courseId: lesson.module.courseId } },
+      include: {
+        module: {
+          select: { order: true },
+        },
+      },
+      orderBy: [
+        { module: { order: 'asc' } },
+        { order: 'asc' },
+      ],
+    });
+
+    // Find current lesson index and get next
+    const currentIndex = allLessonsOrdered.findIndex((l) => l.id === lessonId);
+    const nextLesson = currentIndex >= 0 && currentIndex < allLessonsOrdered.length - 1
+      ? allLessonsOrdered[currentIndex + 1]
+      : null;
+
+    // If form submission, redirect to next lesson or course page
     if (!contentType.includes('application/json')) {
-      const referer = request.headers.get('referer') || `/courses/${lesson.module.course.slug}`;
-      return NextResponse.redirect(referer);
+      const baseUrl = new URL(request.url).origin;
+      let redirectUrl: string;
+
+      if (nextLesson) {
+        redirectUrl = `${baseUrl}/courses/${lesson.module.course.slug}/lessons/${nextLesson.slug}`;
+      } else {
+        // Last lesson - go back to course page
+        redirectUrl = `${baseUrl}/courses/${lesson.module.course.slug}`;
+      }
+
+      return NextResponse.redirect(redirectUrl);
     }
 
     return NextResponse.json({
@@ -109,6 +138,7 @@ export async function POST(request: NextRequest) {
       courseComplete,
       completedLessons,
       totalLessons: allLessons.length,
+      nextLessonSlug: nextLesson?.slug || null,
     });
   } catch (error) {
     console.error('Progress update error:', error);
