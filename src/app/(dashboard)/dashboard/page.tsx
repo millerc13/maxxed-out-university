@@ -189,7 +189,7 @@ export default async function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {coursesWithProgress.map((enrollment) => (
                   <Card key={enrollment.id} className="shadow-card overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="relative h-40 bg-gray-100">
+                    <div className="relative aspect-video bg-gray-100">
                       {enrollment.course.thumbnail ? (
                         <Image
                           src={enrollment.course.thumbnail}
