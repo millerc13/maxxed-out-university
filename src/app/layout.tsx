@@ -20,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${montserrat.variable} font-sans antialiased`}>
+    <html lang="en" style={{ colorScheme: 'light' }}>
+      <body className={`${montserrat.variable} font-sans antialiased bg-background`}>
         <SessionProvider>{children}</SessionProvider>
       </body>
     </html>

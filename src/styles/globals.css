@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force light color scheme to prevent dark mode flash */
+:root {
+  color-scheme: light;
+}
+
 @layer base {
   :root {
     /* MaxxedOut.com Color Scheme */
