@@ -65,11 +65,12 @@ export function AdminHeader({ user }: AdminHeaderProps) {
           </button>
           <Link href="/admin" className="flex items-center gap-3">
             <Image
-              src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png"
+              src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277b484ee4a3826c4e244a.png"
               alt="Maxxed Out"
-              width={32}
-              height={32}
+              width={120}
+              height={48}
               className="h-8 w-auto"
+              unoptimized
             />
             <div>
               <span className="font-bold text-lg">Admin Panel</span>

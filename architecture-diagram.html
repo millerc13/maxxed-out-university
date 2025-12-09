@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maxxed Out University - System Architecture</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 40px;
+      color: #fff;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 40px;
+      font-size: 1.1rem;
+    }
+
+    .diagram-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .section {
+      margin-bottom: 60px;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      color: #00d4ff;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #00d4ff33;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      gap: 30px;
+      justify-content: center;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Maxxed Out University</h1>
+  <p class="subtitle">Complete System Architecture & Data Flow</p>
+
+  <div class="diagram-container">
+
+    <!-- Main Architecture Overview -->
+    <div class="section">
+      <h2 class="section-title">1. High-Level System Architecture</h2>
+      <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="ghlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#ea580c;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="vercelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#000;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#333;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#00e5a0;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#00b377;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="userGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="socialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1" />
+          </linearGradient>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#00d4ff" />
+          </marker>
+          <marker id="arrowheadOrange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#f97316" />
+          </marker>
+          <marker id="arrowheadGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#00e5a0" />
+          </marker>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        <!-- Background -->
+        <rect width="1200" height="800" fill="#0d1117" rx="10"/>
+
+        <!-- Traffic Sources -->
+        <g transform="translate(50, 50)">
+          <rect x="0" y="0" width="120" height="60" rx="8" fill="url(#socialGrad)" filter="url(#glow)"/>
+          <text x="60" y="25" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Social Media</text>
+          <text x="60" y="42" text-anchor="middle" fill="white" font-size="9" opacity="0.8">FB / IG / TikTok</text>
+        </g>
+
+        <g transform="translate(200, 50)">
+          <rect x="0" y="0" width="120" height="60" rx="8" fill="#ff0000" filter="url(#glow)"/>
+          <text x="60" y="25" text-anchor="middle" fill="white" font-size="11" font-weight="bold">YouTube</text>
+          <text x="60" y="42" text-anchor="middle" fill="white" font-size="9" opacity="0.8">Content / Ads</text>
+        </g>
+
+        <g transform="translate(350, 50)">
+          <rect x="0" y="0" width="120" height="60" rx="8" fill="#10b981" filter="url(#glow)"/>
+          <text x="60" y="25" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Paid Ads</text>
+          <text x="60" y="42" text-anchor="middle" fill="white" font-size="9" opacity="0.8">Google / Meta</text>
+        </g>
+
+        <!-- Arrows from traffic to GHL -->
+        <path d="M 110 110 Q 110 150 300 180" stroke="#00d4ff" stroke-width="2" fill="none" marker-end="url(#arrowhead)" opacity="0.6"/>
+        <path d="M 260 110 L 300 180" stroke="#00d4ff" stroke-width="2" fill="none" marker-end="url(#arrowhead)" opacity="0.6"/>
+        <path d="M 410 110 Q 410 150 340 180" stroke="#00d4ff" stroke-width="2" fill="none" marker-end="url(#arrowhead)" opacity="0.6"/>
+
+        <!-- GoHighLevel Box -->
+        <g transform="translate(100, 180)">
+          <rect x="0" y="0" width="400" height="220" rx="12" fill="#1a1a2e" stroke="#f97316" stroke-width="2"/>
+          <rect x="0" y="0" width="400" height="40" rx="12" fill="url(#ghlGrad)"/>
+          <rect x="0" y="28" width="400" height="12" fill="url(#ghlGrad)"/>
+          <text x="200" y="26" text-anchor="middle" fill="white" font-size="14" font-weight="bold">GoHighLevel (GHL)</text>
+
+          <!-- GHL Components -->
+          <rect x="20" y="60" width="110" height="50" rx="6" fill="#2d2d44"/>
+          <text x="75" y="82" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">Landing Page</text>
+          <text x="75" y="97" text-anchor="middle" fill="#888" font-size="8">Lead Capture</text>
+
+          <rect x="145" y="60" width="110" height="50" rx="6" fill="#2d2d44"/>
+          <text x="200" y="82" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">Sales Funnel</text>
+          <text x="200" y="97" text-anchor="middle" fill="#888" font-size="8">Video + Offer</text>
+
+          <rect x="270" y="60" width="110" height="50" rx="6" fill="#2d2d44"/>
+          <text x="325" y="82" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">Checkout</text>
+          <text x="325" y="97" text-anchor="middle" fill="#888" font-size="8">Stripe / GHL Pay</text>
+
+          <!-- Arrows between GHL components -->
+          <path d="M 130 85 L 145 85" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#arrowheadOrange)"/>
+          <path d="M 255 85 L 270 85" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#arrowheadOrange)"/>
+
+          <!-- CRM & Automation -->
+          <rect x="20" y="130" width="170" height="50" rx="6" fill="#2d2d44"/>
+          <text x="105" y="152" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">CRM / Contact</text>
+          <text x="105" y="167" text-anchor="middle" fill="#888" font-size="8">Email, Phone, Tags</text>
+
+          <rect x="210" y="130" width="170" height="50" rx="6" fill="#2d2d44"/>
+          <text x="295" y="152" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">Automations</text>
+          <text x="295" y="167" text-anchor="middle" fill="#888" font-size="8">Workflows, Triggers</text>
+
+          <!-- Webhook indicator -->
+          <rect x="140" y="195" width="120" height="20" rx="4" fill="#f97316"/>
+          <text x="200" y="209" text-anchor="middle" fill="white" font-size="9" font-weight="bold">WEBHOOK POST</text>
+        </g>
+
+        <!-- Webhook Arrow -->
+        <path d="M 300 420 L 300 470" stroke="#f97316" stroke-width="3" fill="none" marker-end="url(#arrowheadOrange)" stroke-dasharray="5,5"/>
+        <text x="310" y="450" fill="#f97316" font-size="10">Purchase Event</text>
+
+        <!-- Vercel / Next.js Box -->
+        <g transform="translate(100, 480)">
+          <rect x="0" y="0" width="550" height="280" rx="12" fill="#1a1a2e" stroke="#fff" stroke-width="2"/>
+          <rect x="0" y="0" width="550" height="40" rx="12" fill="url(#vercelGrad)"/>
+          <rect x="0" y="28" width="550" height="12" fill="url(#vercelGrad)"/>
+          <text x="275" y="26" text-anchor="middle" fill="white" font-size="14" font-weight="bold">Vercel — Next.js Application</text>
+
+          <!-- API Routes -->
+          <rect x="20" y="55" width="250" height="140" rx="6" fill="#2d2d44"/>
+          <text x="145" y="75" text-anchor="middle" fill="#00d4ff" font-size="11" font-weight="bold">API Routes</text>
+
+          <text x="35" y="95" fill="#888" font-size="9">/api/webhooks/ghl</text>
+          <circle cx="240" cy="92" r="4" fill="#00e5a0"/>
+
+          <text x="35" y="115" fill="#888" font-size="9">/api/auth/auto-login</text>
+          <circle cx="240" cy="112" r="4" fill="#00e5a0"/>
+
+          <text x="35" y="135" fill="#888" font-size="9">/api/auth/[...nextauth]</text>
+          <circle cx="240" cy="132" r="4" fill="#00e5a0"/>
+
+          <text x="35" y="155" fill="#888" font-size="9">/api/progress/complete</text>
+          <circle cx="240" cy="152" r="4" fill="#00e5a0"/>
+
+          <text x="35" y="175" fill="#888" font-size="9">/api/quiz/[quizId]/submit</text>
+          <circle cx="240" cy="172" r="4" fill="#00e5a0"/>
+
+          <!-- Pages -->
+          <rect x="280" y="55" width="250" height="140" rx="6" fill="#2d2d44"/>
+          <text x="405" y="75" text-anchor="middle" fill="#8b5cf6" font-size="11" font-weight="bold">Pages (App Router)</text>
+
+          <text x="295" y="95" fill="#888" font-size="9">/dashboard</text>
+          <text x="295" y="115" fill="#888" font-size="9">/courses</text>
+          <text x="295" y="135" fill="#888" font-size="9">/courses/[slug]/lessons/[id]</text>
+          <text x="295" y="155" fill="#888" font-size="9">/admin/*</text>
+          <text x="295" y="175" fill="#888" font-size="9">/login</text>
+
+          <!-- Components -->
+          <rect x="20" y="205" width="160" height="60" rx="6" fill="#2d2d44"/>
+          <text x="100" y="230" text-anchor="middle" fill="#ec4899" font-size="10" font-weight="bold">React Components</text>
+          <text x="100" y="248" text-anchor="middle" fill="#888" font-size="8">UI, Video Player, Quiz</text>
+
+          <!-- Prisma -->
+          <rect x="195" y="205" width="160" height="60" rx="6" fill="#2d2d44"/>
+          <text x="275" y="230" text-anchor="middle" fill="#00e5a0" font-size="10" font-weight="bold">Prisma ORM</text>
+          <text x="275" y="248" text-anchor="middle" fill="#888" font-size="8">Database Queries</text>
+
+          <!-- Auth -->
+          <rect x="370" y="205" width="160" height="60" rx="6" fill="#2d2d44"/>
+          <text x="450" y="230" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="bold">NextAuth.js</text>
+          <text x="450" y="248" text-anchor="middle" fill="#888" font-size="8">Sessions, JWT</text>
+        </g>
+
+        <!-- Arrow to Database -->
+        <path d="M 375 760 L 375 800 Q 375 820 500 820 L 800 820 Q 850 820 850 790 L 850 750" stroke="#00e5a0" stroke-width="3" fill="none" marker-end="url(#arrowheadGreen)"/>
+
+        <!-- Neon Database -->
+        <g transform="translate(750, 480)">
+          <rect x="0" y="0" width="350" height="270" rx="12" fill="#1a1a2e" stroke="#00e5a0" stroke-width="2"/>
+          <rect x="0" y="0" width="350" height="40" rx="12" fill="url(#neonGrad)"/>
+          <rect x="0" y="28" width="350" height="12" fill="url(#neonGrad)"/>
+          <text x="175" y="26" text-anchor="middle" fill="white" font-size="14" font-weight="bold">Neon — PostgreSQL</text>
+
+          <!-- Tables -->
+          <g transform="translate(20, 55)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">User</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">email, role</text>
+          </g>
+
+          <g transform="translate(125, 55)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">Course</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">title, slug</text>
+          </g>
+
+          <g transform="translate(230, 55)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">Module</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">title, order</text>
+          </g>
+
+          <g transform="translate(20, 110)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">Lesson</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">videoUrl, content</text>
+          </g>
+
+          <g transform="translate(125, 110)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">Enrollment</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">userId, courseId</text>
+          </g>
+
+          <g transform="translate(230, 110)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">Progress</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">completed</text>
+          </g>
+
+          <g transform="translate(20, 165)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">Quiz</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">questions</text>
+          </g>
+
+          <g transform="translate(125, 165)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">QuizAttempt</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">score, passed</text>
+          </g>
+
+          <g transform="translate(230, 165)">
+            <rect x="0" y="0" width="95" height="45" rx="4" fill="#2d2d44"/>
+            <text x="47" y="18" text-anchor="middle" fill="#00e5a0" font-size="9" font-weight="bold">GHLProduct</text>
+            <text x="47" y="32" text-anchor="middle" fill="#666" font-size="7">mapping</text>
+          </g>
+
+          <!-- Connection indicator -->
+          <rect x="100" y="225" width="150" height="25" rx="4" fill="#00e5a033" stroke="#00e5a0" stroke-width="1"/>
+          <text x="175" y="242" text-anchor="middle" fill="#00e5a0" font-size="9">Serverless • Auto-scaling</text>
+        </g>
+
+        <!-- External Services -->
+        <g transform="translate(550, 50)">
+          <rect x="0" y="0" width="180" height="100" rx="8" fill="#1a1a2e" stroke="#666" stroke-width="1"/>
+          <text x="90" y="25" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">Google Cloud Storage</text>
+          <text x="90" y="45" text-anchor="middle" fill="#666" font-size="9">Video Files (.mp4)</text>
+          <text x="90" y="60" text-anchor="middle" fill="#666" font-size="9">Images / Thumbnails</text>
+          <text x="90" y="75" text-anchor="middle" fill="#666" font-size="9">Course Assets</text>
+        </g>
+
+        <g transform="translate(750, 50)">
+          <rect x="0" y="0" width="180" height="100" rx="8" fill="#1a1a2e" stroke="#666" stroke-width="1"/>
+          <text x="90" y="25" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">GitHub</text>
+          <text x="90" y="45" text-anchor="middle" fill="#666" font-size="9">Source Code</text>
+          <text x="90" y="60" text-anchor="middle" fill="#666" font-size="9">Version Control</text>
+          <text x="90" y="75" text-anchor="middle" fill="#666" font-size="9">Auto-Deploy Trigger</text>
+        </g>
+
+        <g transform="translate(950, 50)">
+          <rect x="0" y="0" width="180" height="100" rx="8" fill="#1a1a2e" stroke="#666" stroke-width="1"/>
+          <text x="90" y="25" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">Resend (Email)</text>
+          <text x="90" y="45" text-anchor="middle" fill="#666" font-size="9">Magic Link Emails</text>
+          <text x="90" y="60" text-anchor="middle" fill="#666" font-size="9">Welcome Emails</text>
+          <text x="90" y="75" text-anchor="middle" fill="#666" font-size="9">Notifications</text>
+        </g>
+
+        <!-- User Icon -->
+        <g transform="translate(530, 280)">
+          <circle cx="40" cy="25" r="35" fill="url(#userGrad)" filter="url(#glow)"/>
+          <circle cx="40" cy="18" r="12" fill="white"/>
+          <ellipse cx="40" cy="42" rx="18" ry="12" fill="white"/>
+          <text x="40" y="75" text-anchor="middle" fill="#8b5cf6" font-size="10" font-weight="bold">Student</text>
+        </g>
+
+        <!-- User arrows -->
+        <path d="M 570 330 L 570 480" stroke="#8b5cf6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" opacity="0.6"/>
+        <text x="580" y="400" fill="#8b5cf6" font-size="9">Login / Browse</text>
+      </svg>
+    </div>
+
+    <!-- Purchase Flow -->
+    <div class="section">
+      <h2 class="section-title">2. Purchase & Auto-Enrollment Flow</h2>
+      <svg viewBox="0 0 1200 450" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="450" fill="#0d1117" rx="10"/>
+
+        <!-- Timeline -->
+        <line x1="100" y1="225" x2="1100" y2="225" stroke="#333" stroke-width="2"/>
+
+        <!-- Step 1 -->
+        <g transform="translate(100, 150)">
+          <circle cx="0" cy="75" r="20" fill="#f97316"/>
+          <text x="0" y="80" text-anchor="middle" fill="white" font-size="14" font-weight="bold">1</text>
+          <rect x="-60" y="0" width="120" height="60" rx="8" fill="#2d2d44"/>
+          <text x="0" y="25" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">Customer</text>
+          <text x="0" y="42" text-anchor="middle" fill="#888" font-size="9">Visits Funnel</text>
+        </g>
+
+        <!-- Arrow -->
+        <path d="M 150 225 L 230 225" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#arrowheadOrange)"/>
+
+        <!-- Step 2 -->
+        <g transform="translate(280, 150)">
+          <circle cx="0" cy="75" r="20" fill="#f97316"/>
+          <text x="0" y="80" text-anchor="middle" fill="white" font-size="14" font-weight="bold">2</text>
+          <rect x="-60" y="0" width="120" height="60" rx="8" fill="#2d2d44"/>
+          <text x="0" y="25" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">GHL Checkout</text>
+          <text x="0" y="42" text-anchor="middle" fill="#888" font-size="9">Payment</text>
+        </g>
+
+        <!-- Arrow -->
+        <path d="M 330 225 L 410 225" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#arrowheadOrange)"/>
+
+        <!-- Step 3 -->
+        <g transform="translate(460, 150)">
+          <circle cx="0" cy="75" r="20" fill="#f97316"/>
+          <text x="0" y="80" text-anchor="middle" fill="white" font-size="14" font-weight="bold">3</text>
+          <rect x="-60" y="0" width="120" height="60" rx="8" fill="#2d2d44"/>
+          <text x="0" y="25" text-anchor="middle" fill="#f97316" font-size="10" font-weight="bold">Webhook</text>
+          <text x="0" y="42" text-anchor="middle" fill="#888" font-size="9">POST to Vercel</text>
+        </g>
+
+        <!-- Arrow -->
+        <path d="M 510 225 L 590 225" stroke="#00d4ff" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+        <!-- Step 4 -->
+        <g transform="translate(640, 150)">
+          <circle cx="0" cy="75" r="20" fill="#00d4ff"/>
+          <text x="0" y="80" text-anchor="middle" fill="white" font-size="14" font-weight="bold">4</text>
+          <rect x="-60" y="0" width="120" height="60" rx="8" fill="#2d2d44"/>
+          <text x="0" y="25" text-anchor="middle" fill="#00d4ff" font-size="10" font-weight="bold">Create User</text>
+          <text x="0" y="42" text-anchor="middle" fill="#888" font-size="9">& Enrollment</text>
+        </g>
+
+        <!-- Arrow -->
+        <path d="M 690 225 L 770 225" stroke="#00d4ff" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+        <!-- Step 5 -->
+        <g transform="translate(820, 150)">
+          <circle cx="0" cy="75" r="20" fill="#00d4ff"/>
+          <text x="0" y="80" text-anchor="middle" fill="white" font-size="14" font-weight="bold">5</text>
+          <rect x="-60" y="0" width="120" height="60" rx="8" fill="#2d2d44"/>
+          <text x="0" y="25" text-anchor="middle" fill="#00d4ff" font-size="10" font-weight="bold">Generate</text>
+          <text x="0" y="42" text-anchor="middle" fill="#888" font-size="9">Auto-Login URL</text>
+        </g>
+
+        <!-- Arrow -->
+        <path d="M 870 225 L 950 225" stroke="#00e5a0" stroke-width="2" fill="none" marker-end="url(#arrowheadGreen)"/>
+
+        <!-- Step 6 -->
+        <g transform="translate(1000, 150)">
+          <circle cx="0" cy="75" r="20" fill="#00e5a0"/>
+          <text x="0" y="80" text-anchor="middle" fill="white" font-size="14" font-weight="bold">6</text>
+          <rect x="-60" y="0" width="120" height="60" rx="8" fill="#2d2d44"/>
+          <text x="0" y="25" text-anchor="middle" fill="#00e5a0" font-size="10" font-weight="bold">Thank You</text>
+          <text x="0" y="42" text-anchor="middle" fill="#888" font-size="9">+ Login Link</text>
+        </g>
+
+        <!-- Bottom flow -->
+        <path d="M 1000 280 Q 1000 350 600 350 Q 200 350 200 400" stroke="#8b5cf6" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
+
+        <g transform="translate(200, 330)">
+          <rect x="-80" y="60" width="160" height="50" rx="8" fill="#8b5cf6"/>
+          <text x="0" y="85" text-anchor="middle" fill="white" font-size="11" font-weight="bold">User Clicks Link</text>
+          <text x="0" y="100" text-anchor="middle" fill="white" font-size="9" opacity="0.8">→ Logged into Dashboard</text>
+        </g>
+
+        <!-- Labels -->
+        <rect x="100" y="280" width="80" height="25" rx="4" fill="#f9731633"/>
+        <text x="140" y="297" text-anchor="middle" fill="#f97316" font-size="10">GHL</text>
+
+        <rect x="580" y="280" width="120" height="25" rx="4" fill="#00d4ff33"/>
+        <text x="640" y="297" text-anchor="middle" fill="#00d4ff" font-size="10">Vercel / Next.js</text>
+
+        <rect x="940" y="280" width="120" height="25" rx="4" fill="#00e5a033"/>
+        <text x="1000" y="297" text-anchor="middle" fill="#00e5a0" font-size="10">Customer</text>
+      </svg>
+    </div>
+
+    <!-- Authentication Flow -->
+    <div class="section">
+      <h2 class="section-title">3. Authentication Methods</h2>
+      <svg viewBox="0 0 1200 350" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="350" fill="#0d1117" rx="10"/>
+
+        <!-- Login Page -->
+        <g transform="translate(100, 100)">
+          <rect x="0" y="0" width="150" height="150" rx="10" fill="#2d2d44" stroke="#666"/>
+          <text x="75" y="30" text-anchor="middle" fill="white" font-size="12" font-weight="bold">/login</text>
+          <rect x="20" y="50" width="110" height="30" rx="4" fill="#1a1a2e"/>
+          <text x="75" y="70" text-anchor="middle" fill="#666" font-size="9">Email Input</text>
+          <rect x="20" y="90" width="110" height="30" rx="4" fill="#1a1a2e"/>
+          <text x="75" y="110" text-anchor="middle" fill="#666" font-size="9">Password Input</text>
+        </g>
+
+        <!-- Three Auth Methods -->
+        <path d="M 250 130 L 350 80" stroke="#ec4899" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+        <path d="M 250 175 L 350 175" stroke="#fbbf24" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+        <path d="M 250 220 L 350 270" stroke="#00e5a0" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+        <!-- Magic Link -->
+        <g transform="translate(360, 30)">
+          <rect x="0" y="0" width="180" height="100" rx="8" fill="#ec489933" stroke="#ec4899"/>
+          <text x="90" y="25" text-anchor="middle" fill="#ec4899" font-size="11" font-weight="bold">Magic Link</text>
+          <text x="90" y="45" text-anchor="middle" fill="#888" font-size="9">Email sent with token</text>
+          <text x="90" y="60" text-anchor="middle" fill="#888" font-size="9">User clicks link</text>
+          <text x="90" y="75" text-anchor="middle" fill="#888" font-size="9">Auto-verified</text>
+        </g>
+
+        <!-- Password -->
+        <g transform="translate(360, 140)">
+          <rect x="0" y="0" width="180" height="80" rx="8" fill="#fbbf2433" stroke="#fbbf24"/>
+          <text x="90" y="25" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="bold">Password</text>
+          <text x="90" y="45" text-anchor="middle" fill="#888" font-size="9">Email + Password</text>
+          <text x="90" y="60" text-anchor="middle" fill="#888" font-size="9">Hash verification</text>
+        </g>
+
+        <!-- Auto-Login -->
+        <g transform="translate(360, 230)">
+          <rect x="0" y="0" width="180" height="100" rx="8" fill="#00e5a033" stroke="#00e5a0"/>
+          <text x="90" y="25" text-anchor="middle" fill="#00e5a0" font-size="11" font-weight="bold">Auto-Login (GHL)</text>
+          <text x="90" y="45" text-anchor="middle" fill="#888" font-size="9">Token in URL param</text>
+          <text x="90" y="60" text-anchor="middle" fill="#888" font-size="9">From purchase webhook</text>
+          <text x="90" y="75" text-anchor="middle" fill="#888" font-size="9">Instant access</text>
+        </g>
+
+        <!-- Arrows to NextAuth -->
+        <path d="M 540 80 L 620 150" stroke="#ec4899" stroke-width="2" fill="none"/>
+        <path d="M 540 180 L 620 175" stroke="#fbbf24" stroke-width="2" fill="none"/>
+        <path d="M 540 280 L 620 200" stroke="#00e5a0" stroke-width="2" fill="none"/>
+
+        <!-- NextAuth -->
+        <g transform="translate(620, 120)">
+          <rect x="0" y="0" width="160" height="110" rx="8" fill="#1a1a2e" stroke="#fff"/>
+          <text x="80" y="30" text-anchor="middle" fill="white" font-size="12" font-weight="bold">NextAuth.js</text>
+          <text x="80" y="55" text-anchor="middle" fill="#666" font-size="9">Session Created</text>
+          <text x="80" y="75" text-anchor="middle" fill="#666" font-size="9">JWT Token</text>
+          <text x="80" y="95" text-anchor="middle" fill="#666" font-size="9">Secure Cookie</text>
+        </g>
+
+        <!-- Arrow to Dashboard -->
+        <path d="M 780 175 L 880 175" stroke="#8b5cf6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+
+        <!-- Dashboard -->
+        <g transform="translate(890, 100)">
+          <rect x="0" y="0" width="200" height="150" rx="10" fill="#8b5cf633" stroke="#8b5cf6" stroke-width="2"/>
+          <text x="100" y="30" text-anchor="middle" fill="#8b5cf6" font-size="14" font-weight="bold">/dashboard</text>
+          <text x="100" y="60" text-anchor="middle" fill="white" font-size="11">Welcome, User!</text>
+          <rect x="20" y="80" width="160" height="50" rx="6" fill="#1a1a2e"/>
+          <text x="100" y="100" text-anchor="middle" fill="#888" font-size="9">Your Enrolled Courses</text>
+          <text x="100" y="118" text-anchor="middle" fill="#00e5a0" font-size="10">▶ Continue Learning</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Course Structure -->
+    <div class="section">
+      <h2 class="section-title">4. Course Learning Structure</h2>
+      <svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="400" fill="#0d1117" rx="10"/>
+
+        <!-- Course -->
+        <g transform="translate(50, 50)">
+          <rect x="0" y="0" width="300" height="300" rx="10" fill="#1a1a2e" stroke="#00d4ff" stroke-width="2"/>
+          <rect x="0" y="0" width="300" height="45" rx="10" fill="#00d4ff"/>
+          <rect x="0" y="33" width="300" height="12" fill="#00d4ff"/>
+          <text x="150" y="30" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Real Estate Empire Blueprint</text>
+
+          <!-- Module 1 -->
+          <g transform="translate(15, 60)">
+            <rect x="0" y="0" width="270" height="70" rx="6" fill="#2d2d44"/>
+            <text x="10" y="20" fill="#f97316" font-size="10" font-weight="bold">Module 1: Welcome</text>
+            <text x="15" y="38" fill="#888" font-size="8">• Lesson 1: Origin Story</text>
+            <text x="15" y="50" fill="#888" font-size="8">• Lesson 2: The 4 Pillars</text>
+            <text x="15" y="62" fill="#888" font-size="8">• Lesson 3: Core Terms</text>
+            <rect x="200" y="45" width="60" height="18" rx="3" fill="#8b5cf633"/>
+            <text x="230" y="57" text-anchor="middle" fill="#8b5cf6" font-size="7">Quiz 🔒</text>
+          </g>
+
+          <!-- Module 2 -->
+          <g transform="translate(15, 140)">
+            <rect x="0" y="0" width="270" height="60" rx="6" fill="#2d2d44"/>
+            <text x="10" y="20" fill="#f97316" font-size="10" font-weight="bold">Module 2: Deal Types</text>
+            <text x="15" y="38" fill="#888" font-size="8">• Lesson 4: Single-Family</text>
+            <text x="15" y="50" fill="#888" font-size="8">• Lesson 5: Multifamily</text>
+            <rect x="200" y="35" width="60" height="18" rx="3" fill="#8b5cf633"/>
+            <text x="230" y="47" text-anchor="middle" fill="#8b5cf6" font-size="7">Quiz 🔒</text>
+          </g>
+
+          <!-- More modules indicator -->
+          <text x="150" y="230" text-anchor="middle" fill="#666" font-size="10">... more modules ...</text>
+
+          <!-- Final Exam -->
+          <g transform="translate(15, 250)">
+            <rect x="0" y="0" width="270" height="35" rx="6" fill="#fbbf2433" stroke="#fbbf24"/>
+            <text x="135" y="22" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="bold">🏆 Final Exam (Unlocks after all modules)</text>
+          </g>
+        </g>
+
+        <!-- Arrow -->
+        <path d="M 370 200 L 450 200" stroke="#00d4ff" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+
+        <!-- Lesson Player -->
+        <g transform="translate(470, 50)">
+          <rect x="0" y="0" width="350" height="300" rx="10" fill="#1a1a2e" stroke="#8b5cf6" stroke-width="2"/>
+          <rect x="0" y="0" width="350" height="45" rx="10" fill="#8b5cf6"/>
+          <rect x="0" y="33" width="350" height="12" fill="#8b5cf6"/>
+          <text x="175" y="30" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Lesson Player</text>
+
+          <!-- Video -->
+          <rect x="15" y="60" width="320" height="140" rx="6" fill="#000"/>
+          <circle cx="175" cy="130" r="25" fill="#ffffff33"/>
+          <polygon points="168,118 168,142 190,130" fill="white"/>
+          <text x="175" y="180" text-anchor="middle" fill="#666" font-size="8">Video Player (GCS Hosted)</text>
+
+          <!-- Content -->
+          <rect x="15" y="210" width="320" height="40" rx="4" fill="#2d2d44"/>
+          <text x="175" y="232" text-anchor="middle" fill="#888" font-size="9">Markdown Content (Below Video)</text>
+
+          <!-- Complete Button -->
+          <rect x="100" y="260" width="150" height="30" rx="6" fill="#00e5a0"/>
+          <text x="175" y="280" text-anchor="middle" fill="white" font-size="10" font-weight="bold">✓ Mark Complete</text>
+        </g>
+
+        <!-- Arrow to Quiz -->
+        <path d="M 840 200 L 920 200" stroke="#8b5cf6" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+
+        <!-- Quiz -->
+        <g transform="translate(940, 50)">
+          <rect x="0" y="0" width="220" height="300" rx="10" fill="#1a1a2e" stroke="#fbbf24" stroke-width="2"/>
+          <rect x="0" y="0" width="220" height="45" rx="10" fill="#fbbf24"/>
+          <rect x="0" y="33" width="220" height="12" fill="#fbbf24"/>
+          <text x="110" y="30" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Quiz</text>
+
+          <!-- Questions -->
+          <g transform="translate(15, 60)">
+            <rect x="0" y="0" width="190" height="80" rx="6" fill="#2d2d44"/>
+            <text x="10" y="20" fill="#fbbf24" font-size="9" font-weight="bold">Question 1 of 10</text>
+            <text x="10" y="40" fill="#888" font-size="8">What are the 4 pillars of</text>
+            <text x="10" y="52" fill="#888" font-size="8">real estate wealth?</text>
+            <circle cx="15" cy="70" r="5" fill="#333" stroke="#666"/>
+            <text x="25" y="73" fill="#666" font-size="7">A) Cash flow, equity...</text>
+          </g>
+
+          <!-- Progress -->
+          <g transform="translate(15, 155)">
+            <rect x="0" y="0" width="190" height="8" rx="4" fill="#333"/>
+            <rect x="0" y="0" width="60" height="8" rx="4" fill="#fbbf24"/>
+          </g>
+
+          <!-- Results -->
+          <g transform="translate(15, 180)">
+            <rect x="0" y="0" width="190" height="100" rx="6" fill="#2d2d44"/>
+            <text x="95" y="25" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Results</text>
+            <text x="95" y="50" text-anchor="middle" fill="#00e5a0" font-size="20" font-weight="bold">85%</text>
+            <text x="95" y="70" text-anchor="middle" fill="#00e5a0" font-size="9">PASSED ✓</text>
+            <text x="95" y="90" text-anchor="middle" fill="#666" font-size="8">Passing score: 70%</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-color" style="background: #f97316;"></div>
+        <span>GoHighLevel</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #000; border: 1px solid #fff;"></div>
+        <span>Vercel / Next.js</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #00e5a0;"></div>
+        <span>Neon Database</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #8b5cf6;"></div>
+        <span>User / Student</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #00d4ff;"></div>
+        <span>Data Flow</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #fbbf24;"></div>
+        <span>Quiz / Assessment</span>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
