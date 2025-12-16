@@ -3,9 +3,10 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle } from 'lucide-react';
+import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle, Lock, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatPrice, getPriceTier } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -47,6 +48,31 @@ export default async function DashboardPage() {
     },
     orderBy: { updatedAt: 'desc' },
   });
+
+  // Fetch available courses (not enrolled)
+  const enrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
+  const availableCourses = await prisma.course.findMany({
+    where: {
+      published: true,
+      id: { notIn: Array.from(enrolledCourseIds) },
+    },
+    include: {
+      modules: {
+        include: {
+          lessons: true,
+        },
+      },
+    },
+    orderBy: [{ price: 'asc' }, { order: 'asc' }],
+  });
+
+  // Filter out courses with no lessons (coming soon)
+  const availableWithLessons = availableCourses
+    .map((course) => ({
+      ...course,
+      totalLessons: course.modules.reduce((acc, m) => acc + m.lessons.length, 0),
+    }))
+    .filter((course) => course.totalLessons > 0);
 
   // Calculate stats
   const totalCourses = enrollments.length;
@@ -90,6 +116,9 @@ export default async function DashboardPage() {
   const recentProgress = progress
     .filter((p) => !p.completed && p.watchedSeconds > 0)
     .slice(0, 3);
+
+  // Get featured available courses (top 3 by tier for recommendation)
+  const recommendedCourses = availableWithLessons.slice(0, 6);
 
   return (
     <>
@@ -250,19 +279,11 @@ export default async function DashboardPage() {
           </div>
 
           {/* Continue Learning Section */}
-          <div>
-            <h2 className="text-xl font-bold text-text-dark mb-6">
-              Continue Learning
-            </h2>
-            {recentProgress.length === 0 ? (
-              <Card className="shadow-card">
-                <CardContent className="py-10 text-center">
-                  <p className="text-text-muted">
-                    Your recently watched lessons will appear here.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
+          {recentProgress.length > 0 && (
+            <div className="mb-10">
+              <h2 className="text-xl font-bold text-text-dark mb-6">
+                Continue Learning
+              </h2>
               <div className="space-y-4">
                 {recentProgress.map((p) => (
                   <Card key={p.id} className="shadow-card">
@@ -291,8 +312,91 @@ export default async function DashboardPage() {
                   </Card>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Available Courses Section */}
+          {recommendedCourses.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-text-dark">Expand Your Knowledge</h2>
+                    <p className="text-sm text-text-muted">Courses available for purchase</p>
+                  </div>
+                </div>
+                <Link
+                  href="/courses"
+                  className="text-sm text-maxxed-blue hover:underline flex items-center gap-1"
+                >
+                  View all
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {recommendedCourses.map((course) => {
+                  const tier = getPriceTier(course.price);
+                  return (
+                    <Card
+                      key={course.id}
+                      className="shadow-card overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1"
+                    >
+                      <div className="relative aspect-video bg-gray-100">
+                        {course.thumbnail ? (
+                          <Image
+                            src={course.thumbnail}
+                            alt={course.title}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-maxxed-blue/20 to-maxxed-gold/20">
+                            <BookOpen className="w-12 h-12 text-gray-400" />
+                          </div>
+                        )}
+                        {course.featured && (
+                          <div className="absolute top-3 left-3 bg-maxxed-gold text-white px-2 py-1 rounded text-xs font-bold">
+                            Featured
+                          </div>
+                        )}
+                        {/* Price Badge */}
+                        <div className="absolute top-3 right-3">
+                          <span className={`${tier.bgColor} ${tier.color} px-2 py-1 rounded text-xs font-bold`}>
+                            {formatPrice(course.price)}
+                          </span>
+                        </div>
+                      </div>
+                      <CardContent className="p-5">
+                        <h3 className="font-bold text-text-dark mb-2 line-clamp-1">
+                          {course.title}
+                        </h3>
+                        <p className="text-sm text-text-muted mb-4 line-clamp-2">
+                          {course.shortDesc || course.description}
+                        </p>
+
+                        <div className="flex items-center justify-between text-sm text-text-muted mb-4">
+                          <span>{course.totalLessons} lessons</span>
+                          <span className={`${tier.color} font-medium`}>{tier.label}</span>
+                        </div>
+
+                        <Link
+                          href={`/courses/${course.slug}`}
+                          className="flex items-center justify-center gap-2 w-full py-2.5 border-2 border-maxxed-blue text-maxxed-blue font-bold text-sm uppercase tracking-wider rounded hover:bg-maxxed-blue hover:text-white transition-colors"
+                        >
+                          <Lock className="w-4 h-4" />
+                          {course.price ? 'Get Access' : 'Enroll Free'}
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <Footer />
