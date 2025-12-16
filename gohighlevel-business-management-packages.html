@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Making Money Managing Businesses with GoHighLevel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-dark: #4338CA;
+      --secondary: #10B981;
+      --accent: #F59E0B;
+      --dark: #1F2937;
+      --gray: #6B7280;
+      --light-gray: #F3F4F6;
+      --white: #FFFFFF;
+      --gradient: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--dark);
+      line-height: 1.6;
+      background: var(--light-gray);
+    }
+
+    /* Hero Section */
+    .hero {
+      background: var(--gradient);
+      color: var(--white);
+      padding: 80px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      padding: 8px 16px;
+      border-radius: 50px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* Section */
+    .section {
+      padding: 80px 20px;
+    }
+
+    .section-white {
+      background: var(--white);
+    }
+
+    .section-title {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .section-title h2 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 15px;
+    }
+
+    .section-title p {
+      color: var(--gray);
+      font-size: 1.125rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+
+    /* Grid */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 30px;
+    }
+
+    /* Platform Pricing */
+    .platform-card {
+      text-align: center;
+      position: relative;
+    }
+
+    .platform-card.featured {
+      border: 3px solid var(--primary);
+      transform: scale(1.05);
+    }
+
+    .platform-card.featured::before {
+      content: 'MOST POPULAR';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: white;
+      padding: 4px 16px;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .platform-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      color: var(--dark);
+    }
+
+    .platform-card .price {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 20px 0;
+    }
+
+    .platform-card .price span {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--gray);
+    }
+
+    .platform-card ul {
+      list-style: none;
+      text-align: left;
+      margin: 25px 0;
+    }
+
+    .platform-card ul li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--light-gray);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .platform-card ul li:last-child {
+      border-bottom: none;
+    }
+
+    .check-icon {
+      color: var(--secondary);
+      font-weight: bold;
+    }
+
+    /* Service Packages */
+    .package-card {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .package-card .tier-badge {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 2rem;
+    }
+
+    .package-card h3 {
+      font-size: 1.75rem;
+      margin-bottom: 5px;
+      color: var(--dark);
+    }
+
+    .package-card .subtitle {
+      color: var(--gray);
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+    }
+
+    .package-card .price-range {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+
+    .package-card .price-range span {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--gray);
+    }
+
+    .package-card h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--dark);
+      margin: 25px 0 15px;
+      padding-top: 20px;
+      border-top: 1px solid var(--light-gray);
+    }
+
+    .package-card ul {
+      list-style: none;
+    }
+
+    .package-card ul li {
+      padding: 8px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.95rem;
+    }
+
+    .profit-box {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 25px;
+      text-align: center;
+    }
+
+    .profit-box .label {
+      font-size: 0.875rem;
+      opacity: 0.9;
+    }
+
+    .profit-box .amount {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    /* SaaS Table */
+    .table-container {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--white);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+
+    th {
+      background: var(--dark);
+      color: var(--white);
+      padding: 16px 20px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--light-gray);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover {
+      background: var(--light-gray);
+    }
+
+    .highlight-cell {
+      color: var(--secondary);
+      font-weight: 700;
+    }
+
+    /* Industries Grid */
+    .industry-card {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 20px;
+    }
+
+    .industry-icon {
+      width: 50px;
+      height: 50px;
+      background: var(--gradient);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .industry-card h4 {
+      font-size: 1rem;
+      margin-bottom: 5px;
+    }
+
+    .industry-card p {
+      font-size: 0.875rem;
+      color: var(--gray);
+    }
+
+    /* Action Plan */
+    .timeline {
+      position: relative;
+      padding-left: 40px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--gradient);
+      border-radius: 3px;
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -33px;
+      top: 5px;
+      width: 20px;
+      height: 20px;
+      background: var(--primary);
+      border-radius: 50%;
+      border: 4px solid var(--white);
+      box-shadow: 0 0 0 3px var(--primary);
+    }
+
+    .timeline-item h4 {
+      font-size: 1.25rem;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+
+    .timeline-item ul {
+      list-style: none;
+    }
+
+    .timeline-item ul li {
+      padding: 5px 0;
+      color: var(--gray);
+    }
+
+    /* Revenue Calculator */
+    .calculator-card {
+      background: var(--gradient);
+      color: var(--white);
+      text-align: center;
+    }
+
+    .calculator-card h3 {
+      color: var(--white);
+      font-size: 1.25rem;
+      margin-bottom: 5px;
+    }
+
+    .calculator-card .scenario {
+      opacity: 0.8;
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+    }
+
+    .calculator-card .calc-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .calculator-card .calc-row:last-of-type {
+      border-bottom: none;
+    }
+
+    .calculator-card .total {
+      background: rgba(255,255,255,0.2);
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .calculator-card .total .label {
+      font-size: 0.875rem;
+      opacity: 0.9;
+    }
+
+    .calculator-card .total .amount {
+      font-size: 2.5rem;
+      font-weight: 800;
+    }
+
+    /* CTA Section */
+    .cta-section {
+      background: var(--dark);
+      color: var(--white);
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    .cta-section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+    }
+
+    .cta-section p {
+      opacity: 0.8;
+      margin-bottom: 30px;
+      font-size: 1.125rem;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 16px 32px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .btn-primary {
+      background: var(--gradient);
+      color: var(--white);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-outline {
+      border: 2px solid var(--white);
+      color: var(--white);
+      margin-left: 15px;
+    }
+
+    .btn-outline:hover {
+      background: var(--white);
+      color: var(--dark);
+    }
+
+    /* Footer */
+    footer {
+      background: #111827;
+      color: var(--gray);
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    footer a {
+      color: var(--gray);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--white);
+    }
+
+    .sources {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid #374151;
+    }
+
+    .sources h4 {
+      color: var(--white);
+      margin-bottom: 15px;
+    }
+
+    .sources a {
+      display: inline-block;
+      margin: 5px 10px;
+      font-size: 0.875rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 2rem;
+      }
+
+      .section-title h2 {
+        font-size: 1.75rem;
+      }
+
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .platform-card.featured {
+        transform: none;
+      }
+
+      .btn-outline {
+        margin-left: 0;
+        margin-top: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="badge">💰 2025 Business Opportunity Guide</div>
+      <h1>Make Money Managing Businesses with GoHighLevel</h1>
+      <p>Build a profitable agency helping local businesses automate their marketing, manage leads, and grow their revenue.</p>
+    </div>
+  </section>
+
+  <!-- What is GHL -->
+  <section class="section section-white">
+    <div class="container">
+      <div class="section-title">
+        <h2>What is GoHighLevel?</h2>
+        <p>An all-in-one marketing platform that replaces 10+ tools and lets you build a scalable business.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div style="font-size: 2.5rem; margin-bottom: 15px;">🎯</div>
+          <h3 style="margin-bottom: 10px;">All-in-One Platform</h3>
+          <p style="color: var(--gray);">CRM, funnels, email, SMS, websites, calendars, and automations in one dashboard. Replace Mailchimp, Calendly, Podium, and more.</p>
+        </div>
+        <div class="card">
+          <div style="font-size: 2.5rem; margin-bottom: 15px;">🏷️</div>
+          <h3 style="margin-bottom: 10px;">White Label Ready</h3>
+          <p style="color: var(--gray);">Brand the entire platform as your own software. Your clients never see "GoHighLevel" - they see YOUR brand.</p>
+        </div>
+        <div class="card">
+          <div style="font-size: 2.5rem; margin-bottom: 15px;">💸</div>
+          <h3 style="margin-bottom: 10px;">Recurring Revenue</h3>
+          <p style="color: var(--gray);">Charge monthly fees for software access AND services. Build predictable income that grows with each new client.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Platform Pricing -->
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>Your Platform Cost</h2>
+        <p>Choose the plan that fits your goals. Most agencies start with Unlimited.</p>
+      </div>
+
+      <div class="grid-3">
+        <!-- Starter -->
+        <div class="card platform-card">
+          <h3>Starter</h3>
+          <p style="color: var(--gray);">Test the waters</p>
+          <div class="price">$97<span>/month</span></div>
+          <ul>
+            <li><span class="check-icon">✓</span> 1 user account</li>
+            <li><span class="check-icon">✓</span> Up to 3 client accounts</li>
+            <li><span class="check-icon">✓</span> Full CRM & pipeline</li>
+            <li><span class="check-icon">✓</span> Email & SMS tools</li>
+            <li><span class="check-icon">✓</span> Automation & calendars</li>
+            <li><span class="check-icon">✓</span> Funnel builder</li>
+          </ul>
+        </div>
+
+        <!-- Unlimited -->
+        <div class="card platform-card featured">
+          <h3>Unlimited</h3>
+          <p style="color: var(--gray);">Scale your agency</p>
+          <div class="price">$297<span>/month</span></div>
+          <ul>
+            <li><span class="check-icon">✓</span> Everything in Starter</li>
+            <li><span class="check-icon">✓</span> <strong>Unlimited</strong> sub-accounts</li>
+            <li><span class="check-icon">✓</span> White-label dashboard</li>
+            <li><span class="check-icon">✓</span> API access</li>
+            <li><span class="check-icon">✓</span> Membership sites</li>
+            <li><span class="check-icon">✓</span> AI conversation tools</li>
+          </ul>
+        </div>
+
+        <!-- SaaS Pro -->
+        <div class="card platform-card">
+          <h3>SaaS Pro</h3>
+          <p style="color: var(--gray);">Sell your own software</p>
+          <div class="price">$497<span>/month</span></div>
+          <ul>
+            <li><span class="check-icon">✓</span> Everything in Unlimited</li>
+            <li><span class="check-icon">✓</span> Resell as YOUR software</li>
+            <li><span class="check-icon">✓</span> White-label mobile app</li>
+            <li><span class="check-icon">✓</span> Automated client billing</li>
+            <li><span class="check-icon">✓</span> Usage markup & rebilling</li>
+            <li><span class="check-icon">✓</span> Custom pricing tiers</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Usage Costs -->
+      <div class="card" style="margin-top: 40px; text-align: center;">
+        <h3 style="margin-bottom: 20px;">Usage-Based Costs (All Plans)</h3>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 30px;">
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">$0.0079</div>
+            <div style="color: var(--gray); font-size: 0.875rem;">per SMS</div>
+          </div>
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">$0.014</div>
+            <div style="color: var(--gray); font-size: 0.875rem;">per call minute</div>
+          </div>
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">$1.15</div>
+            <div style="color: var(--gray); font-size: 0.875rem;">per phone number/mo</div>
+          </div>
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">$0.68</div>
+            <div style="color: var(--gray); font-size: 0.875rem;">per 1,000 emails</div>
+          </div>
+        </div>
+        <p style="margin-top: 20px; color: var(--gray); font-size: 0.875rem;">💡 Pro Tip: Enable rebilling to automatically pass usage costs to clients!</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Service Packages -->
+  <section class="section section-white">
+    <div class="container">
+      <div class="section-title">
+        <h2>Service Packages to Sell</h2>
+        <p>Proven package tiers you can offer to local businesses starting today.</p>
+      </div>
+
+      <div class="grid-3">
+        <!-- Starter Package -->
+        <div class="card package-card">
+          <span class="tier-badge">🥉</span>
+          <h3>Starter Package</h3>
+          <p class="subtitle">For small businesses getting started</p>
+          <div class="price-range">$297-$497<span>/month</span></div>
+
+          <h4>What's Included:</h4>
+          <ul>
+            <li><span class="check-icon">✓</span> CRM setup & configuration</li>
+            <li><span class="check-icon">✓</span> 1 sales funnel or landing page</li>
+            <li><span class="check-icon">✓</span> Basic email/SMS automation</li>
+            <li><span class="check-icon">✓</span> Google My Business integration</li>
+            <li><span class="check-icon">✓</span> Appointment calendar setup</li>
+            <li><span class="check-icon">✓</span> Monthly check-in call (30 min)</li>
+          </ul>
+
+          <div class="profit-box">
+            <div class="label">Your Profit Per Client</div>
+            <div class="amount">$247-$467/mo</div>
+          </div>
+        </div>
+
+        <!-- Growth Package -->
+        <div class="card package-card" style="border: 3px solid var(--primary);">
+          <span class="tier-badge">🥈</span>
+          <h3>Growth Package</h3>
+          <p class="subtitle">For businesses ready to scale</p>
+          <div class="price-range">$697-$997<span>/month</span></div>
+
+          <h4>What's Included:</h4>
+          <ul>
+            <li><span class="check-icon">✓</span> Everything in Starter</li>
+            <li><span class="check-icon">✓</span> 3 sales funnels/landing pages</li>
+            <li><span class="check-icon">✓</span> Advanced automation workflows</li>
+            <li><span class="check-icon">✓</span> 2 marketing campaigns/month</li>
+            <li><span class="check-icon">✓</span> Review management system</li>
+            <li><span class="check-icon">✓</span> Bi-weekly strategy calls</li>
+            <li><span class="check-icon">✓</span> Monthly performance reports</li>
+          </ul>
+
+          <div class="profit-box">
+            <div class="label">Your Profit Per Client</div>
+            <div class="amount">$597-$897/mo</div>
+          </div>
+        </div>
+
+        <!-- Premium Package -->
+        <div class="card package-card">
+          <span class="tier-badge">🥇</span>
+          <h3>Premium Package</h3>
+          <p class="subtitle">Done-for-you marketing</p>
+          <div class="price-range">$1,497-$2,497<span>/month</span></div>
+
+          <h4>What's Included:</h4>
+          <ul>
+            <li><span class="check-icon">✓</span> Everything in Growth</li>
+            <li><span class="check-icon">✓</span> Unlimited funnels & pages</li>
+            <li><span class="check-icon">✓</span> AI Voice & Conversation bots</li>
+            <li><span class="check-icon">✓</span> Custom integrations</li>
+            <li><span class="check-icon">✓</span> White-label mobile app</li>
+            <li><span class="check-icon">✓</span> Weekly strategy calls</li>
+            <li><span class="check-icon">✓</span> Priority support</li>
+            <li><span class="check-icon">✓</span> Full campaign management</li>
+          </ul>
+
+          <div class="profit-box">
+            <div class="label">Your Profit Per Client</div>
+            <div class="amount">$1,297-$2,297/mo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SaaS Model -->
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>SaaS Model: Sell the Software</h2>
+        <p>With the $497/month SaaS Pro plan, white-label GoHighLevel and sell it as YOUR software.</p>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Your Tier</th>
+              <th>What Client Gets</th>
+              <th>You Charge</th>
+              <th>Your Cost</th>
+              <th>Your Profit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Basic</strong></td>
+              <td>CRM + 1 funnel</td>
+              <td>$97/month</td>
+              <td>~$20</td>
+              <td class="highlight-cell">$77/month</td>
+            </tr>
+            <tr>
+              <td><strong>Pro</strong></td>
+              <td>CRM + funnels + automation</td>
+              <td>$197/month</td>
+              <td>~$40</td>
+              <td class="highlight-cell">$157/month</td>
+            </tr>
+            <tr>
+              <td><strong>Agency</strong></td>
+              <td>Full platform access</td>
+              <td>$297/month</td>
+              <td>~$60</td>
+              <td class="highlight-cell">$237/month</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top: 40px; background: var(--gradient); color: white; text-align: center;">
+        <h3 style="color: white; margin-bottom: 10px;">Example: 20 SaaS Clients</h3>
+        <p style="opacity: 0.9; margin-bottom: 20px;">10 Basic + 7 Pro + 3 Agency clients</p>
+        <div style="font-size: 3rem; font-weight: 800;">$2,580/month</div>
+        <p style="opacity: 0.8; margin-top: 10px;">Pure software revenue - before any service upsells!</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Industries -->
+  <section class="section section-white">
+    <div class="container">
+      <div class="section-title">
+        <h2>Industries to Target</h2>
+        <p>GoHighLevel works exceptionally well for these local businesses.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card industry-card">
+          <div class="industry-icon">🔧</div>
+          <div>
+            <h4>Home Services</h4>
+            <p>HVAC, Plumbing, Roofing, Electrical</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">🏠</div>
+          <div>
+            <h4>Real Estate</h4>
+            <p>Agents, Brokers, Property Managers</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">🦷</div>
+          <div>
+            <h4>Dental & Medical</h4>
+            <p>Dentists, Chiropractors, Med Spas</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">💪</div>
+          <div>
+            <h4>Fitness</h4>
+            <p>Gyms, Personal Trainers, Studios</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">✂️</div>
+          <div>
+            <h4>Salons & Spas</h4>
+            <p>Hair Salons, Nail Salons, Day Spas</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">🍕</div>
+          <div>
+            <h4>Restaurants</h4>
+            <p>Restaurants, Cafes, Food Trucks</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">📚</div>
+          <div>
+            <h4>Coaches</h4>
+            <p>Business, Life, Career Coaches</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">⚖️</div>
+          <div>
+            <h4>Legal</h4>
+            <p>Law Firms, Attorneys, Paralegals</p>
+          </div>
+        </div>
+        <div class="card industry-card">
+          <div class="industry-icon">🚗</div>
+          <div>
+            <h4>Automotive</h4>
+            <p>Auto Shops, Detailers, Dealers</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Action Plan -->
+  <section class="section">
+    <div class="container">
+      <div class="section-title">
+        <h2>Quick Start Action Plan</h2>
+        <p>Go from zero to your first paying client in 30 days.</p>
+      </div>
+
+      <div style="max-width: 700px; margin: 0 auto;">
+        <div class="timeline">
+          <div class="timeline-item">
+            <h4>Week 1: Foundation</h4>
+            <ul>
+              <li>✓ Sign up for GoHighLevel ($97 or $297 plan)</li>
+              <li>✓ Complete platform training & certifications</li>
+              <li>✓ Set up your agency account and branding</li>
+              <li>✓ Create your service packages and pricing</li>
+            </ul>
+          </div>
+          <div class="timeline-item">
+            <h4>Week 2: Build Your Offer</h4>
+            <ul>
+              <li>✓ Create a demo sub-account for prospects</li>
+              <li>✓ Build 2-3 template funnels for your niche</li>
+              <li>✓ Set up automation templates to clone</li>
+              <li>✓ Create your sales presentation</li>
+            </ul>
+          </div>
+          <div class="timeline-item">
+            <h4>Week 3: Get Clients</h4>
+            <ul>
+              <li>✓ Identify 20 local businesses to target</li>
+              <li>✓ Reach out via phone, email, or in-person</li>
+              <li>✓ Offer free marketing audits</li>
+              <li>✓ Present your solution and packages</li>
+            </ul>
+          </div>
+          <div class="timeline-item">
+            <h4>Week 4+: Deliver & Scale</h4>
+            <ul>
+              <li>✓ Onboard your first clients</li>
+              <li>✓ Document your processes & SOPs</li>
+              <li>✓ Collect testimonials and case studies</li>
+              <li>✓ Hire help as you grow</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Revenue Calculator -->
+  <section class="section section-white">
+    <div class="container">
+      <div class="section-title">
+        <h2>Revenue Calculator</h2>
+        <p>See what's possible at different stages of growth.</p>
+      </div>
+
+      <div class="grid-3">
+        <!-- Conservative -->
+        <div class="card calculator-card">
+          <h3>Conservative</h3>
+          <p class="scenario">Part-Time / Side Hustle</p>
+          <div class="calc-row">
+            <span>5 clients × $497/mo</span>
+            <span>$2,485</span>
+          </div>
+          <div class="calc-row">
+            <span>GHL cost</span>
+            <span>-$297</span>
+          </div>
+          <div class="calc-row">
+            <span>Usage costs</span>
+            <span>-$100</span>
+          </div>
+          <div class="total">
+            <div class="label">Net Profit</div>
+            <div class="amount">$2,088/mo</div>
+          </div>
+        </div>
+
+        <!-- Growth -->
+        <div class="card calculator-card">
+          <h3>Growth</h3>
+          <p class="scenario">Full-Time Agency</p>
+          <div class="calc-row">
+            <span>15 clients × $697/mo avg</span>
+            <span>$10,455</span>
+          </div>
+          <div class="calc-row">
+            <span>GHL cost</span>
+            <span>-$297</span>
+          </div>
+          <div class="calc-row">
+            <span>Usage costs</span>
+            <span>-$300</span>
+          </div>
+          <div class="total">
+            <div class="label">Net Profit</div>
+            <div class="amount">$9,858/mo</div>
+          </div>
+        </div>
+
+        <!-- Scale -->
+        <div class="card calculator-card">
+          <h3>Scale</h3>
+          <p class="scenario">Agency with Team</p>
+          <div class="calc-row">
+            <span>30 clients × $997/mo avg</span>
+            <span>$29,910</span>
+          </div>
+          <div class="calc-row">
+            <span>GHL cost (SaaS Pro)</span>
+            <span>-$497</span>
+          </div>
+          <div class="calc-row">
+            <span>Usage + Team costs</span>
+            <span>-$5,600</span>
+          </div>
+          <div class="total">
+            <div class="label">Net Profit</div>
+            <div class="amount">$23,813/mo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container">
+      <h2>Ready to Start Your Agency?</h2>
+      <p>Join thousands of entrepreneurs building profitable businesses with GoHighLevel.</p>
+      <div>
+        <a href="https://www.gohighlevel.com/" target="_blank" class="btn btn-primary">Start Free Trial</a>
+        <a href="https://www.gohighlevel.com/pricing" target="_blank" class="btn btn-outline">View Pricing</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>Last Updated: December 2025</p>
+
+      <div class="sources">
+        <h4>Sources & Resources</h4>
+        <a href="https://www.gohighlevel.com/pricing" target="_blank">HighLevel Official Pricing</a>
+        <a href="https://help.gohighlevel.com/support/solutions/articles/155000001156-highlevel-pricing-guide" target="_blank">HighLevel Support Portal</a>
+        <a href="https://agencyrevenuepro.com/gohighlevel-agency-pricing-what-you-should-expect-in-2025/" target="_blank">Agency Revenue Pro</a>
+        <a href="https://sceptermarketing.com/how-to-create-profitable-gohighlevel-service-packages/" target="_blank">Scepter Marketing</a>
+        <a href="https://supplygem.com/gohighlevel-for-local-business/" target="_blank">SupplyGem</a>
+        <a href="https://nuacom.com/how-to-start-an-agency-using-gohighlevel-the-complete-2025-guide/" target="_blank">Nuacom Guide</a>
+        <a href="https://ghlbuilds.com/start-a-digital-marketing-agency-with-gohighlevel/" target="_blank">GHL Builds</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

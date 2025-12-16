@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=user_not_found', request.url));
     }
 
+    // If user has already set up their password, don't allow auto-login
+    // They should use their password to log in
+    if (user.passwordHash) {
+      return NextResponse.redirect(new URL('/login?error=password_required', request.url));
+    }
+
     // Create a magic link token for this user
     const { randomBytes } = await import('crypto');
     const token = randomBytes(32).toString('hex');
