@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Play, Lock, CheckCircle, Clock, ShoppingCart, Star, Sparkles } from 'lucide-react';
+import { BookOpen, Play, Lock, CheckCircle, ShoppingCart, Star, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice, getPriceTier } from '@/lib/utils';
@@ -75,7 +75,6 @@ export default async function CoursesPage() {
   // Separate enrolled from available, filter out coming soon
   const enrolledCourses = coursesWithStats.filter((c) => c.isEnrolled && !c.isComingSoon);
   const availableCourses = coursesWithStats.filter((c) => !c.isEnrolled && !c.isComingSoon);
-  const comingSoonCourses = coursesWithStats.filter((c) => c.isComingSoon);
 
   // Group available courses by price tier
   const lowTicket = availableCourses.filter((c) => c.price && c.price <= PRICE_TIERS.LOW.max);
@@ -191,57 +190,6 @@ export default async function CoursesPage() {
               courses={eliteTicket}
               elite
             />
-          )}
-
-          {/* Coming Soon Section */}
-          {comingSoonCourses.length > 0 && (
-            <section className="mt-12">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <Clock className="w-5 h-5 text-gray-500" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-text-dark">Coming Soon</h2>
-                  <p className="text-sm text-text-muted">These courses are currently in development</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {comingSoonCourses.map((course) => (
-                  <Card
-                    key={course.id}
-                    className="shadow-card overflow-hidden opacity-60 cursor-not-allowed"
-                  >
-                    <div className="relative aspect-video bg-gradient-to-br from-[#1a3a4a] to-[#0d1f29]">
-                      {course.thumbnail ? (
-                        <Image
-                          src={course.thumbnail}
-                          alt={course.title}
-                          fill
-                          className="object-cover grayscale opacity-70"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen className="w-10 h-10 text-gray-400" />
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2">
-                        <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full">
-                          Coming Soon
-                        </span>
-                      </div>
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-bold text-sm text-text-dark mb-1 line-clamp-1">
-                        {course.title}
-                      </h3>
-                      <p className="text-xs text-text-muted line-clamp-2">
-                        {course.shortDesc || 'Details coming soon...'}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
           )}
 
           {courses.length === 0 && (
