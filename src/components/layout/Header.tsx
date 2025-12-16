@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard, Settings } from 'lucide-react';
+import { AdminViewToggle } from './AdminViewToggle';
 
 const socialLinks = [
   { href: 'https://www.facebook.com/todd.pultz', icon: Facebook, label: 'Facebook', hoverClass: 'hover:bg-[#1877f2]' },
@@ -107,6 +108,9 @@ export function Header() {
               </Link>
             ))}
 
+          {/* Admin View Toggle */}
+          {isAdmin && <AdminViewToggle />}
+
           {/* Auth Section */}
           {isLoading ? (
             <div className="w-20 h-8 bg-gray-100 rounded animate-pulse" />
@@ -197,14 +201,19 @@ export function Header() {
           {isAuthenticated ? (
             <>
               {isAdmin && (
-                <Link
-                  href="/admin"
-                  className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Settings className="w-4 h-4" />
-                  Admin Panel
-                </Link>
+                <>
+                  <div className="px-5 py-3 border-b border-gray-100">
+                    <AdminViewToggle />
+                  </div>
+                  <Link
+                    href="/admin"
+                    className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Admin Panel
+                  </Link>
+                </>
               )}
               <button
                 onClick={() => {

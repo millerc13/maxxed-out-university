@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,8 +16,14 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  // Check if admin is viewing as customer
+  const cookieStore = await cookies();
+  const isAdmin = (session.user as any).role === 'ADMIN';
+  const isCustomerView = isAdmin && cookieStore.get('admin_customer_view')?.value === 'true';
+
   // Fetch user's enrollments with course details and progress
-  const enrollments = await prisma.enrollment.findMany({
+  // If admin is in customer view, return empty array to simulate no enrollments
+  const enrollments = isCustomerView ? [] : await prisma.enrollment.findMany({
     where: { userId: session.user.id },
     include: {
       course: {
@@ -33,7 +40,8 @@ export default async function DashboardPage() {
   });
 
   // Fetch user's lesson progress
-  const progress = await prisma.lessonProgress.findMany({
+  // If admin is in customer view, return empty array
+  const progress = isCustomerView ? [] : await prisma.lessonProgress.findMany({
     where: { userId: session.user.id },
     include: {
       lesson: {

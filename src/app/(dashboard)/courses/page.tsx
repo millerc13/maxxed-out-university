@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,6 +19,11 @@ const PRICE_TIERS = {
 export default async function CoursesPage() {
   const session = await auth();
 
+  // Check if admin is viewing as customer
+  const cookieStore = await cookies();
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
+  const isCustomerView = isAdmin && cookieStore.get('admin_customer_view')?.value === 'true';
+
   // Get all published courses
   const courses = await prisma.course.findMany({
     where: { published: true },
@@ -32,7 +38,8 @@ export default async function CoursesPage() {
   });
 
   // Get user's enrollments if logged in
-  const enrollments = session?.user
+  // If admin is in customer view, return empty array to simulate no enrollments
+  const enrollments = (session?.user && !isCustomerView)
     ? await prisma.enrollment.findMany({
         where: { userId: session.user.id },
         select: { courseId: true },
@@ -42,7 +49,8 @@ export default async function CoursesPage() {
   const enrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
 
   // Get user's progress if logged in
-  const progress = session?.user
+  // If admin is in customer view, return empty array
+  const progress = (session?.user && !isCustomerView)
     ? await prisma.lessonProgress.findMany({
         where: { userId: session.user.id, completed: true },
         select: { lessonId: true },
