@@ -10,9 +10,9 @@ import { formatPrice, getPriceTier } from '@/lib/utils';
 
 // Price tier boundaries in cents
 const PRICE_TIERS = {
-  LOW: { max: 9700, label: 'Starter Courses', description: 'Perfect for getting started' },
-  MID: { min: 9701, max: 150000, label: 'Accelerator Programs', description: 'Take your investing to the next level' },
-  HIGH: { min: 150001, max: 1000000, label: 'Coaching & Masterminds', description: 'High-touch guidance and community' },
+  LOW: { max: 9700, label: 'Quick Start Guides & Tools', description: 'Bite-sized training to get you moving fast' },
+  MID: { min: 9701, max: 150000, label: 'Core Training', description: 'Deep-dive courses to build your skills' },
+  HIGH: { min: 150001, max: 1000000, label: 'Complete Systems', description: 'Comprehensive programs for serious investors' },
   ELITE: { min: 1000001, label: 'Elite Access', description: 'Direct mentorship and partnerships' },
 };
 
@@ -131,13 +131,46 @@ export default async function CoursesPage() {
                 <div className="p-2 bg-maxxed-blue/10 rounded-lg">
                   <ShoppingCart className="w-5 h-5 text-maxxed-blue" />
                 </div>
-                <h2 className="text-xl font-bold text-text-dark">Available Courses</h2>
+                <h2 className="text-xl font-bold text-text-dark">Available Programs</h2>
               </div>
               <p className="text-text-muted ml-12">
-                Explore our complete education suite - from starter courses to elite mentorship
+                Choose the program that fits your goals and experience level
               </p>
             </div>
           )}
+
+          {/* High Ticket Courses - First */}
+          {highTicket.length > 0 && (
+            <CourseTierSection
+              title={PRICE_TIERS.HIGH.label}
+              description={PRICE_TIERS.HIGH.description}
+              icon={<Star className="w-5 h-5 text-amber-600" />}
+              iconBg="bg-amber-100"
+              courses={highTicket}
+              featured
+            />
+          )}
+
+          {/* Mid Ticket Courses */}
+          {midTicket.length > 0 && (
+            <CourseTierSection
+              title={PRICE_TIERS.MID.label}
+              description={PRICE_TIERS.MID.description}
+              icon={<Sparkles className="w-5 h-5 text-purple-600" />}
+              iconBg="bg-purple-100"
+              courses={midTicket}
+            />
+          )}
+
+          {/* Low Ticket Courses - Always show section */}
+          <CourseTierSection
+            title={PRICE_TIERS.LOW.label}
+            description={PRICE_TIERS.LOW.description}
+            icon={<BookOpen className="w-5 h-5 text-blue-600" />}
+            iconBg="bg-blue-100"
+            courses={lowTicket}
+            emptyMessage="New quick start guides coming soon!"
+          />
 
           {/* Free Courses */}
           {freeCourses.length > 0 && (
@@ -150,49 +183,11 @@ export default async function CoursesPage() {
             />
           )}
 
-          {/* Low Ticket Courses */}
-          {lowTicket.length > 0 && (
-            <CourseTierSection
-              title={PRICE_TIERS.LOW.label}
-              description={PRICE_TIERS.LOW.description}
-              priceRange="$17 - $97"
-              icon={<BookOpen className="w-5 h-5 text-blue-600" />}
-              iconBg="bg-blue-100"
-              courses={lowTicket}
-            />
-          )}
-
-          {/* Mid Ticket Courses */}
-          {midTicket.length > 0 && (
-            <CourseTierSection
-              title={PRICE_TIERS.MID.label}
-              description={PRICE_TIERS.MID.description}
-              priceRange="$297 - $1,497"
-              icon={<Sparkles className="w-5 h-5 text-purple-600" />}
-              iconBg="bg-purple-100"
-              courses={midTicket}
-              featured
-            />
-          )}
-
-          {/* High Ticket Courses */}
-          {highTicket.length > 0 && (
-            <CourseTierSection
-              title={PRICE_TIERS.HIGH.label}
-              description={PRICE_TIERS.HIGH.description}
-              priceRange="$3,000 - $8,000"
-              icon={<Star className="w-5 h-5 text-amber-600" />}
-              iconBg="bg-amber-100"
-              courses={highTicket}
-            />
-          )}
-
           {/* Elite Ticket Courses */}
           {eliteTicket.length > 0 && (
             <CourseTierSection
               title={PRICE_TIERS.ELITE.label}
               description={PRICE_TIERS.ELITE.description}
-              priceRange="$15,000+"
               icon={<Sparkles className="w-5 h-5 text-maxxed-gold" />}
               iconBg="bg-gradient-to-br from-amber-100 to-yellow-100"
               courses={eliteTicket}
@@ -228,6 +223,8 @@ function EnrolledCourseCard({ course }: { course: any }) {
             src={course.thumbnail}
             alt={course.title}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            quality={85}
             className="object-cover"
           />
         ) : (
@@ -287,6 +284,7 @@ function CourseTierSection({
   courses,
   featured,
   elite,
+  emptyMessage,
 }: {
   title: string;
   description: string;
@@ -296,11 +294,12 @@ function CourseTierSection({
   courses: any[];
   featured?: boolean;
   elite?: boolean;
+  emptyMessage?: string;
 }) {
   return (
-    <section className={`mb-10 ${featured ? 'relative' : ''}`}>
+    <section className={`mb-10 ${featured || elite ? 'relative' : ''}`}>
       {featured && (
-        <div className="absolute -inset-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl -z-10" />
+        <div className="absolute -inset-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl -z-10" />
       )}
       {elite && (
         <div className="absolute -inset-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl -z-10" />
@@ -321,11 +320,17 @@ function CourseTierSection({
           </span>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map((course) => (
-          <AvailableCourseCard key={course.id} course={course} elite={elite} />
-        ))}
-      </div>
+      {courses.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {courses.map((course) => (
+            <AvailableCourseCard key={course.id} course={course} elite={elite} />
+          ))}
+        </div>
+      ) : emptyMessage ? (
+        <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
+          <p className="text-text-muted">{emptyMessage}</p>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -342,6 +347,8 @@ function AvailableCourseCard({ course, elite }: { course: any; elite?: boolean }
             src={course.thumbnail}
             alt={course.title}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            quality={85}
             className="object-cover"
           />
         ) : (

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronRight, Check } from 'lucide-react';
+import { formatPrice, getPriceTier } from '@/lib/utils';
 
 interface CourseCardProps {
   id: string;
@@ -14,6 +15,7 @@ interface CourseCardProps {
   learningPoints?: string[];
   slug: string;
   comingSoon?: boolean;
+  price?: number | null;
 }
 
 export function CourseCard({
@@ -25,6 +27,7 @@ export function CourseCard({
   learningPoints = [],
   slug,
   comingSoon = false,
+  price,
 }: CourseCardProps) {
   const [showLearning, setShowLearning] = useState(false);
 
@@ -44,6 +47,8 @@ export function CourseCard({
               src={thumbnail}
               alt={title}
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              quality={85}
               className="object-cover"
             />
           </div>
@@ -59,6 +64,18 @@ export function CourseCard({
             </span>
           </div>
         )}
+
+        {/* Price Badge */}
+        {!comingSoon && price !== undefined && (() => {
+          const tier = getPriceTier(price);
+          return (
+            <div className="absolute top-3 right-3">
+              <span className={`${tier.bgColor} ${tier.color} px-2 py-1 rounded text-xs font-bold`}>
+                {formatPrice(price)}
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Coming Soon Tag - only show badge, no overlay */}
         {comingSoon && (

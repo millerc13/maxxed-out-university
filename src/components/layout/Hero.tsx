@@ -2,23 +2,19 @@
 
 import Image from 'next/image';
 
-// Course images for the mosaic
+// Course thumbnail images for the mosaic
 const mosaicImages = [
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c6c516b9a80.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa141f492d01a.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16e0f0926027aef85b.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa148b692d01b.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa15cd392d018.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c1581eaa1e80b92d019.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e584fbdbec7.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551c55256b9a81.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3379769327e.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466ea1c6bdbec5.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be3c68369327f.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e0f0928a47aef856.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c151d466e2668bdbec6.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c15e6551cf60e6b9a82.png',
-  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69325c16a58be30e0969327d.png',
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/6938430a35652be0d603e258.jpeg', // Real Estate Empire Blueprint
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/696925afe125ef2f2c5283fc.jpeg', // Welcome to Real Estate Investing
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/6969269ce4cf749ad2130747.jpeg', // Deal Types
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/696927f5157367553e9eba29.jpeg', // Deal Flow
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69692a54ed7c36e7673f95d9.jpeg', // Deal Analysis
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69692af0ed7c3608ff3fb726.jpeg', // Funding Your Deals
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69692b72c7d9b5e31d0db2a8.jpeg', // The BRRRR Method
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69692c39197f71a223a4eecc.jpeg', // Property Management
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69692c8be4cf7429a1143e48.jpeg', // Fix & Flip Mastery
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69692cc94e42b915f0f1a623.jpeg', // Wholesaling Real Estate
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69692d7b15736731929fdb6c.jpeg', // Scaling to a Real Business
 ];
 
 function MosaicRow({ reverse = false, offset = 0 }: { reverse?: boolean; offset?: number }) {
@@ -35,15 +31,16 @@ function MosaicRow({ reverse = false, offset = 0 }: { reverse?: boolean; offset?
       {images.map((src, index) => (
         <div
           key={index}
-          className="flex-shrink-0 w-[200px] h-[130px] md:w-[200px] md:h-[130px] sm:w-[150px] sm:h-[100px] rounded-lg overflow-hidden"
+          className="flex-shrink-0 w-[280px] h-[158px] md:w-[280px] md:h-[158px] sm:w-[200px] sm:h-[112px] rounded-lg overflow-hidden bg-black/20"
         >
           <Image
             src={src}
             alt={`Course ${index + 1}`}
-            width={200}
-            height={130}
-            className="w-full h-full object-cover"
-            unoptimized
+            width={280}
+            height={158}
+            sizes="280px"
+            quality={80}
+            className="w-full h-full object-contain"
           />
         </div>
       ))}

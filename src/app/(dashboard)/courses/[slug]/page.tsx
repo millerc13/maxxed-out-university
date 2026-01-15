@@ -6,6 +6,7 @@ import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, T
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -54,6 +55,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
     : null;
 
   const isEnrolled = !!enrollment;
+
+  // Check if user is admin
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
   // Get user's progress
   const progress = session?.user?.id
@@ -143,14 +147,16 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
               {/* Course Card */}
               <div className="lg:col-span-1">
-                <Card className="shadow-xl">
-                  <div className="relative h-40 bg-gray-100">
+                <Card className="shadow-xl overflow-hidden">
+                  <div className="relative aspect-video bg-[#0a1628]">
                     {course.thumbnail ? (
                       <Image
                         src={course.thumbnail}
                         alt={course.title}
                         fill
-                        className="object-cover rounded-t-lg"
+                        sizes="(max-width: 1024px) 100vw, 33vw"
+                        quality={85}
+                        className="object-contain"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -199,6 +205,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         <button className="w-full py-3 bg-maxxed-gold text-white font-bold text-sm uppercase tracking-wider rounded hover:bg-yellow-600 transition-colors">
                           Get Access
                         </button>
+                        {isAdmin && (
+                          <AdminEnrollButton courseId={course.id} courseName={course.title} />
+                        )}
                       </div>
                     )}
                   </CardContent>
