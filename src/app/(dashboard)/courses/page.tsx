@@ -12,7 +12,7 @@ import { formatPrice, getPriceTier } from '@/lib/utils';
 const PRICE_TIERS = {
   LOW: { max: 9700, label: 'Quick Start Guides & Tools', description: 'Bite-sized training to get you moving fast' },
   MID: { min: 9701, max: 150000, label: 'Core Training', description: 'Deep-dive courses to build your skills' },
-  HIGH: { min: 150001, max: 1000000, label: 'Complete Systems', description: 'Comprehensive programs for serious investors' },
+  HIGH: { min: 150001, max: 1000000, label: 'Full Courses and 1 on 1 Training', description: 'Comprehensive programs for serious investors' },
   ELITE: { min: 1000001, label: 'Elite Access', description: 'Direct mentorship and partnerships' },
 };
 
