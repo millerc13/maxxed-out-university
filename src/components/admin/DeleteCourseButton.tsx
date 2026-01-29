@@ -42,7 +42,7 @@ export function DeleteCourseButton({ courseId, courseTitle }: DeleteCourseButton
           <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Course?</h3>
           <p className="text-gray-600 mb-4">
             Are you sure you want to delete &quot;{courseTitle}&quot;? This will also delete all
-            modules, lessons, and enrollments. This action cannot be undone.
+            modules, lessons, enrollments, and the product in GoHighLevel. This action cannot be undone.
           </p>
           <div className="flex gap-3 justify-end">
             <button

@@ -80,9 +80,37 @@ export default async function CoursesPage() {
     };
   });
 
+  // For admin (not in customer view): treat all courses as enrolled
+  const showAllAsEnrolled = isAdmin && !isCustomerView;
+
+  // Price tier sorting helper (lower = higher priority)
+  const getTierPriority = (price: number | null): number => {
+    const p = price ?? 0;
+    if (p > PRICE_TIERS.HIGH.max) return 0;  // Elite
+    if (p > PRICE_TIERS.MID.max) return 1;   // High ticket
+    if (p > PRICE_TIERS.LOW.max) return 2;   // Core Training
+    if (p > 0) return 3;                      // Low ticket
+    return 4;                                 // Free
+  };
+
+  const sortByTier = <T extends { price: number | null; order: number }>(courses: T[]): T[] => {
+    return [...courses].sort((a, b) => {
+      const tierA = getTierPriority(a.price);
+      const tierB = getTierPriority(b.price);
+      if (tierA !== tierB) return tierA - tierB;
+      const priceA = a.price ?? 0;
+      const priceB = b.price ?? 0;
+      if (priceB !== priceA) return priceB - priceA;
+      return a.order - b.order;
+    });
+  };
+
   // Separate enrolled from available, filter out coming soon
-  const enrolledCourses = coursesWithStats.filter((c) => c.isEnrolled && !c.isComingSoon);
-  const availableCourses = coursesWithStats.filter((c) => !c.isEnrolled && !c.isComingSoon);
+  // Admins see ALL courses as enrolled, sorted by tier
+  const enrolledCourses = sortByTier(
+    coursesWithStats.filter((c) => (showAllAsEnrolled || c.isEnrolled) && !c.isComingSoon)
+  );
+  const availableCourses = showAllAsEnrolled ? [] : coursesWithStats.filter((c) => !c.isEnrolled && !c.isComingSoon);
 
   // Group available courses by price tier
   const lowTicket = availableCourses.filter((c) => c.price && c.price <= PRICE_TIERS.LOW.max);

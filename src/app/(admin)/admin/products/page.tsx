@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent } from '@/components/ui/card';
-import { Link2, Plus, Trash2, Edit } from 'lucide-react';
+import { Link2, Plus, Trash2, Edit, Upload } from 'lucide-react';
 import { ProductMappingForm } from '@/components/admin/ProductMappingForm';
+import { GHLSyncButton } from '@/components/admin/GHLSyncButton';
 
 export default async function AdminProductsPage() {
   const [products, courses] = await Promise.all([
@@ -39,6 +40,25 @@ export default async function AdminProductsPage() {
             corresponding course. You can also enable &quot;Grant All Courses&quot; to give access to
             every course with a single product (useful for bundles).
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Sync to GHL */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4 mb-4">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Upload className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Sync Courses to GoHighLevel</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Create products in GHL for all your published courses. This will sync course names,
+                descriptions, thumbnails, and prices. Existing products (by name) will be skipped.
+              </p>
+            </div>
+          </div>
+          <GHLSyncButton />
         </CardContent>
       </Card>
 

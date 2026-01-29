@@ -21,8 +21,11 @@ export default async function DashboardPage() {
   const isAdmin = (session.user as any).role === 'ADMIN';
   const isCustomerView = isAdmin && cookieStore.get('admin_customer_view')?.value === 'true';
 
+  // For admin (not in customer view): fetch ALL published courses
+  // For regular users or admin in customer view: fetch only enrolled courses
+  const showAllCourses = isAdmin && !isCustomerView;
+
   // Fetch user's enrollments with course details and progress
-  // If admin is in customer view, return empty array to simulate no enrollments
   const enrollments = isCustomerView ? [] : await prisma.enrollment.findMany({
     where: { userId: session.user.id },
     include: {
@@ -39,8 +42,20 @@ export default async function DashboardPage() {
     },
   });
 
+  // Fetch ALL published courses for admin view
+  const allCourses = showAllCourses ? await prisma.course.findMany({
+    where: { published: true },
+    include: {
+      modules: {
+        include: {
+          lessons: true,
+        },
+        orderBy: { order: 'asc' },
+      },
+    },
+  }) : [];
+
   // Fetch user's lesson progress
-  // If admin is in customer view, return empty array
   const progress = isCustomerView ? [] : await prisma.lessonProgress.findMany({
     where: { userId: session.user.id },
     include: {
@@ -57,9 +72,9 @@ export default async function DashboardPage() {
     orderBy: { updatedAt: 'desc' },
   });
 
-  // Fetch available courses (not enrolled)
+  // Fetch available courses (not enrolled) - only for regular users
   const enrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
-  const availableCourses = await prisma.course.findMany({
+  const availableCourses = showAllCourses ? [] : await prisma.course.findMany({
     where: {
       published: true,
       id: { notIn: Array.from(enrolledCourseIds) },
@@ -74,36 +89,78 @@ export default async function DashboardPage() {
     orderBy: [{ price: 'asc' }, { order: 'asc' }],
   });
 
-  // Filter out courses with no lessons (coming soon)
-  const availableWithLessons = availableCourses
-    .map((course) => ({
-      ...course,
-      totalLessons: course.modules.reduce((acc, m) => acc + m.lessons.length, 0),
-    }))
-    .filter((course) => course.totalLessons > 0);
+  // Price tier boundaries (in cents) - Core Training = MID tier ($97-$1,500)
+  const PRICE_TIERS = {
+    LOW_MAX: 9700,        // $97
+    MID_MAX: 150000,      // $1,500
+    HIGH_MAX: 1000000,    // $10,000
+  };
+
+  // Get tier priority (lower = higher priority)
+  const getTierPriority = (price: number | null): number => {
+    const p = price ?? 0;
+    if (p > PRICE_TIERS.HIGH_MAX) return 0;  // Elite - highest priority
+    if (p > PRICE_TIERS.MID_MAX) return 1;   // High ticket
+    if (p > PRICE_TIERS.LOW_MAX) return 2;   // Core Training (MID) - prioritized
+    if (p > 0) return 3;                      // Low ticket
+    return 4;                                 // Free - lowest priority
+  };
+
+  // Helper function to sort courses: High-value first, then Core Training, then by order
+  const sortCourses = <T extends { title: string; price: number | null; order: number }>(courses: T[]): T[] => {
+    return [...courses].sort((a, b) => {
+      // Sort by tier priority first
+      const tierA = getTierPriority(a.price);
+      const tierB = getTierPriority(b.price);
+      if (tierA !== tierB) return tierA - tierB;
+      // Within same tier, sort by price descending
+      const priceA = a.price ?? 0;
+      const priceB = b.price ?? 0;
+      if (priceB !== priceA) return priceB - priceA;
+      // Then by order
+      return a.order - b.order;
+    });
+  };
+
+  // Filter out courses with no lessons (coming soon) and sort
+  const availableWithLessons = sortCourses(
+    availableCourses
+      .map((course) => ({
+        ...course,
+        totalLessons: course.modules.reduce((acc, m) => acc + m.lessons.length, 0),
+      }))
+      .filter((course) => course.totalLessons > 0)
+  );
 
   // Calculate stats
-  const totalCourses = enrollments.length;
+  const totalCourses = showAllCourses ? allCourses.length : enrollments.length;
   const totalWatchedSeconds = progress.reduce((acc, p) => acc + p.watchedSeconds, 0);
   const totalHours = Math.floor(totalWatchedSeconds / 3600);
   const totalMinutes = Math.floor((totalWatchedSeconds % 3600) / 60);
   const certificates = await prisma.certificate.count({ where: { userId: session.user.id } });
 
-  // Calculate progress for each enrolled course
-  const coursesWithProgress = enrollments.map((enrollment) => {
-    const totalLessons = enrollment.course.modules.reduce(
+  // Calculate progress for courses
+  // For admin: use all courses; for regular users: use enrollments
+  const coursesToShow = showAllCourses
+    ? allCourses.filter(c => c.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0)
+    : enrollments.map(e => e.course);
+
+  const sortedCoursesToShow = sortCourses(coursesToShow);
+
+  const coursesWithProgress = sortedCoursesToShow.map((course) => {
+    const totalLessons = course.modules.reduce(
       (acc, m) => acc + m.lessons.length,
       0
     );
     const completedLessons = progress.filter(
       (p) =>
         p.completed &&
-        p.lesson.module.courseId === enrollment.courseId
+        p.lesson.module.courseId === course.id
     ).length;
     const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
     // Find next lesson to continue
-    const allLessons = enrollment.course.modules.flatMap((m) =>
+    const allLessons = course.modules.flatMap((m) =>
       m.lessons.map((l) => ({ ...l, moduleName: m.title }))
     );
     const completedLessonIds = new Set(
@@ -112,7 +169,9 @@ export default async function DashboardPage() {
     const nextLesson = allLessons.find((l) => !completedLessonIds.has(l.id));
 
     return {
-      ...enrollment,
+      id: course.id,
+      courseId: course.id,
+      course,
       totalLessons,
       completedLessons,
       progressPercent,
@@ -196,7 +255,12 @@ export default async function DashboardPage() {
           {/* My Courses Section */}
           <div className="mb-10">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-text-dark">My Courses</h2>
+              <div>
+                <h2 className="text-xl font-bold text-text-dark">My Courses</h2>
+                {showAllCourses && (
+                  <p className="text-sm text-text-muted">Courses you have access to</p>
+                )}
+              </div>
               <Link
                 href="/courses"
                 className="text-sm text-maxxed-blue hover:underline flex items-center gap-1"
@@ -277,7 +341,7 @@ export default async function DashboardPage() {
                         className="flex items-center justify-center gap-2 w-full py-2.5 bg-maxxed-blue text-white font-bold text-sm uppercase tracking-wider rounded hover:bg-maxxed-blue-dark transition-colors"
                       >
                         <Play className="w-4 h-4" />
-                        {enrollment.progressPercent === 0 ? 'Start Course' : enrollment.progressPercent === 100 ? 'Review Course' : 'Continue'}
+                        {enrollment.progressPercent === 0 ? 'Start Learning' : enrollment.progressPercent === 100 ? 'Review Course' : 'Continue'}
                       </Link>
                     </CardContent>
                   </Card>
@@ -323,8 +387,8 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Available Courses Section */}
-          {recommendedCourses.length > 0 && (
+          {/* Available Courses Section - Hidden for admins since they see all courses above */}
+          {recommendedCourses.length > 0 && !showAllCourses && (
             <div>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -332,8 +396,12 @@ export default async function DashboardPage() {
                     <Sparkles className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-text-dark">Expand Your Knowledge</h2>
-                    <p className="text-sm text-text-muted">Courses available for purchase</p>
+                    <h2 className="text-xl font-bold text-text-dark">
+                      {isAdmin && !isCustomerView ? 'Other Courses' : 'Expand Your Knowledge'}
+                    </h2>
+                    <p className="text-sm text-text-muted">
+                      {isAdmin && !isCustomerView ? 'Courses you haven\'t started yet' : 'Courses available for purchase'}
+                    </p>
                   </div>
                 </div>
                 <Link
@@ -395,8 +463,17 @@ export default async function DashboardPage() {
                           href={`/courses/${course.slug}`}
                           className="flex items-center justify-center gap-2 w-full py-2.5 border-2 border-maxxed-blue text-maxxed-blue font-bold text-sm uppercase tracking-wider rounded hover:bg-maxxed-blue hover:text-white transition-colors"
                         >
-                          <Lock className="w-4 h-4" />
-                          {course.price ? 'Get Access' : 'Enroll Free'}
+                          {isAdmin && !isCustomerView ? (
+                            <>
+                              <Play className="w-4 h-4" />
+                              View Course
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-4 h-4" />
+                              {course.price ? 'Get Access' : 'Enroll Free'}
+                            </>
+                          )}
                         </Link>
                       </CardContent>
                     </Card>

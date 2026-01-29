@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { syncSingleCourseToGHL, deleteGHLProductForCourse } from '@/lib/ghl';
 
 async function requireAdmin() {
   const session = await auth();
@@ -91,6 +92,36 @@ export async function PUT(
       },
     });
 
+    // Check if we need to sync to GHL
+    const wasPublished = existing.published;
+    const isNowPublished = course.published;
+    const titleChanged = title && title !== existing.title;
+    const priceChanged = price !== undefined && parseInt(price) !== existing.price;
+    const thumbnailChanged = thumbnail !== undefined && thumbnail !== existing.thumbnail;
+
+    if (isNowPublished) {
+      // Sync if: just published, or key fields changed while published
+      const shouldSync = !wasPublished || titleChanged || priceChanged || thumbnailChanged;
+
+      if (shouldSync) {
+        console.log(`Auto-syncing updated course to GHL: ${course.title}`);
+        syncSingleCourseToGHL(
+          {
+            id: course.id,
+            title: course.title,
+            description: course.description,
+            shortDesc: course.shortDesc,
+            thumbnail: course.thumbnail,
+            price: course.price,
+            slug: course.slug,
+          },
+          prisma
+        ).catch((err) => {
+          console.error('GHL sync failed:', err);
+        });
+      }
+    }
+
     return NextResponse.json(course);
   } catch (error) {
     console.error('Update course error:', error);
@@ -122,6 +153,16 @@ export async function DELETE(
     const course = await prisma.course.findUnique({ where: { id } });
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
+    }
+
+    // Delete from GHL first (before deleting the course and its mappings)
+    if (course.published) {
+      console.log(`Deleting GHL product for course: ${course.title}`);
+      try {
+        await deleteGHLProductForCourse(id, prisma, course.title);
+      } catch (err) {
+        console.error('Failed to delete GHL product:', err);
+      }
     }
 
     await prisma.course.delete({ where: { id } });

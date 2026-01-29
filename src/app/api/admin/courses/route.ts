@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { syncSingleCourseToGHL } from '@/lib/ghl';
 
 // Helper to check admin
 async function requireAdmin() {
@@ -75,6 +76,26 @@ export async function POST(request: NextRequest) {
         price: price ? parseInt(price) : null,
       },
     });
+
+    // If course is published, sync to GHL
+    if (course.published) {
+      console.log(`Auto-syncing new published course to GHL: ${course.title}`);
+      syncSingleCourseToGHL(
+        {
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          shortDesc: course.shortDesc,
+          thumbnail: course.thumbnail,
+          price: course.price,
+          slug: course.slug,
+        },
+        prisma
+      ).catch((err) => {
+        // Don't fail the course creation if GHL sync fails
+        console.error('GHL sync failed:', err);
+      });
+    }
 
     return NextResponse.json(course, { status: 201 });
   } catch (error) {

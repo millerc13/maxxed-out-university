@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard, Settings } from 'lucide-react';
 import { AdminViewToggle } from './AdminViewToggle';
@@ -31,6 +32,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { data: session, status } = useSession();
+  const pathname = usePathname();
 
   const isLoading = status === 'loading';
   const isAuthenticated = status === 'authenticated';
@@ -97,16 +99,23 @@ export function Header() {
           {/* Nav Links */}
           {navLinks
             .filter((link) => !link.authRequired || isAuthenticated)
-            .map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="flex items-center gap-1.5 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue"
-              >
-                <link.icon className="w-4 h-4" />
-                {link.label}
-              </Link>
-            ))}
+            .map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className={`flex items-center gap-1.5 text-sm font-medium no-underline transition-colors duration-300 ${
+                    isActive
+                      ? 'text-maxxed-blue border-b-2 border-maxxed-blue pb-1'
+                      : 'text-text-body hover:text-maxxed-blue'
+                  }`}
+                >
+                  <link.icon className="w-4 h-4" />
+                  {link.label}
+                </Link>
+              );
+            })}
 
           {/* Admin View Toggle */}
           {isAdmin && <AdminViewToggle />}
@@ -187,17 +196,24 @@ export function Header() {
         >
           {navLinks
             .filter((link) => !link.authRequired || isAuthenticated)
-            .map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <link.icon className="w-4 h-4" />
-                {link.label}
-              </Link>
-            ))}
+            .map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className={`px-5 py-4 border-b border-gray-100 text-sm font-medium no-underline transition-colors duration-300 flex items-center gap-2 ${
+                    isActive
+                      ? 'text-maxxed-blue bg-blue-50 border-l-4 border-l-maxxed-blue'
+                      : 'text-text-body hover:text-maxxed-blue'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <link.icon className="w-4 h-4" />
+                  {link.label}
+                </Link>
+              );
+            })}
           {isAuthenticated ? (
             <>
               {isAdmin && (

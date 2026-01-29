@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   images: {
+    qualities: [75, 80, 85],
     remotePatterns: [
       {
         protocol: 'https',
@@ -14,6 +15,14 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.leadconnectorhq.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'assets.cdn.filesafe.space',
       },
     ],
   },
