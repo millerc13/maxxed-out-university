@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/ui/markdown-content';
-import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy, Download, FileText } from 'lucide-react';
+import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy, Download, FileText, Printer } from 'lucide-react';
+import { PrintButton } from '@/components/ui/print-button';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
@@ -83,7 +84,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
     : null;
 
   const isEnrolled = !!enrollment;
-  const hasAccess = isEnrolled || currentLesson.isFree;
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
+  const hasAccess = isAdmin || isEnrolled || currentLesson.isFree;
 
   if (!hasAccess) {
     redirect(`/courses/${slug}`);
@@ -125,13 +127,18 @@ export default async function LessonPage({ params }: LessonPageProps) {
   const prevLesson = lessonIndex > 0 ? allLessons[lessonIndex - 1] : null;
   const nextLesson = lessonIndex < allLessons.length - 1 ? allLessons[lessonIndex + 1] : null;
 
+  // Calculate module and lesson numbers for display (e.g., "Lesson 1.1")
+  const moduleIndex = course.modules.findIndex((m) => m.id === currentModule.id);
+  const lessonOrderInModule = currentLesson.order;
+  const lessonNumber = `${moduleIndex + 1}.${lessonOrderInModule}`;
+
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gray-900">
-        <div className="max-w-7xl mx-auto">
-          {/* Video Player Area */}
-          <div className="aspect-video bg-black relative">
+      <main className="min-h-screen bg-gray-900 print:bg-white print:min-h-0">
+        <div className="max-w-7xl mx-auto print:max-w-none">
+          {/* Video Player Area - Hidden when printing */}
+          <div className="aspect-video bg-black relative print:hidden">
             {currentLesson.videoUrl ? (
               <video
                 className="w-full h-full"
@@ -164,8 +171,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
             )}
           </div>
 
-          {/* Lesson Navigation Bar */}
-          <div className="bg-gray-800 text-white px-5 py-4">
+          {/* Lesson Navigation Bar - Hidden when printing */}
+          <div className="bg-gray-800 text-white px-5 py-4 print:hidden">
             <div className="flex items-center justify-between">
               {/* Prev */}
               {prevLesson ? (
@@ -183,7 +190,10 @@ export default async function LessonPage({ params }: LessonPageProps) {
               {/* Current Lesson Info */}
               <div className="text-center">
                 <p className="text-sm text-gray-400">{currentModule.title}</p>
-                <p className="font-medium">{currentLesson.title}</p>
+                <p className="font-medium">
+                  <span className="text-maxxed-gold font-bold mr-2">Lesson {lessonNumber}</span>
+                  {currentLesson.title}
+                </p>
               </div>
 
               {/* Next */}
@@ -209,30 +219,52 @@ export default async function LessonPage({ params }: LessonPageProps) {
         </div>
 
         {/* Content Area */}
-        <div className="bg-background">
-          <div className="max-w-7xl mx-auto px-5 md:px-10 py-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="bg-background print:bg-white">
+          <div className="max-w-7xl mx-auto px-5 md:px-10 py-8 print:max-w-none print:px-0 print:py-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:block">
               {/* Lesson Content */}
-              <div className="lg:col-span-2">
-                <Card className="shadow-card">
-                  <CardContent className="p-6">
-                    <h1 className="text-2xl font-bold text-text-dark mb-4">
-                      {currentLesson.title}
-                    </h1>
-                    {currentLesson.description && (
-                      <p className="text-text-body mb-6">{currentLesson.description}</p>
-                    )}
-                    {currentLesson.content ? (
-                      <MarkdownContent content={currentLesson.content} />
-                    ) : (
-                      <p className="text-text-muted italic">
-                        No additional content for this lesson.
-                      </p>
-                    )}
+              <div className="lg:col-span-2 print:col-span-full">
+                <Card className="shadow-card print:shadow-none print:border-0">
+                  <CardContent className="p-6 print:p-0">
+                    {/* Print Header - Only visible when printing */}
+                    <div className="hidden print:block print-header mb-6">
+                      <p className="text-sm text-gray-600 mb-1">{course.title}</p>
+                      <p className="text-sm text-gray-500">Module {moduleIndex + 1}: {currentModule.title}</p>
+                      <h1 className="text-2xl font-bold mt-2">Lesson {lessonNumber}: {currentLesson.title}</h1>
+                    </div>
 
-                    {/* Mark Complete Button */}
+                    {/* Screen Header - Hidden when printing */}
+                    <div className="print:hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <span className="inline-flex items-center justify-center px-3 py-1 bg-maxxed-blue text-white text-sm font-bold rounded">
+                            Lesson {lessonNumber}
+                          </span>
+                          <span className="text-sm text-text-muted">{currentModule.title}</span>
+                        </div>
+                        <PrintButton />
+                      </div>
+                      <h1 className="text-2xl font-bold text-text-dark mb-4">
+                        {currentLesson.title}
+                      </h1>
+                    </div>
+                    {/* Lesson Content - Prints nicely */}
+                    <div className="lesson-content">
+                      {currentLesson.description && (
+                        <p className="text-text-body mb-6">{currentLesson.description}</p>
+                      )}
+                      {currentLesson.content ? (
+                        <MarkdownContent content={currentLesson.content} />
+                      ) : (
+                        <p className="text-text-muted italic print:hidden">
+                          No additional content for this lesson.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Mark Complete Button - Hidden when printing */}
                     {isEnrolled && !currentProgress?.completed && (
-                      <div className="mt-8 pt-6 border-t">
+                      <div className="mt-8 pt-6 border-t print:hidden">
                         <form action={`/api/progress/complete`} method="POST">
                           <input type="hidden" name="lessonId" value={currentLesson.id} />
                           <button
@@ -247,7 +279,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
                     )}
 
                     {currentProgress?.completed && (
-                      <div className="mt-8 pt-6 border-t">
+                      <div className="mt-8 pt-6 border-t print:hidden">
                         <div className="flex items-center gap-2 text-green-600">
                           <CheckCircle className="w-5 h-5" />
                           <span className="font-medium">You&apos;ve completed this lesson!</span>
@@ -290,8 +322,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
                 </Card>
               </div>
 
-              {/* Sidebar - Course Outline */}
-              <div className="lg:col-span-1">
+              {/* Sidebar - Course Outline - Hidden when printing */}
+              <div className="lg:col-span-1 print:hidden">
                 <Card className="shadow-card sticky top-24">
                   <CardContent className="p-0">
                     <div className="p-4 border-b bg-gray-50">
@@ -320,17 +352,18 @@ export default async function LessonPage({ params }: LessonPageProps) {
                         const allModuleLessonsCompleted = module.lessons.every(
                           (l) => progressMap.get(l.id)?.completed
                         );
-                        const quizUnlocked = allPriorModulesCompleted && allModuleLessonsCompleted;
+                        const quizUnlocked = isAdmin || (allPriorModulesCompleted && allModuleLessonsCompleted);
 
                         return (
                           <div key={module.id}>
                             <div className="px-4 py-2 bg-gray-50 text-sm font-medium text-text-muted border-b">
-                              {module.title}
+                              Module {moduleIndex + 1}: {module.title}
                             </div>
                             {module.lessons.map((lesson) => {
                               const lProgress = progressMap.get(lesson.id);
                               const isCurrent = lesson.id === currentLesson.id;
-                              const isLocked = !isEnrolled && !lesson.isFree;
+                              const isLocked = !isAdmin && !isEnrolled && !lesson.isFree;
+                              const sidebarLessonNum = `${moduleIndex + 1}.${lesson.order}`;
 
                               return (
                                 <Link
@@ -351,6 +384,9 @@ export default async function LessonPage({ params }: LessonPageProps) {
                                   ) : (
                                     <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                   )}
+                                  <span className="text-text-muted text-xs font-medium w-8 flex-shrink-0">
+                                    {sidebarLessonNum}
+                                  </span>
                                   <span
                                     className={`truncate ${
                                       isCurrent ? 'font-medium text-maxxed-blue' : 'text-text-body'
@@ -362,7 +398,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
                               );
                             })}
                             {/* Module Quiz */}
-                            {moduleQuiz && isEnrolled && (
+                            {moduleQuiz && (isAdmin || isEnrolled) && (
                               quizUnlocked ? (
                                 <Link
                                   href={`/courses/${slug}/quiz/${moduleQuiz.id}`}
@@ -392,14 +428,15 @@ export default async function LessonPage({ params }: LessonPageProps) {
                       {/* Final Exam at the bottom */}
                       {(() => {
                         const finalExam = course.quizzes.find((q) => q.order >= course.modules.length);
-                        if (!finalExam || !isEnrolled) return null;
+                        if (!finalExam || (!isAdmin && !isEnrolled)) return null;
                         const finalAttempts = quizAttemptsMap.get(finalExam.id) || [];
                         const finalPassed = finalAttempts.some((a) => a.passed);
-                        // Final exam requires ALL lessons completed
+                        // Final exam requires ALL lessons completed (admin can bypass)
                         const allLessonsCompleted = allLessons.every(
                           (l) => progressMap.get(l.lesson.id)?.completed
                         );
-                        return allLessonsCompleted ? (
+                        const finalExamUnlocked = isAdmin || allLessonsCompleted;
+                        return finalExamUnlocked ? (
                           <Link
                             href={`/courses/${slug}/quiz/${finalExam.id}`}
                             className="flex items-center gap-3 px-4 py-3 border-b text-sm transition-colors bg-amber-50 hover:bg-amber-100"

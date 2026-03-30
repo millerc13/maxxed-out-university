@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { syncCoursesToGHL, updateGHLProductPrices, deleteAndRecreateProducts, type CourseToSync } from '@/lib/ghl';
+import { syncCoursesToGHL, updateGHLProductPrices, deleteAndRecreateProducts, listProducts, type CourseToSync } from '@/lib/ghl';
 
 /**
  * POST /api/admin/sync-ghl-products
@@ -73,6 +73,50 @@ export async function POST(request: NextRequest) {
 
     // Sync to GHL
     const results = await syncCoursesToGHL(coursesToSync);
+
+    // Get existing GHL products to find IDs for skipped products
+    const locationId = process.env.GHL_LOCATION_ID;
+    let ghlProducts: Array<{ _id: string; name: string }> = [];
+    if (locationId) {
+      ghlProducts = await listProducts(locationId);
+    }
+
+    // Create ProductMapping records for successfully synced products
+    for (const result of results) {
+      const course = courses.find((c) => c.id === result.courseId);
+      if (!course) continue;
+
+      // Check if mapping already exists
+      const existingMapping = await prisma.productMapping.findFirst({
+        where: { courseId: result.courseId },
+      });
+
+      if (existingMapping) continue;
+
+      let ghlProductId = result.ghlProductId;
+
+      // For skipped products, find the existing GHL product ID by name
+      if (result.skipped && !ghlProductId) {
+        const existingProduct = ghlProducts.find(
+          (p) => p.name.toLowerCase() === course.title.toLowerCase()
+        );
+        if (existingProduct) {
+          ghlProductId = existingProduct._id;
+        }
+      }
+
+      // Create mapping if we have a product ID
+      if (ghlProductId) {
+        await prisma.productMapping.create({
+          data: {
+            ghlProductId,
+            ghlProductName: course.title,
+            courseId: result.courseId,
+            active: true,
+          },
+        });
+      }
+    }
 
     // Count successes and failures
     const successCount = results.filter((r) => r.success && !r.skipped).length;
@@ -288,6 +332,40 @@ export async function DELETE(request: NextRequest) {
 
     // Delete and recreate products
     const results = await deleteAndRecreateProducts(coursesToRecreate);
+
+    // Create/update ProductMapping records for successfully recreated products
+    for (const result of results) {
+      if (result.success && result.ghlProductId) {
+        const course = courses.find((c) => c.id === result.courseId);
+        if (course) {
+          // Check if mapping already exists
+          const existingMapping = await prisma.productMapping.findFirst({
+            where: { courseId: result.courseId },
+          });
+
+          if (existingMapping) {
+            // Update existing mapping with new product ID
+            await prisma.productMapping.update({
+              where: { id: existingMapping.id },
+              data: {
+                ghlProductId: result.ghlProductId,
+                ghlProductName: course.title,
+              },
+            });
+          } else {
+            // Create new mapping
+            await prisma.productMapping.create({
+              data: {
+                ghlProductId: result.ghlProductId,
+                ghlProductName: course.title,
+                courseId: result.courseId,
+                active: true,
+              },
+            });
+          }
+        }
+      }
+    }
 
     // Count successes and failures
     const successCount = results.filter((r) => r.success).length;

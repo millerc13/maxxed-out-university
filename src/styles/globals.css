@@ -105,3 +105,111 @@
     background-color: #0a0a0a;
   }
 }
+
+/* Print Styles */
+@media print {
+  /* Hide non-printable elements */
+  header,
+  footer,
+  nav,
+  [data-print-hide],
+  video,
+  .video-container,
+  .sidebar,
+  .sticky {
+    display: none !important;
+  }
+
+  /* Reset backgrounds and colors for printing */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+
+  /* Ensure content takes full width */
+  main,
+  .print-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: white !important;
+  }
+
+  /* Card styling for print */
+  .shadow-card,
+  [class*="shadow"] {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Ensure text is black */
+  h1, h2, h3, h4, h5, h6, p, li, span, div {
+    color: black !important;
+  }
+
+  /* Style the print header */
+  .print-header {
+    display: block !important;
+    border-bottom: 2px solid #0000FF;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+  }
+
+  .print-header h1 {
+    font-size: 18pt !important;
+    font-weight: bold !important;
+    margin: 0 0 5px 0 !important;
+  }
+
+  .print-header p {
+    font-size: 11pt !important;
+    color: #666 !important;
+    margin: 0 !important;
+  }
+
+  /* Lesson content styling */
+  .lesson-content h2 {
+    font-size: 14pt !important;
+    margin-top: 20px !important;
+    margin-bottom: 10px !important;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+  }
+
+  .lesson-content h3 {
+    font-size: 12pt !important;
+    margin-top: 15px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .lesson-content ul,
+  .lesson-content ol {
+    margin-left: 20px !important;
+  }
+
+  .lesson-content li {
+    margin-bottom: 5px !important;
+  }
+
+  /* Page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  /* Avoid breaking inside elements */
+  h2, h3, h4, blockquote, pre, table {
+    page-break-inside: avoid;
+  }
+
+  /* Links - show URL in print */
+  a[href]:after {
+    content: none !important;
+  }
+}

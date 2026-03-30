@@ -16,6 +16,7 @@ import {
   Lock
 } from 'lucide-react';
 import Link from 'next/link';
+import { PrintButton } from '@/components/ui/print-button';
 
 interface Answer {
   id: string;
@@ -213,8 +214,19 @@ export default function QuizPage({ params }: QuizPageProps) {
         <Header />
         <main className="min-h-screen bg-background">
           <div className="max-w-3xl mx-auto px-5 py-12">
+            {/* Print Header */}
+            <div className="hidden print:block print-header mb-6">
+              <h1 className="text-xl font-bold">{quiz.title} - Results</h1>
+              <p className="text-gray-600">Maxxed Out University Quiz Results</p>
+            </div>
+
+            {/* Print Button */}
+            <div className="flex justify-end mb-4 print:hidden">
+              <PrintButton className="text-sm" />
+            </div>
+
             {/* Results Header */}
-            <Card className="mb-6">
+            <Card className="mb-6 print:shadow-none print:border">
               <CardContent className="p-8 text-center">
                 <div className={`w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${
                   result.passed ? 'bg-green-100' : 'bg-orange-100'
@@ -249,8 +261,8 @@ export default function QuizPage({ params }: QuizPageProps) {
                 const isCorrect = JSON.stringify(userAns.sort()) === JSON.stringify(correctAns.sort());
 
                 return (
-                  <Card key={q.id} className={`border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
-                    <CardContent className="p-5">
+                  <Card key={q.id} className={`border-l-4 print:shadow-none ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
+                    <CardContent className="p-5 print:p-3">
                       <div className="flex items-start gap-3 mb-3">
                         {isCorrect ? (
                           <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
@@ -299,7 +311,7 @@ export default function QuizPage({ params }: QuizPageProps) {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between mt-8">
+            <div className="flex items-center justify-between mt-8 print:hidden">
               <Link
                 href={`/courses/${courseSlug}`}
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900"
@@ -336,46 +348,78 @@ export default function QuizPage({ params }: QuizPageProps) {
         <Header />
         <main className="min-h-screen bg-background">
           <div className="max-w-3xl mx-auto px-5 py-12">
-            <Link
-              href={`/courses/${courseSlug}`}
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Course
-            </Link>
+            <div className="flex items-center justify-between mb-6 print:hidden">
+              <Link
+                href={`/courses/${courseSlug}`}
+                className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Course
+              </Link>
+              <PrintButton className="text-sm" />
+            </div>
 
-            <Card>
-              <CardContent className="p-8 text-center">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{quiz.title}</h1>
+            {/* Print Header */}
+            <div className="hidden print:block print-header mb-6">
+              <h1 className="text-xl font-bold">{quiz.title}</h1>
+              <p className="text-gray-600">Maxxed Out University Quiz</p>
+            </div>
+
+            <Card className="print:shadow-none print:border">
+              <CardContent className="p-8 text-center print:text-left">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2 print:hidden">{quiz.title}</h1>
                 {quiz.description && (
                   <p className="text-gray-600 mb-6">{quiz.description}</p>
                 )}
 
-                <div className="flex items-center justify-center gap-8 mb-8 text-sm text-gray-600">
+                <div className="flex items-center justify-center gap-8 mb-8 text-sm text-gray-600 print:justify-start print:gap-4 print:mb-4">
                   <div>
-                    <span className="font-bold text-2xl text-gray-900 block">{quiz.questions.length}</span>
-                    Questions
+                    <span className="font-bold text-2xl text-gray-900 block print:inline print:text-base">{quiz.questions.length}</span>
+                    <span className="print:ml-1">Questions</span>
                   </div>
                   <div>
-                    <span className="font-bold text-2xl text-gray-900 block">{quiz.passingScore}%</span>
-                    To Pass
+                    <span className="font-bold text-2xl text-gray-900 block print:inline print:text-base">{quiz.passingScore}%</span>
+                    <span className="print:ml-1">To Pass</span>
                   </div>
                   {quiz.timeLimit && (
                     <div>
-                      <span className="font-bold text-2xl text-gray-900 block">{quiz.timeLimit}</span>
-                      Minutes
+                      <span className="font-bold text-2xl text-gray-900 block print:inline print:text-base">{quiz.timeLimit}</span>
+                      <span className="print:ml-1">Minutes</span>
                     </div>
                   )}
                 </div>
 
                 <button
                   onClick={startQuiz}
-                  className="px-8 py-3 bg-maxxed-blue text-white rounded-lg font-bold text-lg hover:bg-maxxed-blue-dark transition-colors"
+                  className="px-8 py-3 bg-maxxed-blue text-white rounded-lg font-bold text-lg hover:bg-maxxed-blue-dark transition-colors print:hidden"
                 >
                   Start Quiz
                 </button>
               </CardContent>
             </Card>
+
+            {/* Print: Show all questions */}
+            <div className="hidden print:block mt-8 space-y-6">
+              <h2 className="text-lg font-bold border-b pb-2">Questions</h2>
+              {quiz.questions.map((q, idx) => (
+                <div key={q.id} className="mb-4">
+                  <p className="font-medium mb-2">
+                    {idx + 1}. {q.text}
+                    {q.type === 'MULTIPLE_SELECT' && <span className="text-sm text-gray-500 ml-2">(Select all that apply)</span>}
+                  </p>
+                  <div className="ml-4 space-y-1">
+                    {q.answers.map((a, aIdx) => (
+                      <div key={a.id} className="flex items-center gap-2">
+                        <span className="w-5 h-5 border border-gray-400 rounded-sm inline-flex items-center justify-center text-xs">
+                          {String.fromCharCode(65 + aIdx)}
+                        </span>
+                        <span>{a.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </main>
         <Footer />
