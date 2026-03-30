@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { isAdmin } from '@/lib/admin';
 
 // GET - Fetch quiz with questions (answers without isCorrect)
 export async function GET(
@@ -13,9 +14,11 @@ export async function GET(
   }
 
   const { quizId } = await params;
+  const userIsAdmin = isAdmin(session);
 
+  // Admin can view unpublished quizzes too
   const quiz = await prisma.quiz.findUnique({
-    where: { id: quizId, published: true },
+    where: userIsAdmin ? { id: quizId } : { id: quizId, published: true },
     include: {
       questions: {
         orderBy: { order: 'asc' },
@@ -36,6 +39,11 @@ export async function GET(
 
   if (!quiz) {
     return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
+  }
+
+  // Admin bypasses all access checks
+  if (userIsAdmin) {
+    return NextResponse.json(quiz);
   }
 
   // Check if user is enrolled in the course (if quiz is attached to one)

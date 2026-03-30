@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
+import { MarkdownContent } from '@/components/ui/markdown-content';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -125,7 +126,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
               <div className="lg:col-span-2">
                 <h1 className="text-3xl md:text-4xl font-bold mb-4">{course.title}</h1>
                 <p className="text-lg text-blue-100 mb-6">
-                  {course.description}
+                  {course.description?.includes('#') ? course.shortDesc : course.description}
                 </p>
                 <div className="flex flex-wrap gap-6 text-sm">
                   <div className="flex items-center gap-2">
@@ -217,6 +218,17 @@ export default async function CoursePage({ params }: CoursePageProps) {
           </div>
         </div>
 
+        {/* Course Description (for markdown-formatted descriptions) */}
+        {course.description && course.description.includes('#') && (
+          <div className="max-w-7xl mx-auto px-5 md:px-10 py-10 border-b">
+            <Card className="shadow-card">
+              <CardContent className="p-6 md:p-8">
+                <MarkdownContent content={course.description} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Course Content */}
         <div className="max-w-7xl mx-auto px-5 md:px-10 py-10">
           <h2 className="text-2xl font-bold text-text-dark mb-6">Course Content</h2>
@@ -236,7 +248,8 @@ export default async function CoursePage({ params }: CoursePageProps) {
               const allModuleLessonsCompleted = module.lessons.every(
                 (l) => progressMap.get(l.id)?.completed
               );
-              const quizUnlocked = isEnrolled && allPriorModulesCompleted && allModuleLessonsCompleted;
+              // Admin can access all quizzes regardless of progress
+              const quizUnlocked = isAdmin || (isEnrolled && allPriorModulesCompleted && allModuleLessonsCompleted);
 
               return (
                 <div key={module.id} className="space-y-4">
@@ -258,7 +271,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                       {module.lessons.map((lesson, lessonIndex) => {
                         const lessonProgress = progressMap.get(lesson.id);
                         const isCompleted = lessonProgress?.completed;
-                        const isAccessible = isEnrolled || lesson.isFree;
+                        const isAccessible = isAdmin || isEnrolled || lesson.isFree;
                         const durationMin = Math.ceil((lesson.videoDuration || 0) / 60);
 
                         return (
@@ -416,11 +429,11 @@ export default async function CoursePage({ params }: CoursePageProps) {
             const bestAttempt = attempts.find((a) => a.passed) || attempts[0];
             const hasPassed = attempts.some((a) => a.passed);
 
-            // Final exam requires ALL lessons completed
+            // Final exam requires ALL lessons completed (admin can bypass)
             const allLessonsCompleted = course.modules.every((m) =>
               m.lessons.every((l) => progressMap.get(l.id)?.completed)
             );
-            const finalExamUnlocked = isEnrolled && allLessonsCompleted;
+            const finalExamUnlocked = isAdmin || (isEnrolled && allLessonsCompleted);
 
             return (
               <div className="mt-8">

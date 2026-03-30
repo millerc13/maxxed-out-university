@@ -12,8 +12,8 @@ import { formatPrice, getPriceTier } from '@/lib/utils';
 const PRICE_TIERS = {
   LOW: { max: 9700, label: 'Quick Start Guides & Tools', description: 'Bite-sized training to get you moving fast' },
   MID: { min: 9701, max: 150000, label: 'Core Training', description: 'Deep-dive courses to build your skills' },
-  HIGH: { min: 150001, max: 1000000, label: 'Full Courses and 1 on 1 Training', description: 'Comprehensive programs for serious investors' },
-  ELITE: { min: 1000001, label: 'Elite Access', description: 'Direct mentorship and partnerships' },
+  HIGH: { min: 150001, max: 2500000, label: 'Full Courses and 1 on 1 Training', description: 'Comprehensive programs for serious investors' },
+  ELITE: { min: 2500001, label: 'Elite Access', description: 'Direct mentorship and partnerships' },
 };
 
 export default async function CoursesPage() {
@@ -86,10 +86,10 @@ export default async function CoursesPage() {
   // Price tier sorting helper (lower = higher priority)
   const getTierPriority = (price: number | null): number => {
     const p = price ?? 0;
-    if (p > PRICE_TIERS.HIGH.max) return 0;  // Elite
-    if (p > PRICE_TIERS.MID.max) return 1;   // High ticket
-    if (p > PRICE_TIERS.LOW.max) return 2;   // Core Training
-    if (p > 0) return 3;                      // Low ticket
+    if (p > PRICE_TIERS.HIGH.max) return 0;  // Elite ($25,000.01+)
+    if (p > PRICE_TIERS.MID.max) return 1;   // High ticket ($1,500.01 - $25,000)
+    if (p > PRICE_TIERS.LOW.max) return 2;   // Core Training ($97.01 - $1,500)
+    if (p > 0) return 3;                      // Low ticket ($0.01 - $97)
     return 4;                                 // Free
   };
 

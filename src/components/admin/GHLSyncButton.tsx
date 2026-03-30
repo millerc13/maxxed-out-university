@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, ExternalLink, DollarSign, Trash2 } from 'lucide-react';
 
 interface SyncResult {
@@ -30,6 +31,7 @@ interface SyncResponse {
 type ActionType = 'sync' | 'update' | 'recreate';
 
 export function GHLSyncButton() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [actionType, setActionType] = useState<ActionType | null>(null);
   const [response, setResponse] = useState<SyncResponse | null>(null);
@@ -59,6 +61,9 @@ export function GHLSyncButton() {
       }
 
       setResponse(data);
+
+      // Refresh page to show new mappings
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
