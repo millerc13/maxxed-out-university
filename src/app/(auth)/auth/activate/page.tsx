@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Image from 'next/image';
 
-export default function ActivatePage() {
+function ActivateInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -63,7 +64,7 @@ export default function ActivatePage() {
         {status === 'success' && (
           <>
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">You're in!</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">You&apos;re in!</h2>
             <p className="text-gray-500">{message}</p>
           </>
         )}
@@ -83,5 +84,17 @@ export default function ActivatePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ActivatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
+      </div>
+    }>
+      <ActivateInner />
+    </Suspense>
   );
 }

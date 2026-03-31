@@ -3,7 +3,6 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
-import { verifyMagicLink } from './magiclink';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -25,6 +24,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const token = credentials?.token as string;
         if (!token) return null;
 
+        const { verifyMagicLink } = await import('./magiclink');
         const user = await verifyMagicLink(token);
         if (!user) return null;
 
