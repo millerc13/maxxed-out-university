@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/ui/markdown-content';
 import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy, Download, FileText, Printer } from 'lucide-react';
 import { PrintButton } from '@/components/ui/print-button';
-import { VideoPlayer } from '@/components/lesson/VideoPlayer';
+import { VideoPlayer } from '@/components/lesson/VideoPlayerClient';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
