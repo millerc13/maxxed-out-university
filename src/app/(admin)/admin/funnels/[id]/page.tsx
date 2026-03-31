@@ -38,7 +38,23 @@ interface FunnelData {
   } | null;
 }
 
-// ── Mini Preview Component ─────────────────────────────────────────
+// ── Faithful Preview — mirrors the actual funnel site layout ────────
+const FEATURE_CARDS_PREVIEW = [
+  { title: 'The Wealth Mindset', body: 'How successful entrepreneurs think differently about money, risk, and opportunity.' },
+  { title: 'Real Estate Strategies', body: 'The exact strategies Todd used to build his portfolio from zero to nine figures.' },
+  { title: 'Deal Analysis', body: 'Master the numbers behind every deal — flips, rentals, BRRRR, and multifamily.' },
+  { title: 'Finding & Funding Deals', body: 'Where to find off-market opportunities and how to fund them without your own money.' },
+  { title: 'Your Action Plan', body: 'Clear, concrete first steps you can take immediately to change your trajectory.' },
+  { title: 'Scaling Your Portfolio', body: 'Systems, teams, and frameworks to go from one door to a full real estate business.' },
+];
+
+const FOR_YOU_IF_PREVIEW = [
+  "You're working hard but still feel stuck financially",
+  "You know there's more out there for you",
+  "You're ready to learn how real estate actually works",
+  "You want real strategies, not motivational fluff",
+];
+
 function FunnelPreview({
   headline,
   subheadline,
@@ -58,97 +74,273 @@ function FunnelPreview({
   coursePrice: number | null;
   courseThumbnail: string | null;
 }) {
-  const formatPrice = (cents: number | null) => {
-    if (!cents) return '—';
+  const fmtPrice = (cents: number | null) => {
+    if (cents === null) return '—';
     return `$${(cents / 100).toFixed(0)}`;
   };
 
   const activeBullets = bullets.filter(Boolean);
   const activeTestimonials = testimonials.filter(t => t.name || t.text);
+  const cta = ctaText || 'Enroll Now';
+
+  // We render the funnel at 390px wide (mobile viewport) and scale it down
+  // to fit the ~300px preview panel via CSS transform.
+  const RENDER_WIDTH = 390;
 
   return (
-    <div className="bg-[#0a0a0a] text-white rounded-xl overflow-hidden text-[11px] leading-relaxed select-none" style={{ fontSize: '11px' }}>
-      {/* Nav */}
-      <div className="bg-[#0d1b2a] px-4 py-2.5 flex items-center justify-between border-b border-white/10">
-        <span className="font-black text-[10px] tracking-[0.15em] uppercase text-white/90">Maxxed Out University</span>
-        <span className="bg-[#C9A84C] text-black text-[9px] font-bold px-2.5 py-1 rounded">
-          {ctaText || 'Enroll Now'}
-        </span>
-      </div>
+    <div className="relative overflow-hidden" style={{ width: '100%' }}>
+      <div
+        className="origin-top-left select-none pointer-events-none"
+        style={{
+          width: `${RENDER_WIDTH}px`,
+          transform: `scale(${300 / RENDER_WIDTH})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        <div className="font-sans" style={{ width: `${RENDER_WIDTH}px` }}>
 
-      {/* Hero */}
-      <div className="px-5 py-6 bg-gradient-to-b from-[#0d1b2a] to-[#0a0a0a]">
-        <h2 className="text-sm font-extrabold leading-tight mb-2 text-white">
-          {headline || 'Your Headline Here'}
-        </h2>
-        <p className="text-[10px] text-gray-400 mb-3 leading-snug">
-          {subheadline || 'Your subheadline goes here'}
-        </p>
+          {/* ── NAV ── */}
+          <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
+            <div className="px-5 h-[48px] flex items-center justify-between">
+              <span className="font-black text-[10px] tracking-[0.18em] uppercase text-gray-900">
+                Maxxed Out University
+              </span>
+              <span
+                className="text-white font-black text-[9px] tracking-[0.12em] uppercase px-4 py-2 rounded-lg"
+                style={{ background: '#0000FF' }}
+              >
+                {cta}
+              </span>
+            </div>
+          </header>
 
-        {/* Course card mini */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3">
-          {courseThumbnail ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={courseThumbnail} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />
-          ) : (
-            <div className="w-10 h-10 rounded bg-white/10 flex-shrink-0" />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-[10px] truncate">{courseName || 'Course Name'}</p>
-            <p className="text-[#C9A84C] font-bold text-xs">{formatPrice(coursePrice)}</p>
-          </div>
-        </div>
-      </div>
+          {/* ── HERO ── */}
+          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 pt-10 pb-8 text-center">
+            {/* Eyebrow */}
+            <div className="inline-flex items-center gap-1.5 border border-white/20 rounded-full px-3 py-1 mb-5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#D4AF37' }} />
+              <span className="text-white/70 font-bold text-[8px] tracking-[0.18em] uppercase">
+                Now Enrolling — Join From Anywhere
+              </span>
+            </div>
 
-      {/* Bullets */}
-      {activeBullets.length > 0 && (
-        <div className="px-5 py-4 border-t border-white/5">
-          <p className="font-bold text-[10px] uppercase tracking-wider text-[#C9A84C] mb-2">What You&apos;ll Learn</p>
-          <div className="space-y-1.5">
-            {activeBullets.slice(0, 4).map((b, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <Check className="w-3 h-3 text-[#C9A84C] flex-shrink-0 mt-0.5" />
-                <span className="text-gray-300 text-[10px]">{b}</span>
-              </div>
-            ))}
-            {activeBullets.length > 4 && (
-              <p className="text-gray-500 text-[9px] pl-5">+{activeBullets.length - 4} more…</p>
-            )}
-          </div>
-        </div>
-      )}
+            <h1 className="font-black text-white text-[22px] leading-[1.12] tracking-tight mb-4 px-2">
+              {(headline || 'Your Headline Here').split(' ').map((word, i) => {
+                const clean = word.toLowerCase().replace(/[^a-z-]/g, '');
+                const accent = new Set(['real', 'exact', 'nine-figure', 'empire', 'investors', 'wealth', 'system', 'blueprint']);
+                return accent.has(clean)
+                  ? <span key={i} style={{ color: '#0000FF' }}>{word} </span>
+                  : <span key={i}>{word} </span>;
+              })}
+            </h1>
 
-      {/* Testimonials */}
-      {activeTestimonials.length > 0 && (
-        <div className="px-5 py-4 border-t border-white/5">
-          <p className="font-bold text-[10px] uppercase tracking-wider text-[#C9A84C] mb-2">Testimonials</p>
-          <div className="space-y-2">
-            {activeTestimonials.slice(0, 2).map((t, i) => (
-              <div key={i} className="bg-white/5 rounded-lg p-2.5">
-                <div className="flex gap-1 mb-1">
-                  {[1,2,3,4,5].map(s => <Star key={s} className="w-2 h-2 text-[#C9A84C] fill-[#C9A84C]" />)}
+            <p className="text-white/60 text-[12px] leading-relaxed mb-6 px-4">
+              {subheadline || 'Your subheadline goes here'}
+            </p>
+
+            {/* VSL placeholder */}
+            <div className="rounded-xl overflow-hidden mb-6 mx-2" style={{ border: '2px solid rgba(255,255,255,0.1)' }}>
+              <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
+                  </div>
+                  <p className="text-white/40 text-[9px]">VSL video</p>
                 </div>
-                {t.text && <p className="text-gray-300 text-[9px] italic mb-1 line-clamp-2">&ldquo;{t.text}&rdquo;</p>}
-                <p className="text-[9px] text-gray-500">
-                  {t.name}{t.location ? `, ${t.location}` : ''}
-                  {t.result && <span className="text-[#C9A84C]"> — {t.result}</span>}
-                </p>
               </div>
-            ))}
-            {activeTestimonials.length > 2 && (
-              <p className="text-gray-500 text-[9px]">+{activeTestimonials.length - 2} more testimonials</p>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* CTA Footer */}
-      <div className="px-5 py-4 bg-[#0d1b2a] border-t border-white/10 text-center">
-        <div className="bg-[#C9A84C] text-black text-[10px] font-bold py-2 rounded flex items-center justify-center gap-1">
-          {ctaText || 'Enroll Now'} <ArrowRight className="w-3 h-3" />
-        </div>
-        <div className="flex items-center justify-center gap-2 mt-2 text-[8px] text-gray-500">
-          <Shield className="w-2.5 h-2.5" /> Secure checkout
+            {/* Hero CTA */}
+            <span
+              className="inline-flex items-center gap-2 text-white font-black text-[11px] tracking-[0.12em] uppercase px-8 py-3.5 rounded-xl"
+              style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}
+            >
+              {cta} — {fmtPrice(coursePrice)}
+              <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+            <p className="text-white/30 text-[9px] mt-3">One-time payment · Instant access · 30-day guarantee</p>
+          </section>
+
+          {/* ── BULLETS + ENROLLMENT CARD ── */}
+          <section className="px-5 py-10" style={{ background: '#f4f6fa' }}>
+            <p className="text-[9px] font-bold tracking-[0.18em] uppercase mb-1.5" style={{ color: '#0000FF' }}>
+              Inside {courseName || 'This Course'}
+            </p>
+            <h2 className="font-black text-gray-900 text-[18px] mb-1">What&apos;s Inside This Course:</h2>
+            <p className="text-gray-500 text-[11px] mb-5">Everything you need to find, fund, and close profitable deals.</p>
+
+            <ul className="space-y-2 mb-6">
+              {activeBullets.map((b, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <div className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5" style={{ background: '#0000FF' }}>
+                    <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                  </div>
+                  <span className="font-semibold text-gray-800 text-[11px]">{b}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* "For you if" box */}
+            <div className="border rounded-xl p-4 bg-white mb-6" style={{ borderColor: 'rgba(0,0,255,0.2)' }}>
+              <p className="text-[8px] font-black tracking-[0.18em] uppercase mb-2.5" style={{ color: '#0000FF' }}>
+                This Course Is For You If:
+              </p>
+              <ul className="space-y-1.5">
+                {FOR_YOU_IF_PREVIEW.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[11px] text-gray-700">
+                    <span className="font-bold mt-0.5 flex-shrink-0" style={{ color: '#0000FF' }}>→</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Enrollment card */}
+            <div className="bg-white rounded-xl overflow-hidden shadow-lg" style={{ borderTop: '4px solid #D4AF37' }}>
+              {courseThumbnail && (
+                <div className="aspect-video bg-gray-100 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={courseThumbnail} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 py-4">
+                <p className="text-[8px] font-bold tracking-[0.18em] uppercase mb-0.5" style={{ color: '#D4AF37' }}>Maxxed Out University</p>
+                <h3 className="text-white font-black text-[15px] leading-snug mb-3">{courseName || 'Course Name'}</h3>
+                <div className="text-white/40 text-[8px] uppercase tracking-widest mb-0.5">Your Investment</div>
+                <div className="text-white font-black text-[28px]">{fmtPrice(coursePrice)}</div>
+                <div className="text-white/30 text-[9px] mt-0.5">One-time payment · No recurring fees</div>
+              </div>
+              <div className="px-5 py-3.5 border-b border-gray-100">
+                <p className="text-[8px] font-bold tracking-[0.12em] uppercase text-gray-400 mb-2">What&apos;s Included</p>
+                <ul className="space-y-1.5">
+                  {['Immediate access', 'All course modules', 'Certificate of completion', 'Lifetime access', '30-day money back guarantee'].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-[10px] text-gray-700">
+                      <Check className="w-3 h-3 flex-shrink-0" style={{ color: '#0000FF' }} strokeWidth={3} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="px-5 py-3.5 text-center">
+                <span className="w-full flex items-center justify-center gap-1.5 text-white font-black text-[10px] tracking-[0.12em] uppercase py-3 rounded-lg" style={{ background: '#0000FF' }}>
+                  {cta} <ArrowRight className="w-3 h-3" />
+                </span>
+                <div className="flex items-center justify-center gap-1 mt-2 text-gray-400 text-[9px]">
+                  <Shield className="w-2.5 h-2.5" /> Secure checkout · 256-bit SSL
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ── FEATURE CARDS ── */}
+          <section className="bg-white px-5 py-10">
+            <div className="text-center mb-6">
+              <p className="text-[9px] font-bold tracking-[0.18em] uppercase mb-1.5" style={{ color: '#0000FF' }}>Inside This Course</p>
+              <h2 className="font-black text-gray-900 text-[18px]">What You&apos;ll Learn</h2>
+              <p className="text-gray-500 text-[10px] mt-1.5">No hype. No fluff. Just real strategies that work.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {FEATURE_CARDS_PREVIEW.map((card) => (
+                <div key={card.title} className="rounded-xl p-3.5" style={{ background: '#f4f6fa' }}>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2.5" style={{ background: 'rgba(0,0,255,0.08)' }}>
+                    <div className="w-3.5 h-3.5 rounded-sm" style={{ background: '#0000FF' }} />
+                  </div>
+                  <h3 className="font-black text-gray-900 text-[10px] uppercase tracking-wide mb-1">{card.title}</h3>
+                  <p className="text-gray-500 text-[9px] leading-relaxed">{card.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── MEET TODD ── */}
+          <section className="px-5 py-10" style={{ background: '#f4f6fa' }}>
+            <p className="text-[9px] font-bold tracking-[0.18em] uppercase mb-1.5" style={{ color: '#0000FF' }}>Your Instructor</p>
+            <h2 className="font-black text-gray-900 text-[20px] mb-3 leading-tight">
+              Meet <span style={{ color: '#0000FF' }}>Todd Pultz</span>
+            </h2>
+            <p className="text-gray-600 text-[11px] leading-relaxed mb-2">
+              Todd Pultz is a nine-figure entrepreneur who built his empire from nothing. Growing up broke with no roadmap, he made every mistake imaginable.
+            </p>
+            <p className="text-gray-600 text-[11px] leading-relaxed mb-4">
+              What changed wasn&apos;t working harder — it was learning how real estate actually works.
+            </p>
+            <span className="inline-flex items-center gap-1.5 text-white font-black text-[10px] tracking-[0.12em] uppercase px-5 py-2.5 rounded-lg" style={{ background: '#0000FF' }}>
+              Learn From Todd <ArrowRight className="w-3 h-3" />
+            </span>
+          </section>
+
+          {/* ── TESTIMONIALS ── */}
+          {activeTestimonials.length > 0 && (
+            <section className="bg-white px-5 py-10">
+              <div className="text-center mb-6">
+                <p className="text-[9px] font-bold tracking-[0.18em] uppercase mb-1.5" style={{ color: '#0000FF' }}>Real Results</p>
+                <h2 className="font-black text-gray-900 text-[18px]">What Students Are Saying</h2>
+              </div>
+              <div className="space-y-2.5">
+                {activeTestimonials.map((t, i) => (
+                  <div key={i} className="rounded-xl p-4" style={{ background: '#f4f6fa' }}>
+                    <div className="flex gap-0.5 mb-2">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} className="w-3 h-3" style={{ color: '#D4AF37', fill: '#D4AF37' }} />
+                      ))}
+                    </div>
+                    {t.result && (
+                      <div className="rounded-md px-2.5 py-1.5 mb-2 border" style={{ background: 'rgba(0,0,255,0.04)', borderColor: 'rgba(0,0,255,0.12)' }}>
+                        <p className="font-bold text-[9px] uppercase tracking-wide" style={{ color: '#0000FF' }}>{t.result}</p>
+                      </div>
+                    )}
+                    {t.text && <p className="text-gray-600 text-[10px] leading-relaxed mb-2 italic">&ldquo;{t.text}&rdquo;</p>}
+                    <div className="border-t border-gray-200 pt-2">
+                      <p className="font-bold text-gray-900 text-[10px]">{t.name}</p>
+                      {t.location && <p className="text-gray-400 text-[9px]">{t.location}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── SOCIAL PROOF STRIP ── */}
+          <section className="border-y border-gray-200 px-5 py-5" style={{ background: '#f4f6fa' }}>
+            <div className="flex items-center justify-center gap-6">
+              {[
+                { value: '2,400+', label: 'Students', color: '#0000FF' },
+                { value: '4.9/5', label: 'Rating', color: '#D4AF37' },
+                { value: '30-Day', label: 'Guarantee', color: '#16a34a' },
+              ].map((s, i) => (
+                <div key={i} className="text-center">
+                  <div className="font-black text-[14px] text-gray-900">{s.value}</div>
+                  <div className="text-[8px] text-gray-500 uppercase tracking-wide">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── FINAL CTA ── */}
+          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 py-12 text-center">
+            <p className="text-[8px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: '#D4AF37' }}>
+              Ready to Build Your Empire?
+            </p>
+            <h2 className="font-black text-white text-[20px] leading-tight mb-3">
+              Ready To <span style={{ color: '#0000FF' }}>Change Your Life?</span>
+            </h2>
+            <p className="text-white/50 text-[10px] mb-6 leading-relaxed">
+              Stop working hard and staying stuck. Learn the mindset and strategies that actually build wealth.
+            </p>
+            <span
+              className="inline-flex items-center gap-1.5 text-white font-black text-[11px] tracking-[0.12em] uppercase px-8 py-3.5 rounded-xl"
+              style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}
+            >
+              {cta} — {fmtPrice(coursePrice)} <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+            <p className="text-white/25 text-[8px] mt-3">Secure checkout · 256-bit SSL · 30-day guarantee</p>
+          </section>
+
+          {/* ── Footer ── */}
+          <footer className="bg-black px-5 py-4 text-center">
+            <p className="text-gray-600 text-[9px]">© 2026 Maxxed Out University · All rights reserved</p>
+          </footer>
+
         </div>
       </div>
     </div>
@@ -694,7 +886,7 @@ export default function FunnelEditorPage() {
             </div>
             {/* Phone frame */}
             <div className="bg-gray-900 rounded-[24px] p-2 shadow-xl ring-1 ring-gray-800">
-              <div className="rounded-[18px] overflow-hidden max-h-[520px] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+              <div className="rounded-[18px] overflow-hidden max-h-[560px] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
             <FunnelPreview
               headline={headline}
               subheadline={subheadline}
