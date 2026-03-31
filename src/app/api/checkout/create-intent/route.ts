@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     // Support both authenticated users and guests
     // Wrap auth() in try/catch — cross-origin server calls have no session cookie
     // so auth() should return null; defensive catch ensures guest flow still works
-    let session: Awaited<ReturnType<typeof auth>> = null;
+    let session: { user?: { id?: string; email?: string | null; name?: string | null } } | null = null;
     try { session = await auth(); } catch { /* no session — treat as guest */ }
     const isGuest = !session?.user?.id;
 
