@@ -23,7 +23,7 @@ function signToken(videoId: string): string {
   return `${header}.${payload}.${sig}`;
 }
 
-const SUBDOMAIN = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN!;
+const SUBDOMAIN = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN!.trim();
 
 export function getSignedStreamUrl(videoId: string): string {
   const token = signToken(videoId);
