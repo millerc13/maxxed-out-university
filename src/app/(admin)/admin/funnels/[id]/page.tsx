@@ -93,7 +93,7 @@ function FunnelPreview({
         className="origin-top-left select-none pointer-events-none"
         style={{
           width: `${RENDER_WIDTH}px`,
-          transform: `scale(${300 / RENDER_WIDTH})`,
+          transform: `scale(${396 / RENDER_WIDTH})`,
           transformOrigin: 'top left',
         }}
       >
@@ -465,7 +465,7 @@ export default function FunnelEditorPage() {
           <div className="w-5 h-5 bg-gray-200 rounded animate-pulse" />
           <div className="h-7 w-48 bg-gray-200 rounded animate-pulse" />
         </div>
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-8">
           <Card><CardContent className="p-6"><div className="h-96 bg-gray-100 rounded animate-pulse" /></CardContent></Card>
           <Card><CardContent className="p-6"><div className="h-96 bg-gray-100 rounded animate-pulse" /></CardContent></Card>
         </div>
@@ -510,7 +510,7 @@ export default function FunnelEditorPage() {
       </div>
 
       {/* Main Layout: Editor + Preview */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-6 items-start">
         {/* Left: Editor */}
         <div className="space-y-6">
           {/* Tab Navigation */}
@@ -877,16 +877,23 @@ export default function FunnelEditorPage() {
         {/* Right: Live Preview (sticky) */}
         <div className="hidden xl:block">
           <div className="sticky top-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Eye className="w-4 h-4" />
-                <span className="font-medium">Live Preview</span>
-              </div>
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Mobile</span>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Eye className="w-4 h-4" />
+              <span className="font-medium">Live Preview</span>
+              <span className="text-[10px] text-gray-400">· updates as you type</span>
             </div>
-            {/* Phone frame */}
-            <div className="bg-gray-900 rounded-[24px] p-2 shadow-xl ring-1 ring-gray-800">
-              <div className="rounded-[18px] overflow-hidden max-h-[560px] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+            {/* Preview frame */}
+            <div className="bg-gray-950 rounded-xl overflow-hidden shadow-xl ring-1 ring-gray-800">
+              {/* Browser chrome */}
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 border-b border-gray-800">
+                <div className="w-2 h-2 rounded-full bg-red-500/70" />
+                <div className="w-2 h-2 rounded-full bg-yellow-500/70" />
+                <div className="w-2 h-2 rounded-full bg-green-500/70" />
+                <div className="flex-1 mx-2 bg-gray-800 rounded px-2 py-0.5 text-[9px] text-gray-500 font-mono truncate">
+                  {funnel.url || 'funnel.maxxedout.com'}
+                </div>
+              </div>
+              <div className="overflow-y-auto" style={{ maxHeight: '680px', scrollbarWidth: 'none' }}>
             <FunnelPreview
               headline={headline}
               subheadline={subheadline}
@@ -899,6 +906,7 @@ export default function FunnelEditorPage() {
             />
               </div>
             </div>
+
           </div>
         </div>
       </div>
