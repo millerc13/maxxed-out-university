@@ -62,6 +62,8 @@ function FunnelPreview({
   testimonials: Testimonial[]; courseName: string; coursePrice: number | null;
   courseThumbnail: string | null; containerWidth: number; featuredCourses: Course[];
 }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [innerHeight, setInnerHeight] = useState(0);
   const fmtPrice = (cents: number | null) => {
     if (cents === null) return '—';
     return `$${(cents / 100).toFixed(0)}`;
@@ -75,8 +77,21 @@ function FunnelPreview({
   const RENDER_WIDTH = 1280;
   const scale = containerWidth > 0 ? containerWidth / RENDER_WIDTH : 0.7;
 
+  // Measure the actual inner content height so we can set the wrapper height to match the scaled visual
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setInnerHeight(entry.contentRect.height);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="relative overflow-hidden" style={{ width: '100%' }}>
+    <div className="relative overflow-hidden" style={{ width: `${containerWidth}px`, height: innerHeight > 0 ? `${innerHeight * scale}px` : 'auto' }}>
       <div
         className="origin-top-left select-none"
         style={{
@@ -85,7 +100,7 @@ function FunnelPreview({
           transformOrigin: 'top left',
         }}
       >
-        <div className="font-sans" style={{ width: `${RENDER_WIDTH}px` }}>
+        <div ref={innerRef} className="font-sans" style={{ width: `${RENDER_WIDTH}px` }}>
 
           {/* ── NAV ── */}
           <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
