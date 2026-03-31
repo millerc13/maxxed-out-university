@@ -6,10 +6,7 @@ import {
   LayoutDashboard,
   BookOpen,
   Users,
-  Settings,
-  Link2,
   FileText,
-  BarChart3,
   GraduationCap,
   FileQuestion,
   Upload,
@@ -22,7 +19,6 @@ const navItems = [
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
   { href: '/admin/import', label: 'CSV Import', icon: Upload },
-  { href: '/admin/products', label: 'GHL Products', icon: Link2 },
   { href: '/admin/webhooks', label: 'Webhook Logs', icon: FileText },
 ];
 
