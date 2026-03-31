@@ -1072,7 +1072,7 @@ export default function FunnelEditorPage() {
 
       {/* ── TAB: Preview ── */}
       {activeTab === 'preview' && (
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-hidden">
           {/* Browser frame */}
           <div className="bg-gray-950 rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-lg">
             {/* Chrome bar */}
