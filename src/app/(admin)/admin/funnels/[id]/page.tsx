@@ -545,7 +545,7 @@ export default function FunnelEditorPage() {
 
       {/* ── TAB: Settings ── */}
       {activeTab === 'settings' && (
-        <div className="max-w-3xl space-y-6">
+        <div className="space-y-6">
           <Card>
             <CardContent className="p-0">
               <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">General</h2></div>
@@ -653,7 +653,7 @@ export default function FunnelEditorPage() {
 
       {/* ── TAB: Content ── */}
       {activeTab === 'content' && (
-        <div className="max-w-3xl space-y-6">
+        <div className="space-y-6">
           <Card>
             <CardContent className="p-0">
               <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">Headlines & CTA</h2></div>
