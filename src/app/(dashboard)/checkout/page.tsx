@@ -14,10 +14,6 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   const { courseId } = await searchParams;
   const session = await auth();
 
-  if (!session?.user?.id) {
-    redirect('/login');
-  }
-
   if (!courseId) {
     notFound();
   }
@@ -31,12 +27,19 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     notFound();
   }
 
-  // Already enrolled — send to course
-  const enrollment = await prisma.enrollment.findUnique({
-    where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
-  });
-  if (enrollment) {
-    redirect(`/courses/${course.slug}`);
+  // Require authentication for internal checkout
+  if (!session?.user?.id) {
+    redirect(`/login?callbackUrl=/checkout?courseId=${courseId}`);
+  }
+
+  // Logged-in users who are already enrolled go straight to the course
+  if (session?.user?.id) {
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
+    });
+    if (enrollment) {
+      redirect(`/courses/${course.slug}`);
+    }
   }
 
   return (
@@ -69,7 +72,10 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
             thumbnail: course.thumbnail,
           }}
           publishableKey={stripePublishableKey}
-          userEmail={session.user.email ?? ''}
+          // Pre-fill for logged-in users; null for guests
+          prefillEmail={session?.user?.email ?? null}
+          prefillName={session?.user?.name ?? null}
+          isAuthenticated={!!session?.user?.id}
         />
       </main>
     </div>

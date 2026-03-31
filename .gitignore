@@ -61,3 +61,12 @@ skills-lock.json
 # Claude/agent files
 .claude/
 .agents/
+
+# Local screenshots and debug images
+*.png
+
+# Apple Pay certificates (sensitive)
+*.cer
+*.certSigningRequest
+certificates/
+CertificateSigningRequest.certSigningRequest

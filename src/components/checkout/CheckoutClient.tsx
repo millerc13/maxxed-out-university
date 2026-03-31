@@ -22,14 +22,70 @@ interface Course {
 interface CheckoutClientProps {
   course: Course;
   publishableKey: string;
-  userEmail: string;
+  prefillEmail: string | null;
+  prefillName: string | null;
+  isAuthenticated: boolean;
 }
 
 function formatPrice(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cents / 100);
 }
 
-function PaymentForm({ course, userEmail }: { course: Course; userEmail: string }) {
+// ── Contact Info Form (guests only) ──────────────────────────────────────────
+interface ContactInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}
+
+function ContactFields({
+  info,
+  onChange,
+  disabled,
+}: {
+  info: ContactInfo;
+  onChange: (f: Partial<ContactInfo>) => void;
+  disabled: boolean;
+}) {
+  const inputClass = 'w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 disabled:bg-gray-50';
+  const labelClass = 'block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1';
+
+  return (
+    <div className="space-y-4 mb-6 pb-6 border-b border-gray-100">
+      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Your Info</h3>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>First Name</label>
+          <input className={inputClass} value={info.firstName} onChange={e => onChange({ firstName: e.target.value })} disabled={disabled} placeholder="John" required />
+        </div>
+        <div>
+          <label className={labelClass}>Last Name</label>
+          <input className={inputClass} value={info.lastName} onChange={e => onChange({ lastName: e.target.value })} disabled={disabled} placeholder="Smith" required />
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>Email</label>
+        <input type="email" className={inputClass} value={info.email} onChange={e => onChange({ email: e.target.value })} disabled={disabled} placeholder="john@example.com" required />
+      </div>
+      <div>
+        <label className={labelClass}>Phone</label>
+        <input type="tel" className={inputClass} value={info.phone} onChange={e => onChange({ phone: e.target.value })} disabled={disabled} placeholder="+1 (555) 000-0000" />
+      </div>
+    </div>
+  );
+}
+
+// ── Payment Form ──────────────────────────────────────────────────────────────
+function PaymentForm({
+  course,
+  contact,
+  isAuthenticated,
+}: {
+  course: Course;
+  contact: ContactInfo;
+  isAuthenticated: boolean;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
@@ -38,6 +94,14 @@ function PaymentForm({ course, userEmail }: { course: Course; userEmail: string 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!stripe || !elements) return;
+
+    // Validate contact fields for guests
+    if (!isAuthenticated) {
+      if (!contact.firstName || !contact.lastName || !contact.email) {
+        setError('Please fill in your name and email above.');
+        return;
+      }
+    }
 
     setProcessing(true);
     setError(null);
@@ -54,7 +118,11 @@ function PaymentForm({ course, userEmail }: { course: Course; userEmail: string 
       confirmParams: {
         return_url: `${window.location.origin}/checkout/success?courseSlug=${course.slug}`,
         payment_method_data: {
-          billing_details: { email: userEmail },
+          billing_details: {
+            name: isAuthenticated ? undefined : `${contact.firstName} ${contact.lastName}`.trim(),
+            email: isAuthenticated ? undefined : contact.email,
+            phone: isAuthenticated ? undefined : contact.phone || undefined,
+          },
         },
       },
     });
@@ -75,7 +143,11 @@ function PaymentForm({ course, userEmail }: { course: Course; userEmail: string 
             spacedAccordionItems: false,
           },
           defaultValues: {
-            billingDetails: { email: userEmail },
+            billingDetails: {
+              email: isAuthenticated ? undefined : contact.email,
+              name: isAuthenticated ? undefined : `${contact.firstName} ${contact.lastName}`.trim() || undefined,
+              phone: isAuthenticated ? undefined : contact.phone || undefined,
+            },
           },
         }}
       />
@@ -103,32 +175,70 @@ function PaymentForm({ course, userEmail }: { course: Course; userEmail: string 
   );
 }
 
-export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutClientProps) {
+// ── Main Component ────────────────────────────────────────────────────────────
+export function CheckoutClient({
+  course,
+  publishableKey,
+  prefillEmail,
+  prefillName,
+  isAuthenticated,
+}: CheckoutClientProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [intentCreated, setIntentCreated] = useState(false);
+
+  const [contact, setContact] = useState<ContactInfo>({
+    firstName: prefillName?.split(' ')[0] ?? '',
+    lastName: prefillName?.split(' ').slice(1).join(' ') ?? '',
+    email: prefillEmail ?? '',
+    phone: '',
+  });
 
   const stripePromise = useMemo(() => loadStripe(publishableKey), [publishableKey]);
 
-  useEffect(() => {
-    async function createIntent() {
-      try {
-        const res = await fetch('/api/checkout/create-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ courseId: course.id }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to initialize checkout');
-        setClientSecret(data.clientSecret);
-      } catch (err: any) {
-        setInitError(err.message);
-      } finally {
-        setLoading(false);
-      }
+  // For authenticated users, create intent immediately
+  // For guests, create intent when they click "Continue to Payment"
+  const [showPayment, setShowPayment] = useState(isAuthenticated);
+
+  async function createIntent() {
+    setLoading(true);
+    setInitError(null);
+    try {
+      const res = await fetch('/api/checkout/create-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId: course.id,
+          ...(isAuthenticated ? {} : {
+            guestEmail: contact.email,
+            guestName: `${contact.firstName} ${contact.lastName}`.trim(),
+            guestPhone: contact.phone,
+          }),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to initialize checkout');
+      setClientSecret(data.clientSecret);
+      setIntentCreated(true);
+    } catch (err: any) {
+      setInitError(err.message);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      createIntent();
+    }
+  }, [isAuthenticated]);
+
+  function handleContinue() {
+    if (!contact.firstName || !contact.lastName || !contact.email) return;
+    setShowPayment(true);
     createIntent();
-  }, [course.id]);
+  }
 
   const included = [
     'Immediate access upon enrollment',
@@ -147,12 +257,10 @@ export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutCl
         className="lg:col-span-2 flex flex-col p-8 lg:p-10"
         style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}
       >
-        {/* Brand eyebrow */}
         <p style={{ color: '#D4AF37', fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '24px' }}>
           Maxxed Out University
         </p>
 
-        {/* Thumbnail */}
         <div className="relative w-full rounded-xl overflow-hidden mb-6" style={{ aspectRatio: '16/9' }}>
           {course.thumbnail ? (
             <Image src={course.thumbnail} alt={course.title} fill sizes="400px" className="object-cover" />
@@ -163,12 +271,10 @@ export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutCl
           )}
         </div>
 
-        {/* Course title */}
         <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff', lineHeight: 1.25, marginBottom: '28px' }}>
           {course.title}
         </h1>
 
-        {/* Price — no box, just the number */}
         <div style={{ marginBottom: '32px' }}>
           <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>
             Investment
@@ -181,10 +287,8 @@ export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutCl
           </p>
         </div>
 
-        {/* Divider */}
         <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', marginBottom: '24px' }} />
 
-        {/* What's included */}
         <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginBottom: '14px' }}>
           What&apos;s included
         </p>
@@ -200,8 +304,6 @@ export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutCl
 
       {/* RIGHT — Payment Form */}
       <div className="lg:col-span-3 flex flex-col p-8 lg:p-10" style={{ background: '#ffffff' }}>
-
-        {/* Header */}
         <div style={{ marginBottom: '24px' }}>
           <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0c1829', lineHeight: 1.2, marginBottom: '6px' }}>
             Complete your enrollment
@@ -210,6 +312,27 @@ export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutCl
             One-time payment · Instant access · No recurring fees
           </p>
         </div>
+
+        {/* Guest contact fields */}
+        {!isAuthenticated && (
+          <ContactFields
+            info={contact}
+            onChange={(fields) => setContact(prev => ({ ...prev, ...fields }))}
+            disabled={intentCreated}
+          />
+        )}
+
+        {/* Guest: show Continue button before payment */}
+        {!isAuthenticated && !showPayment && (
+          <button
+            onClick={handleContinue}
+            disabled={!contact.firstName || !contact.lastName || !contact.email}
+            style={{ background: '#1d4ed8' }}
+            className="w-full py-4 text-white font-extrabold text-sm uppercase tracking-[0.15em] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all mb-4"
+          >
+            Continue to Payment →
+          </button>
+        )}
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '14px' }}>
@@ -223,7 +346,7 @@ export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutCl
           </div>
         )}
 
-        {clientSecret && (
+        {clientSecret && showPayment && (
           <Elements
             stripe={stripePromise}
             options={{
@@ -240,29 +363,15 @@ export function CheckoutClient({ course, publishableKey, userEmail }: CheckoutCl
                   spacingUnit: '5px',
                 },
                 rules: {
-                  '.Input': {
-                    border: '1.5px solid #e5e7eb',
-                  },
-                  '.Input:focus': {
-                    border: '1.5px solid #0c1829',
-                    boxShadow: '0 0 0 3px rgba(12,24,41,0.06)',
-                  },
-                  '.Tab--selected': {
-                    border: '1.5px solid #0c1829',
-                    boxShadow: '0 0 0 2px rgba(12,24,41,0.06)',
-                  },
-                  '.Label': {
-                    fontWeight: '600',
-                    fontSize: '11px',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: '#6b7280',
-                  },
+                  '.Input': { border: '1.5px solid #e5e7eb' },
+                  '.Input:focus': { border: '1.5px solid #0c1829', boxShadow: '0 0 0 3px rgba(12,24,41,0.06)' },
+                  '.Tab--selected': { border: '1.5px solid #0c1829', boxShadow: '0 0 0 2px rgba(12,24,41,0.06)' },
+                  '.Label': { fontWeight: '600', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7280' },
                 },
               },
             }}
           >
-            <PaymentForm course={course} userEmail={userEmail} />
+            <PaymentForm course={course} contact={contact} isAuthenticated={isAuthenticated} />
           </Elements>
         )}
       </div>

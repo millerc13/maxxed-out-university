@@ -6,8 +6,6 @@ import {
   GraduationCap,
   TrendingUp,
   UserPlus,
-  PlayCircle,
-  CheckCircle,
   Clock,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -94,18 +92,18 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => (
           <Link key={stat.label} href={stat.href}>
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer overflow-hidden">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 font-medium">
+                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">
                       {stat.label}
                     </p>
-                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                    <p className="text-3xl font-extrabold text-gray-900">
                       {stat.value}
                     </p>
                   </div>
-                  <div className={`p-3 rounded-lg ${stat.color}`}>
+                  <div className={`p-3 rounded-xl ${stat.color}`}>
                     <stat.icon className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -228,37 +226,34 @@ export default async function AdminDashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Link
               href="/admin/courses/new"
-              className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center"
+              className="flex flex-col items-center gap-3 p-5 bg-gray-50 rounded-xl hover:bg-blue-50 hover:shadow-sm transition-all text-center group"
             >
-              <BookOpen className="w-8 h-8 text-maxxed-blue" />
-              <span className="text-sm font-medium text-gray-700">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 group-hover:bg-blue-500 flex items-center justify-center transition-colors">
+                <BookOpen className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" />
+              </div>
+              <span className="text-sm font-semibold text-gray-700">
                 New Course
               </span>
             </Link>
             <Link
               href="/admin/users"
-              className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center"
+              className="flex flex-col items-center gap-3 p-5 bg-gray-50 rounded-xl hover:bg-green-50 hover:shadow-sm transition-all text-center group"
             >
-              <UserPlus className="w-8 h-8 text-green-600" />
-              <span className="text-sm font-medium text-gray-700">
+              <div className="w-12 h-12 rounded-xl bg-green-100 group-hover:bg-green-500 flex items-center justify-center transition-colors">
+                <UserPlus className="w-6 h-6 text-green-600 group-hover:text-white transition-colors" />
+              </div>
+              <span className="text-sm font-semibold text-gray-700">
                 Manage Users
               </span>
             </Link>
             <Link
-              href="/admin/products"
-              className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center"
-            >
-              <PlayCircle className="w-8 h-8 text-purple-600" />
-              <span className="text-sm font-medium text-gray-700">
-                GHL Products
-              </span>
-            </Link>
-            <Link
               href="/admin/webhooks"
-              className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center"
+              className="flex flex-col items-center gap-3 p-5 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-sm transition-all text-center group"
             >
-              <Clock className="w-8 h-8 text-orange-600" />
-              <span className="text-sm font-medium text-gray-700">
+              <div className="w-12 h-12 rounded-xl bg-orange-100 group-hover:bg-orange-500 flex items-center justify-center transition-colors">
+                <Clock className="w-6 h-6 text-orange-600 group-hover:text-white transition-colors" />
+              </div>
+              <span className="text-sm font-semibold text-gray-700">
                 Webhook Logs
               </span>
             </Link>

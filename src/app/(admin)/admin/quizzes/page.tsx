@@ -56,16 +56,21 @@ export default async function AdminQuizzesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {quizzes.map((quiz) => (
-            <Card key={quiz.id} className="hover:shadow-md transition-shadow">
+            <Card key={quiz.id} className="hover:shadow-md transition-all hover:-translate-y-0.5">
               <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    quiz.published ? 'bg-purple-100' : 'bg-gray-100'
+                  }`}>
+                    <FileQuestion className={`w-5 h-5 ${quiz.published ? 'text-purple-600' : 'text-gray-400'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <h3 className="font-bold text-gray-900">{quiz.title}</h3>
                       <span
-                        className={`px-2 py-0.5 text-xs rounded font-medium ${
+                        className={`px-2 py-0.5 text-xs rounded-full font-semibold ${
                           quiz.published
                             ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-600'
@@ -75,26 +80,36 @@ export default async function AdminQuizzesPage() {
                       </span>
                     </div>
                     {quiz.course && (
-                      <p className="text-sm text-maxxed-blue mt-1">
-                        Course: {quiz.course.title}
-                      </p>
+                      <Link href={`/admin/courses/${quiz.course.id}`} className="text-sm text-maxxed-blue hover:underline mt-0.5 inline-block">
+                        {quiz.course.title}
+                      </Link>
                     )}
                     {quiz.description && (
                       <p className="text-sm text-gray-500 mt-1 line-clamp-1">
                         {quiz.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                      <span>{quiz._count.questions} questions</span>
-                      <span>{quiz._count.attempts} attempts</span>
-                      <span>Pass: {quiz.passingScore}%</span>
-                      {quiz.timeLimit && <span>{quiz.timeLimit} min limit</span>}
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                        {quiz._count.questions} questions
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                        {quiz._count.attempts} attempts
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
+                        Pass: {quiz.passingScore}%
+                      </span>
+                      {quiz.timeLimit && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 text-xs rounded-full font-medium">
+                          {quiz.timeLimit} min
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Link
                       href={`/admin/quizzes/${quiz.id}`}
-                      className="p-2 text-gray-500 hover:text-maxxed-blue hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-2 text-gray-500 hover:text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors"
                       title="Edit"
                     >
                       <Edit className="w-5 h-5" />

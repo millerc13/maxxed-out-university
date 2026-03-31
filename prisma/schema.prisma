@@ -16,6 +16,7 @@ model User {
   mustChangePassword Boolean          @default(false)
   image              String?
   role               Role             @default(STUDENT)
+  phone              String?
   ghlContactId       String?
   emailVerified      DateTime?
   createdAt          DateTime         @default(now())
@@ -78,11 +79,14 @@ model Course {
   order        Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-  certificates Certificate[]
-  enrollments  Enrollment[]
-  modules      Module[]
-  products     ProductMapping[]
-  quizzes      Quiz[]
+  certificates      Certificate[]
+  enrollments       Enrollment[]
+  modules           Module[]
+  products          ProductMapping[]
+  quizzes           Quiz[]
+  funnels           FunnelDeployment[]
+  featuredInFunnels FunnelDeployment[] @relation("FunnelFeaturedCourses")
+  promoCodes        PromoCode[]        @relation("PromoCodeCourses")
 }
 
 model Module {
@@ -136,16 +140,19 @@ model Resource {
 }
 
 model Enrollment {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   userId        String
   courseId      String
-  enrolledAt    DateTime  @default(now())
+  enrolledAt    DateTime   @default(now())
   expiresAt     DateTime?
   source        String?
   transactionId String?
   metadata      Json?
-  course        Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalPrice Int?       // price before any promo discount (in cents)
+  promoCodeId   String?
+  promoCode     PromoCode? @relation(fields: [promoCodeId], references: [id])
+  course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
   @@index([userId])
@@ -271,6 +278,58 @@ model QuizAttempt {
 
   @@index([quizId])
   @@index([userId])
+}
+
+model FunnelDeployment {
+  id              String       @id @default(cuid())
+  name            String
+  url             String
+  apiKey          String       @unique @default(cuid())
+  courseId        String?
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  course          Course?      @relation(fields: [courseId], references: [id])
+  config          FunnelConfig?
+  featuredCourses Course[]     @relation("FunnelFeaturedCourses")
+
+  @@index([apiKey])
+}
+
+model FunnelConfig {
+  id           String           @id @default(cuid())
+  deploymentId String           @unique
+  headline     String?
+  subheadline  String?
+  bulletPoints Json             @default("[]")
+  testimonials Json             @default("[]")
+  ctaText      String?
+  updatedAt    DateTime         @updatedAt
+  deployment   FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+}
+
+model PromoCode {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  description   String?
+  discountType  DiscountType
+  discountValue Int          // percentage (0-100) or fixed amount in cents
+  maxUses       Int?         // null = unlimited
+  currentUses   Int          @default(0)
+  expiresAt     DateTime?
+  applyToAll    Boolean      @default(true)
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  courses       Course[]     @relation("PromoCodeCourses")
+  enrollments   Enrollment[]
+
+  @@index([code])
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
 }
 
 enum Role {

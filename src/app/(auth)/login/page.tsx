@@ -65,9 +65,9 @@ function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md shadow-card">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Welcome back</CardTitle>
+    <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+      <CardHeader className="text-center pt-8">
+        <CardTitle className="text-2xl font-extrabold">Welcome back</CardTitle>
         <CardDescription>
           Sign in to access your courses
         </CardDescription>

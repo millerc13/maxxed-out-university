@@ -2,8 +2,7 @@ import { auth } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
-import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Play, Lock, CheckCircle, ShoppingCart, Star, Sparkles } from 'lucide-react';
+import { BookOpen, Play, CheckCircle, ArrowRight, Star } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice, getPriceTier } from '@/lib/utils';
@@ -12,54 +11,46 @@ import { formatPrice, getPriceTier } from '@/lib/utils';
 const PRICE_TIERS = {
   LOW: { max: 9700, label: 'Quick Start Guides & Tools', description: 'Bite-sized training to get you moving fast' },
   MID: { min: 9701, max: 150000, label: 'Core Training', description: 'Deep-dive courses to build your skills' },
-  HIGH: { min: 150001, max: 2500000, label: 'Full Courses and 1 on 1 Training', description: 'Comprehensive programs for serious investors' },
+  HIGH: { min: 150001, max: 2500000, label: 'Full Courses & 1-on-1 Training', description: 'Comprehensive programs for serious investors' },
   ELITE: { min: 2500001, label: 'Elite Access', description: 'Direct mentorship and partnerships' },
 };
 
 export default async function CoursesPage() {
   const session = await auth();
 
-  // Check if admin is viewing as customer
   const cookieStore = await cookies();
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
   const isCustomerView = isAdmin && cookieStore.get('admin_customer_view')?.value === 'true';
 
-  // Get all published courses
   const courses = await prisma.course.findMany({
     where: { published: true },
     include: {
       modules: {
-        include: {
-          lessons: true,
-        },
+        include: { lessons: true },
       },
     },
     orderBy: [{ price: 'asc' }, { order: 'asc' }],
   });
 
-  // Get user's enrollments if logged in
-  // If admin is in customer view, return empty array to simulate no enrollments
-  const enrollments = (session?.user && !isCustomerView)
-    ? await prisma.enrollment.findMany({
-        where: { userId: session.user.id },
-        select: { courseId: true },
-      })
-    : [];
+  const enrollments =
+    session?.user && !isCustomerView
+      ? await prisma.enrollment.findMany({
+          where: { userId: session.user.id },
+          select: { courseId: true },
+        })
+      : [];
+
+  const progress =
+    session?.user && !isCustomerView
+      ? await prisma.lessonProgress.findMany({
+          where: { userId: session.user.id, completed: true },
+          select: { lessonId: true },
+        })
+      : [];
 
   const enrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
-
-  // Get user's progress if logged in
-  // If admin is in customer view, return empty array
-  const progress = (session?.user && !isCustomerView)
-    ? await prisma.lessonProgress.findMany({
-        where: { userId: session.user.id, completed: true },
-        select: { lessonId: true },
-      })
-    : [];
-
   const completedLessonIds = new Set(progress.map((p) => p.lessonId));
 
-  // Calculate stats for each course
   const coursesWithStats = courses.map((course) => {
     const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
     const completedLessons = course.modules.reduce(
@@ -69,358 +60,438 @@ export default async function CoursesPage() {
     const isEnrolled = enrolledCourseIds.has(course.id);
     const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
     const isComingSoon = totalLessons === 0;
-
-    return {
-      ...course,
-      totalLessons,
-      completedLessons,
-      isEnrolled,
-      progressPercent,
-      isComingSoon,
-    };
+    return { ...course, totalLessons, completedLessons, isEnrolled, progressPercent, isComingSoon };
   });
 
-  // For admin (not in customer view): treat all courses as enrolled
   const showAllAsEnrolled = isAdmin && !isCustomerView;
 
-  // Price tier sorting helper (lower = higher priority)
   const getTierPriority = (price: number | null): number => {
     const p = price ?? 0;
-    if (p > PRICE_TIERS.HIGH.max) return 0;  // Elite ($25,000.01+)
-    if (p > PRICE_TIERS.MID.max) return 1;   // High ticket ($1,500.01 - $25,000)
-    if (p > PRICE_TIERS.LOW.max) return 2;   // Core Training ($97.01 - $1,500)
-    if (p > 0) return 3;                      // Low ticket ($0.01 - $97)
-    return 4;                                 // Free
+    if (p > PRICE_TIERS.HIGH.max) return 0;
+    if (p > PRICE_TIERS.MID.max) return 1;
+    if (p > PRICE_TIERS.LOW.max) return 2;
+    if (p > 0) return 3;
+    return 4;
   };
 
-  const sortByTier = <T extends { price: number | null; order: number }>(courses: T[]): T[] => {
-    return [...courses].sort((a, b) => {
-      const tierA = getTierPriority(a.price);
-      const tierB = getTierPriority(b.price);
-      if (tierA !== tierB) return tierA - tierB;
-      const priceA = a.price ?? 0;
-      const priceB = b.price ?? 0;
-      if (priceB !== priceA) return priceB - priceA;
+  const sortByTier = <T extends { price: number | null; order: number }>(arr: T[]): T[] =>
+    [...arr].sort((a, b) => {
+      const ta = getTierPriority(a.price);
+      const tb = getTierPriority(b.price);
+      if (ta !== tb) return ta - tb;
+      const pa = a.price ?? 0;
+      const pb = b.price ?? 0;
+      if (pb !== pa) return pb - pa;
       return a.order - b.order;
     });
-  };
 
-  // Separate enrolled from available, filter out coming soon
-  // Admins see ALL courses as enrolled, sorted by tier
   const enrolledCourses = sortByTier(
     coursesWithStats.filter((c) => (showAllAsEnrolled || c.isEnrolled) && !c.isComingSoon)
   );
   const availableCourses = showAllAsEnrolled ? [] : coursesWithStats.filter((c) => !c.isEnrolled && !c.isComingSoon);
 
-  // Group available courses by price tier
-  const lowTicket = availableCourses.filter((c) => c.price && c.price <= PRICE_TIERS.LOW.max);
-  const midTicket = availableCourses.filter((c) => c.price && c.price > PRICE_TIERS.LOW.max && c.price <= PRICE_TIERS.MID.max);
-  const highTicket = availableCourses.filter((c) => c.price && c.price > PRICE_TIERS.MID.max && c.price <= PRICE_TIERS.HIGH.max);
   const eliteTicket = availableCourses.filter((c) => c.price && c.price > PRICE_TIERS.HIGH.max);
+  const highTicket = availableCourses.filter((c) => c.price && c.price > PRICE_TIERS.MID.max && c.price <= PRICE_TIERS.HIGH.max);
+  const midTicket = availableCourses.filter((c) => c.price && c.price > PRICE_TIERS.LOW.max && c.price <= PRICE_TIERS.MID.max);
+  const lowTicket = availableCourses.filter((c) => c.price && c.price <= PRICE_TIERS.LOW.max);
   const freeCourses = availableCourses.filter((c) => !c.price);
 
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-background">
-        <div className="max-w-7xl mx-auto px-5 md:px-10 py-10">
-          {/* Header */}
-          <div className="mb-10">
-            <h1 className="text-3xl font-bold text-text-dark mb-2">Course Catalog</h1>
-            <p className="text-text-body">
-              From beginner resources to elite mentorship - find the right program for your journey.
-            </p>
-          </div>
+      <main className="min-h-screen bg-[#f7f7f8]">
 
-          {/* My Courses Section (Enrolled) */}
-          {enrolledCourses.length > 0 && (
-            <section className="mb-12">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
+        {/* ── MY COURSES — Dark owned zone ── */}
+        {enrolledCourses.length > 0 && (
+          <div
+            className="bg-[#06091f]"
+            style={{
+              backgroundImage:
+                'radial-gradient(ellipse at 20% 0%, rgba(0,0,200,0.18) 0%, transparent 55%), radial-gradient(ellipse at 80% 100%, rgba(212,175,55,0.06) 0%, transparent 50%)',
+            }}
+          >
+            <div className="max-w-7xl mx-auto px-5 md:px-10 py-12">
+              <div className="flex items-end justify-between mb-7">
                 <div>
-                  <h2 className="text-xl font-bold text-text-dark">My Courses</h2>
-                  <p className="text-sm text-text-muted">Courses you have access to</p>
+                  <p className="text-[#4a78d4] text-[10px] font-extrabold uppercase tracking-[0.22em] mb-1.5">
+                    Your Training
+                  </p>
+                  <h2 className="text-2xl font-extrabold text-white leading-none">
+                    My Courses{' '}
+                    <span className="text-white/25 text-base font-medium ml-1">{enrolledCourses.length}</span>
+                  </h2>
                 </div>
+                <Link
+                  href="#catalog"
+                  className="text-xs text-[#4a78d4] hover:text-white transition-colors font-semibold hidden md:block"
+                >
+                  Browse more →
+                </Link>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+              <div className="flex flex-col gap-4">
                 {enrolledCourses.map((course) => (
-                  <EnrolledCourseCard key={course.id} course={course} />
+                  <EnrolledCard key={course.id} course={course} />
                 ))}
               </div>
-            </section>
-          )}
-
-          {/* Available Courses Header */}
-          {availableCourses.length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-maxxed-blue/10 rounded-lg">
-                  <ShoppingCart className="w-5 h-5 text-maxxed-blue" />
-                </div>
-                <h2 className="text-xl font-bold text-text-dark">Available Programs</h2>
-              </div>
-              <p className="text-text-muted ml-12">
-                Choose the program that fits your goals and experience level
-              </p>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* High Ticket Courses - First */}
-          {highTicket.length > 0 && (
-            <CourseTierSection
-              title={PRICE_TIERS.HIGH.label}
-              description={PRICE_TIERS.HIGH.description}
-              icon={<Star className="w-5 h-5 text-amber-600" />}
-              iconBg="bg-amber-100"
-              courses={highTicket}
-              featured
-            />
-          )}
+        {/* ── AVAILABLE PROGRAMS — Light catalog ── */}
+        {availableCourses.length > 0 && (
+          <div id="catalog" className="max-w-7xl mx-auto px-5 md:px-10 py-12">
 
-          {/* Mid Ticket Courses */}
-          {midTicket.length > 0 && (
-            <CourseTierSection
-              title={PRICE_TIERS.MID.label}
-              description={PRICE_TIERS.MID.description}
-              icon={<Sparkles className="w-5 h-5 text-purple-600" />}
-              iconBg="bg-purple-100"
-              courses={midTicket}
-            />
-          )}
+            {enrolledCourses.length > 0 && (
+              <div className="flex items-center gap-5 mb-12">
+                <div className="h-px flex-1 bg-gray-200" />
+                <span className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-gray-400 whitespace-nowrap">
+                  Available Programs
+                </span>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
+            )}
 
-          {/* Low Ticket Courses - Always show section */}
-          <CourseTierSection
-            title={PRICE_TIERS.LOW.label}
-            description={PRICE_TIERS.LOW.description}
-            icon={<BookOpen className="w-5 h-5 text-blue-600" />}
-            iconBg="bg-blue-100"
-            courses={lowTicket}
-            emptyMessage="New quick start guides coming soon!"
-          />
+            {/* ELITE — Showcase card */}
+            {eliteTicket.length > 0 && (
+              <section className="mb-14">
+                <TierLabel>Elite Access</TierLabel>
+                <div className="space-y-4">
+                  {eliteTicket.map((course) => (
+                    <EliteCard key={course.id} course={course} />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Free Courses */}
-          {freeCourses.length > 0 && (
-            <CourseTierSection
-              title="Free Resources"
-              description="Get started with no cost"
-              icon={<Star className="w-5 h-5 text-green-600" />}
-              iconBg="bg-green-100"
-              courses={freeCourses}
-            />
-          )}
+            {/* HIGH TICKET — 2-col featured */}
+            {highTicket.length > 0 && (
+              <section className="mb-14">
+                <TierLabel>Full Courses & 1-on-1 Training</TierLabel>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {highTicket.map((course) => (
+                    <FeaturedCard key={course.id} course={course} />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Elite Ticket Courses */}
-          {eliteTicket.length > 0 && (
-            <CourseTierSection
-              title={PRICE_TIERS.ELITE.label}
-              description={PRICE_TIERS.ELITE.description}
-              icon={<Sparkles className="w-5 h-5 text-maxxed-gold" />}
-              iconBg="bg-gradient-to-br from-amber-100 to-yellow-100"
-              courses={eliteTicket}
-              elite
-            />
-          )}
+            {/* MID TICKET — 3-col standard */}
+            {midTicket.length > 0 && (
+              <section className="mb-14">
+                <TierLabel>Core Training</TierLabel>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {midTicket.map((course) => (
+                    <StandardCard key={course.id} course={course} />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {courses.length === 0 && (
-            <Card className="shadow-card">
-              <CardContent className="py-16 text-center">
-                <BookOpen className="w-16 h-16 text-text-muted mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-text-dark mb-2">No courses available</h2>
-                <p className="text-text-muted">
-                  Check back soon for new content!
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+            {/* LOW TICKET — Compact grid */}
+            <section className="mb-14">
+              <TierLabel>Quick Start Guides & Tools</TierLabel>
+              {lowTicket.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {lowTicket.map((course) => (
+                    <CompactCard key={course.id} course={course} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 py-4">New quick start guides coming soon</p>
+              )}
+            </section>
+
+            {/* FREE */}
+            {freeCourses.length > 0 && (
+              <section className="mb-14">
+                <TierLabel>Free Resources</TierLabel>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {freeCourses.map((course) => (
+                    <StandardCard key={course.id} course={course} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {courses.length === 0 && (
+          <div className="max-w-7xl mx-auto px-5 md:px-10 py-24 text-center">
+            <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-700 mb-2">No courses available</h2>
+            <p className="text-gray-400">Check back soon for new content!</p>
+          </div>
+        )}
       </main>
       <Footer />
     </>
   );
 }
 
-// Component for enrolled course cards
-function EnrolledCourseCard({ course }: { course: any }) {
+// ── SECTION LABEL ──────────────────────────────────────────
+function TierLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Card className="shadow-card overflow-hidden hover:shadow-lg transition-shadow border-l-4 border-l-green-500">
-      <div className="relative aspect-video bg-gray-100">
+    <div className="flex items-center gap-4 mb-5">
+      <h3 className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-gray-400 whitespace-nowrap">
+        {children}
+      </h3>
+      <div className="flex-1 h-px bg-gray-200" />
+    </div>
+  );
+}
+
+// ── ENROLLED CARD ─────────────────────────────────────────
+function EnrolledCard({ course }: { course: any }) {
+  const isComplete = course.progressPercent === 100;
+  const isStarted = course.progressPercent > 0;
+  const circumference = 2 * Math.PI * 22;
+  const strokeDashoffset = circumference - (course.progressPercent / 100) * circumference;
+
+  return (
+    <Link
+      href={`/courses/${course.slug}`}
+      className="group flex h-[148px] bg-[#0d1230] hover:bg-[#111840] border border-white/[0.08] hover:border-white/[0.18] rounded-xl overflow-hidden transition-all"
+    >
+      {/* Thumbnail */}
+      <div className="relative w-56 flex-shrink-0">
         {course.thumbnail ? (
           <Image
             src={course.thumbnail}
             alt={course.title}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            quality={85}
+            sizes="176px"
             className="object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <BookOpen className="w-12 h-12 text-gray-300" />
-          </div>
-        )}
-        {course.progressPercent === 100 && (
-          <div className="absolute top-3 right-3 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-            <CheckCircle className="w-3 h-3" />
-            Complete
-          </div>
-        )}
-        {course.progressPercent > 0 && course.progressPercent < 100 && (
-          <div className="absolute top-3 right-3 bg-maxxed-blue text-white px-2 py-1 rounded text-xs font-bold">
-            {course.progressPercent}%
+          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex items-center justify-center">
+            <BookOpen className="w-7 h-7 text-white/20" />
           </div>
         )}
       </div>
-      <CardContent className="p-5">
-        <h3 className="font-bold text-lg text-text-dark mb-2 line-clamp-1">
-          {course.title}
-        </h3>
-        <p className="text-sm text-text-muted mb-4 line-clamp-2">
-          {course.shortDesc || course.description}
-        </p>
-        <div className="flex items-center justify-between text-sm text-text-muted mb-4">
-          <span>{course.completedLessons} / {course.totalLessons} lessons</span>
-        </div>
-        <div className="mb-4">
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+
+      {/* Thin separator */}
+      <div className="w-px bg-white/[0.06] flex-shrink-0" />
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 flex items-center gap-5 px-5">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-white text-[15px] leading-snug line-clamp-1 group-hover:text-blue-200 transition-colors">
+            {course.title}
+          </h3>
+          <p className="text-[11px] text-white/30 mt-1">
+            {course.completedLessons} of {course.totalLessons} lessons
+          </p>
+          <div className="mt-3 h-[2px] bg-white/[0.08] rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-500 rounded-full transition-all"
-              style={{ width: `${course.progressPercent}%` }}
+              className={`h-full rounded-full ${isComplete ? 'bg-green-400' : 'bg-[#D4AF37]'}`}
+              style={{ width: `${course.progressPercent > 0 ? course.progressPercent : 0}%` }}
             />
           </div>
         </div>
-        <Link
-          href={`/courses/${course.slug}`}
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-maxxed-blue text-white font-bold text-sm uppercase tracking-wider rounded hover:bg-maxxed-blue-dark transition-colors"
-        >
-          <Play className="w-4 h-4" />
-          {course.progressPercent === 0 ? 'Start Learning' : 'Continue Learning'}
-        </Link>
-      </CardContent>
-    </Card>
-  );
-}
 
-// Component for course tier sections
-function CourseTierSection({
-  title,
-  description,
-  priceRange,
-  icon,
-  iconBg,
-  courses,
-  featured,
-  elite,
-  emptyMessage,
-}: {
-  title: string;
-  description: string;
-  priceRange?: string;
-  icon: React.ReactNode;
-  iconBg: string;
-  courses: any[];
-  featured?: boolean;
-  elite?: boolean;
-  emptyMessage?: string;
-}) {
-  return (
-    <section className={`mb-10 ${featured || elite ? 'relative' : ''}`}>
-      {featured && (
-        <div className="absolute -inset-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl -z-10" />
-      )}
-      {elite && (
-        <div className="absolute -inset-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl -z-10" />
-      )}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${iconBg}`}>
-            {icon}
+        {/* Progress ring */}
+        <div className="flex-shrink-0 flex flex-col items-center gap-1.5">
+          <div className="relative w-14 h-14">
+            <svg className="w-14 h-14 -rotate-90" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="3" />
+              <circle
+                cx="26" cy="26" r="22"
+                fill="none"
+                stroke={isComplete ? '#4ade80' : '#D4AF37'}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={isStarted || isComplete ? strokeDashoffset : circumference}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {isComplete ? (
+                <CheckCircle className="w-5 h-5 text-green-400" />
+              ) : (
+                <Play className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors" />
+              )}
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-text-dark">{title}</h3>
-            <p className="text-sm text-text-muted">{description}</p>
-          </div>
-        </div>
-        {priceRange && (
-          <span className="text-sm font-medium text-text-muted bg-gray-100 px-3 py-1 rounded-full">
-            {priceRange}
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${
+            isComplete ? 'text-green-400' : isStarted ? 'text-[#D4AF37]' : 'text-white/25'
+          }`}>
+            {isComplete ? 'Done' : isStarted ? `${course.progressPercent}%` : 'Begin'}
           </span>
-        )}
+        </div>
       </div>
-      {courses.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((course) => (
-            <AvailableCourseCard key={course.id} course={course} elite={elite} />
-          ))}
-        </div>
-      ) : emptyMessage ? (
-        <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-          <p className="text-text-muted">{emptyMessage}</p>
-        </div>
-      ) : null}
-    </section>
+    </Link>
   );
 }
 
-// Component for available (purchasable) course cards
-function AvailableCourseCard({ course, elite }: { course: any; elite?: boolean }) {
-  const tier = getPriceTier(course.price);
-
+// ── ELITE SHOWCASE CARD ────────────────────────────────────
+function EliteCard({ course }: { course: any }) {
   return (
-    <Card className={`shadow-card overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 ${elite ? 'border-2 border-amber-200' : ''}`}>
-      <div className="relative aspect-video bg-gray-100">
+    <Link
+      href={`/courses/${course.slug}`}
+      className="group relative flex flex-col md:flex-row gap-0 rounded-2xl overflow-hidden border border-[#D4AF37]/15 hover:border-[#D4AF37]/35 transition-all bg-[#0f0c00]"
+      style={{ backgroundImage: 'radial-gradient(ellipse at 0% 50%, rgba(212,175,55,0.08) 0%, transparent 60%)' }}
+    >
+      {/* Thumbnail */}
+      <div className="relative md:w-64 flex-shrink-0 aspect-video md:aspect-auto">
         {course.thumbnail ? (
           <Image
             src={course.thumbnail}
             alt={course.title}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            quality={85}
+            sizes="(max-width: 768px) 100vw, 256px"
             className="object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-maxxed-blue/20 to-maxxed-gold/20">
-            <BookOpen className="w-12 h-12 text-gray-400" />
+          <div className="w-full h-full bg-[#1a1200] flex items-center justify-center">
+            <Star className="w-10 h-10 text-[#D4AF37]/20" />
           </div>
         )}
-        {course.featured && (
-          <div className="absolute top-3 left-3 bg-maxxed-gold text-white px-2 py-1 rounded text-xs font-bold">
-            Featured
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0f0c00] hidden md:block" />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
+        <div>
+          <span className="inline-block text-[#D4AF37] text-[10px] font-extrabold uppercase tracking-[0.2em] mb-3">
+            Elite Access
+          </span>
+          <h3 className="text-xl md:text-2xl font-extrabold text-white leading-tight group-hover:text-[#D4AF37] transition-colors line-clamp-2">
+            {course.title}
+          </h3>
+          <p className="text-sm text-white/40 mt-2 line-clamp-2">
+            {(course as any).shortDesc || course.description?.split('\n')[0]}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-5 mt-6">
+          <span className="text-2xl font-extrabold text-[#D4AF37]">{formatPrice(course.price)}</span>
+          <span className="text-xs text-white/30">{course.totalLessons} lessons</span>
+          <div className="ml-auto flex items-center gap-1.5 text-[#D4AF37] text-sm font-bold group-hover:gap-2.5 transition-all">
+            Get Access <ArrowRight className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ── FEATURED 2-COL CARD ────────────────────────────────────
+function FeaturedCard({ course }: { course: any }) {
+  return (
+    <Link
+      href={`/courses/${course.slug}`}
+      className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+    >
+      <div className="relative aspect-video">
+        {course.thumbnail ? (
+          <Image
+            src={course.thumbnail}
+            alt={course.title}
+            fill
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex items-center justify-center">
+            <BookOpen className="w-10 h-10 text-white/20" />
           </div>
         )}
-        {/* Price Badge */}
         <div className="absolute top-3 right-3">
-          <span className={`${tier.bgColor} ${tier.color} px-2 py-1 rounded text-xs font-bold`}>
+          <span className="bg-black/60 text-white backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-bold">
             {formatPrice(course.price)}
           </span>
         </div>
       </div>
-      <CardContent className="p-5">
-        <h3 className="font-bold text-lg text-text-dark mb-2 line-clamp-1">
+      <div className="p-5 flex flex-col flex-1">
+        <h3 className="font-bold text-lg text-gray-900 line-clamp-1 group-hover:text-maxxed-blue transition-colors">
           {course.title}
         </h3>
-        <p className="text-sm text-text-muted mb-4 line-clamp-2">
-          {course.shortDesc || course.description}
+        <p className="text-sm text-gray-400 line-clamp-2 mt-1.5 flex-1">
+          {(course as any).shortDesc || course.description?.split('\n')[0]}
         </p>
-
-        <div className="flex items-center justify-between text-sm text-text-muted mb-4">
-          <span>{course.totalLessons} lessons</span>
-          <span>{course.modules.length} modules</span>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+          <span className="text-xs text-gray-400">{course.totalLessons} lessons</span>
+          <span className="text-sm font-bold text-maxxed-blue flex items-center gap-1 group-hover:gap-2 transition-all">
+            Get Access <ArrowRight className="w-3.5 h-3.5" />
+          </span>
         </div>
+      </div>
+    </Link>
+  );
+}
 
-        <Link
-          href={`/courses/${course.slug}`}
-          className={`flex items-center justify-center gap-2 w-full py-2.5 font-bold text-sm uppercase tracking-wider rounded transition-colors ${
-            elite
-              ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-amber-600 hover:to-yellow-600'
-              : 'border-2 border-maxxed-blue text-maxxed-blue hover:bg-maxxed-blue hover:text-white'
-          }`}
-        >
-          <Lock className="w-4 h-4" />
-          {course.price ? 'Get Access' : 'Enroll Free'}
-        </Link>
-      </CardContent>
-    </Card>
+// ── STANDARD 3-COL CARD ────────────────────────────────────
+function StandardCard({ course }: { course: any }) {
+  const tier = getPriceTier(course.price);
+  return (
+    <Link
+      href={`/courses/${course.slug}`}
+      className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all"
+    >
+      <div className="relative aspect-video">
+        {course.thumbnail ? (
+          <Image
+            src={course.thumbnail}
+            alt={course.title}
+            fill
+            sizes="33vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex items-center justify-center">
+            <BookOpen className="w-8 h-8 text-white/20" />
+          </div>
+        )}
+        <div className="absolute top-2 right-2">
+          <span className={`${tier.bgColor} ${tier.color} px-2 py-0.5 rounded text-xs font-bold`}>
+            {formatPrice(course.price)}
+          </span>
+        </div>
+      </div>
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="font-bold text-gray-900 line-clamp-1 group-hover:text-maxxed-blue transition-colors">
+          {course.title}
+        </h3>
+        <p className="text-xs text-gray-400 line-clamp-2 mt-1 flex-1">
+          {(course as any).shortDesc || course.description?.split('\n')[0]}
+        </p>
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+          <span className="text-xs text-gray-400">{course.totalLessons} lessons</span>
+          <span className={`text-xs font-bold ${tier.color}`}>{tier.label}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ── COMPACT GRID CARD ──────────────────────────────────────
+function CompactCard({ course }: { course: any }) {
+  return (
+    <Link
+      href={`/courses/${course.slug}`}
+      className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 hover:border-maxxed-blue/25 hover:shadow-md transition-all"
+    >
+      <div className="relative aspect-video">
+        {course.thumbnail ? (
+          <Image src={course.thumbnail} alt={course.title} fill sizes="25vw" className="object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex items-center justify-center">
+            <BookOpen className="w-6 h-6 text-white/20" />
+          </div>
+        )}
+      </div>
+      <div className="p-3 flex flex-col flex-1">
+        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 group-hover:text-maxxed-blue transition-colors leading-snug flex-1">
+          {course.title}
+        </h3>
+        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100">
+          <span className="text-[11px] text-gray-400">
+            {course.totalLessons} {course.totalLessons === 1 ? 'lesson' : 'lessons'}
+          </span>
+          <span className="text-xs font-bold text-maxxed-blue">{formatPrice(course.price)}</span>
+        </div>
+      </div>
+    </Link>
   );
 }

@@ -192,63 +192,73 @@ export default async function DashboardPage() {
       <Header />
       <main className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto px-5 md:px-10 py-10">
-          {/* Welcome Section */}
-          <div className="mb-10">
-            <h1 className="text-3xl font-bold text-text-dark mb-2">
-              Welcome back{session.user.name ? `, ${session.user.name.split(' ')[0]}` : ''}!
-            </h1>
-            <p className="text-text-body">
-              Continue your learning journey where you left off.
-            </p>
+          {/* Welcome Banner */}
+          <div className="relative bg-gradient-to-r from-[#0d1545] via-[#0a1a70] to-[#0000CC] text-white rounded-2xl overflow-hidden mb-10 px-8 py-10">
+            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(ellipse at 80% 50%, rgba(0,0,255,0.25) 0%, transparent 65%)' }} />
+            <div className="absolute bottom-0 right-0 w-64 h-64 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+            <div className="relative">
+              <p className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-3">Maxxed Out University</p>
+              <h1 className="text-3xl md:text-4xl font-extrabold mb-2">
+                Welcome back{session.user.name ? `, ${session.user.name.split(' ')[0]}` : ''}!
+              </h1>
+              <p className="text-blue-200 text-sm">Your real estate investing education continues here.</p>
+            </div>
           </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <Card className="shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-text-muted">
-                  Enrolled Courses
-                </CardTitle>
-                <BookOpen className="w-5 h-5 text-maxxed-blue" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-text-dark">{totalCourses}</div>
-                <p className="text-xs text-text-muted mt-1">
-                  {totalCourses === 0 ? 'Start learning today' : totalCourses === 1 ? 'Keep it up!' : 'Great progress!'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-text-muted">
-                  Time Watched
-                </CardTitle>
-                <Clock className="w-5 h-5 text-maxxed-gold" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-text-dark">
-                  {totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`}
+            <Card className="shadow-card border-0 overflow-hidden">
+              <div className="flex items-stretch">
+                <div className="w-1.5 bg-maxxed-blue flex-shrink-0" />
+                <div className="flex-1 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Enrolled Courses</span>
+                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-maxxed-blue" />
+                    </div>
+                  </div>
+                  <div className="text-4xl font-extrabold text-text-dark">{totalCourses}</div>
+                  <p className="text-xs text-text-muted mt-1">
+                    {totalCourses === 0 ? 'Start learning today' : totalCourses === 1 ? 'Keep it up!' : 'Great progress!'}
+                  </p>
                 </div>
-                <p className="text-xs text-text-muted mt-1">
-                  {totalWatchedSeconds === 0 ? 'Start watching!' : 'Keep going!'}
-                </p>
-              </CardContent>
+              </div>
             </Card>
 
-            <Card className="shadow-card">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-text-muted">
-                  Certificates
-                </CardTitle>
-                <Trophy className="w-5 h-5 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-text-dark">{certificates}</div>
-                <p className="text-xs text-text-muted mt-1">
-                  Complete courses to earn
-                </p>
-              </CardContent>
+            <Card className="shadow-card border-0 overflow-hidden">
+              <div className="flex items-stretch">
+                <div className="w-1.5 bg-maxxed-gold flex-shrink-0" />
+                <div className="flex-1 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Time Watched</span>
+                    <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-maxxed-gold" />
+                    </div>
+                  </div>
+                  <div className="text-4xl font-extrabold text-text-dark">
+                    {totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`}
+                  </div>
+                  <p className="text-xs text-text-muted mt-1">
+                    {totalWatchedSeconds === 0 ? 'Start watching!' : 'Keep going!'}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="shadow-card border-0 overflow-hidden">
+              <div className="flex items-stretch">
+                <div className="w-1.5 bg-green-500 flex-shrink-0" />
+                <div className="flex-1 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Certificates</span>
+                    <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
+                      <Trophy className="w-5 h-5 text-green-500" />
+                    </div>
+                  </div>
+                  <div className="text-4xl font-extrabold text-text-dark">{certificates}</div>
+                  <p className="text-xs text-text-muted mt-1">Complete courses to earn</p>
+                </div>
+              </div>
             </Card>
           </div>
 
@@ -256,7 +266,12 @@ export default async function DashboardPage() {
           <div className="mb-10">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-text-dark">My Courses</h2>
+                <h2 className="text-xl font-bold text-text-dark">
+                  My Courses
+                  {coursesWithProgress.length > 0 && (
+                    <span className="ml-2 text-sm font-semibold text-text-muted bg-gray-100 px-2 py-0.5 rounded-full align-middle">{coursesWithProgress.length}</span>
+                  )}
+                </h2>
                 {showAllCourses && (
                   <p className="text-sm text-text-muted">Courses you have access to</p>
                 )}
@@ -289,7 +304,7 @@ export default async function DashboardPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {coursesWithProgress.map((enrollment) => (
-                  <Card key={enrollment.id} className="shadow-card overflow-hidden hover:shadow-lg transition-shadow">
+                  <Card key={enrollment.id} className="shadow-card overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
                     <div className="relative aspect-video bg-gray-100">
                       {enrollment.course.thumbnail ? (
                         <Image
@@ -299,8 +314,9 @@ export default async function DashboardPage() {
                           className="object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen className="w-12 h-12 text-gray-300" />
+                        <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex flex-col items-center justify-center p-5 text-center">
+                          <BookOpen className="w-8 h-8 text-white/30 mb-2" />
+                          <p className="text-white text-xs font-bold leading-tight line-clamp-3">{enrollment.course.title}</p>
                         </div>
                       )}
                       {enrollment.progressPercent === 100 && (
@@ -430,8 +446,9 @@ export default async function DashboardPage() {
                             className="object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-maxxed-blue/20 to-maxxed-gold/20">
-                            <BookOpen className="w-12 h-12 text-gray-400" />
+                          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex flex-col items-center justify-center p-5 text-center">
+                            <BookOpen className="w-8 h-8 text-white/30 mb-2" />
+                            <p className="text-white text-xs font-bold leading-tight line-clamp-3">{course.title}</p>
                           </div>
                         )}
                         {course.featured && (

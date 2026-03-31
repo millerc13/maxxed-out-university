@@ -11,11 +11,13 @@ import {
   FileQuestion,
   Upload,
   BarChart2,
+  MonitorPlay,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
+  { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
   { href: '/admin/courses', label: 'Courses', icon: BookOpen },
   { href: '/admin/quizzes', label: 'Quizzes', icon: FileQuestion },
   { href: '/admin/users', label: 'Users', icon: Users },

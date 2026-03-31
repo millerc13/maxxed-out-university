@@ -39,6 +39,7 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   const {
     courseId, courseSlug, courseTitle,
     userId, guestEmail, guestName, guestPhone, isGuest,
+    promoCodeId, originalPrice,
   } = paymentIntent.metadata;
 
   if (!courseId) {
@@ -89,6 +90,8 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
         courseId,
         source: 'stripe',
         transactionId: paymentIntent.id,
+        promoCodeId: promoCodeId || null,
+        originalPrice: originalPrice ? parseInt(originalPrice) : null,
         metadata: {
           amount: paymentIntent.amount,
           currency: paymentIntent.currency,
@@ -98,6 +101,14 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       },
       update: {},
     });
+
+    // Increment promo code usage counter
+    if (promoCodeId) {
+      await prisma.promoCode.update({
+        where: { id: promoCodeId },
+        data: { currentUses: { increment: 1 } },
+      });
+    }
 
     console.log(`Enrollment created: user=${resolvedUserId} course=${courseId} pi=${paymentIntent.id}`);
 

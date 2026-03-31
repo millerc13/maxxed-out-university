@@ -29,8 +29,15 @@ export default function AuthLayout({
       </header>
 
       {/* Content */}
-      <main className="flex-1 flex items-center justify-center p-5">
-        {children}
+      <main className="flex-1 flex items-center justify-center p-5 relative" style={{ background: 'linear-gradient(135deg, #e8ecff 0%, #f5f5f5 50%, #fffdf0 100%)' }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 15% 50%, rgba(0,0,255,0.07) 0%, transparent 45%), radial-gradient(circle at 85% 20%, rgba(212,175,55,0.06) 0%, transparent 40%)' }} />
+        <div className="absolute inset-0 pointer-events-none opacity-30" style={{ backgroundImage: 'radial-gradient(circle, rgba(0,0,200,0.08) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="relative w-full flex flex-col items-center gap-6">
+          {children}
+          <p className="text-xs text-text-muted text-center">
+            Trusted by thousands of real estate investors across the country
+          </p>
+        </div>
       </main>
 
       {/* Simple Footer */}
