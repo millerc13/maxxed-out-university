@@ -667,11 +667,17 @@ export default function FunnelEditorPage() {
 
         {/* Right: Live Preview (sticky) */}
         <div className="hidden xl:block">
-          <div className="sticky top-6 space-y-4">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Eye className="w-4 h-4" />
-              <span className="font-medium">Live Preview</span>
+          <div className="sticky top-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Eye className="w-4 h-4" />
+                <span className="font-medium">Live Preview</span>
+              </div>
+              <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">Mobile</span>
             </div>
+            {/* Phone frame */}
+            <div className="bg-gray-900 rounded-[24px] p-2 shadow-xl ring-1 ring-gray-800">
+              <div className="rounded-[18px] overflow-hidden">
             <FunnelPreview
               headline={headline}
               subheadline={subheadline}
@@ -682,26 +688,31 @@ export default function FunnelEditorPage() {
               coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null}
               courseThumbnail={selectedCourse?.thumbnail ?? funnel.course?.thumbnail ?? null}
             />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Save Bar (sticky bottom) */}
-      <div className="sticky bottom-0 -mx-8 px-8 py-4 bg-white border-t border-gray-200 flex items-center justify-between z-10">
-        <div>
+      <div className="sticky bottom-0 -mx-8 px-8 py-3 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] flex items-center justify-between z-10">
+        <div className="min-h-[28px] flex items-center">
           {saveError && (
             <p className="text-red-500 text-sm font-medium">{saveError}</p>
           )}
           {saved && (
             <p className="text-green-600 text-sm font-medium flex items-center gap-1.5">
-              <Check className="w-4 h-4" /> Changes saved successfully
+              <Check className="w-4 h-4" /> Saved
             </p>
+          )}
+          {!saveError && !saved && (
+            <p className="text-gray-400 text-sm">Changes won&apos;t be live until you save.</p>
           )}
         </div>
         <button
           onClick={save}
           disabled={saving}
-          className="flex items-center gap-2 px-6 py-2.5 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-6 py-2.5 bg-maxxed-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-md"
         >
           {saving ? (
             <>

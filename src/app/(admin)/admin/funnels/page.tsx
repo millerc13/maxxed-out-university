@@ -117,23 +117,19 @@ export default function FunnelsPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - compact inline */}
       {!loading && funnels.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="flex items-center gap-6">
           {stats.map((stat) => (
-            <Card key={stat.label} className="overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">{stat.label}</p>
-                    <p className="text-3xl font-extrabold text-gray-900">{stat.value}</p>
-                  </div>
-                  <div className={`p-3 rounded-xl ${stat.color}`}>
-                    <stat.icon className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div key={stat.label} className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-lg ${stat.color}`}>
+                <stat.icon className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900 leading-none">{stat.value}</p>
+                <p className="text-xs text-gray-500">{stat.label}</p>
+              </div>
+            </div>
           ))}
         </div>
       )}
