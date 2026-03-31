@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/ui/markdown-content';
 import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy, Download, FileText, Printer } from 'lucide-react';
 import { PrintButton } from '@/components/ui/print-button';
+import { VideoPlayer } from '@/components/lesson/VideoPlayer';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
@@ -140,16 +141,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
           {/* Video Player Area - Hidden when printing */}
           <div className="aspect-video bg-black relative print:hidden">
             {currentLesson.videoUrl ? (
-              <video
-                className="w-full h-full"
-                controls
-                autoPlay={false}
-                playsInline
-                poster=""
-              >
-                <source src={currentLesson.videoUrl} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
+              <VideoPlayer lessonId={currentLesson.id} title={currentLesson.title} />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-center text-white">
                 <div>
@@ -329,16 +321,24 @@ export default async function LessonPage({ params }: LessonPageProps) {
                     <div className="p-4 border-b bg-gray-50">
                       <Link
                         href={`/courses/${slug}`}
-                        className="font-bold text-text-dark hover:text-maxxed-blue transition-colors"
+                        className="font-bold text-text-dark hover:text-maxxed-blue transition-colors text-sm leading-tight block"
                       >
                         {course.title}
                       </Link>
-                      <p className="text-sm text-text-muted mt-1">
-                        {allLessons.filter((l) => progressMap.get(l.lesson.id)?.completed).length} of{' '}
-                        {allLessons.length} complete
-                      </p>
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-text-muted mb-1">
+                          <span>{allLessons.filter((l) => progressMap.get(l.lesson.id)?.completed).length} of {allLessons.length} complete</span>
+                          <span>{allLessons.length > 0 ? Math.round((allLessons.filter((l) => progressMap.get(l.lesson.id)?.completed).length / allLessons.length) * 100) : 0}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-maxxed-blue rounded-full transition-all"
+                            style={{ width: `${allLessons.length > 0 ? Math.round((allLessons.filter((l) => progressMap.get(l.lesson.id)?.completed).length / allLessons.length) * 100) : 0}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="max-h-[calc(100vh-380px)] overflow-y-auto">
                       {course.modules.map((module, moduleIndex) => {
                         // Find quiz for this module (quiz order matches module index)
                         const moduleQuiz = course.quizzes.find((q) => q.order === moduleIndex);
