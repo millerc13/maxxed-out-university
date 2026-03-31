@@ -119,31 +119,67 @@ export default async function CoursePage({ params }: CoursePageProps) {
       <Header />
       <main className="min-h-screen bg-background">
         {/* Course Hero */}
-        <div className="bg-gradient-to-r from-maxxed-blue to-blue-700 text-white">
-          <div className="max-w-7xl mx-auto px-5 md:px-10 py-12">
+        <div className="relative bg-gradient-to-r from-[#0d1545] via-[#0a1a70] to-[#0000CC] text-white overflow-hidden">
+          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(ellipse at 70% 50%, rgba(0,0,255,0.2) 0%, transparent 60%)' }} />
+          <div className="absolute bottom-0 right-0 w-96 h-96 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          <div className="relative max-w-7xl mx-auto px-5 md:px-10 py-14">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Course Info */}
               <div className="lg:col-span-2">
-                <h1 className="text-3xl md:text-4xl font-bold mb-4">{course.title}</h1>
-                <p className="text-lg text-blue-100 mb-6">
-                  {course.description?.includes('#') ? course.shortDesc : course.description}
+                <p className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-3">Maxxed Out University</p>
+                <h1 className="text-3xl md:text-4xl font-extrabold mb-4 leading-tight">{course.title}</h1>
+                <p className="text-lg text-blue-100 mb-6 leading-relaxed">
+                  {course.description?.includes('#') ? (course as any).shortDesc : course.description}
                 </p>
-                <div className="flex flex-wrap gap-6 text-sm">
+
+                {/* Stats row */}
+                <div className="flex flex-wrap gap-5 text-sm mb-8">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="w-5 h-5" />
+                    <BookOpen className="w-4 h-4 text-blue-300" />
                     <span>{totalLessons} lessons</span>
                   </div>
+                  {totalDuration > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-300" />
+                      <span>{totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`} of content</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5" />
-                    <span>{totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`} total</span>
+                    <Trophy className="w-4 h-4 text-maxxed-gold" />
+                    <span>Certificate included</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <span>Lifetime access</span>
                   </div>
                   {isEnrolled && (
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5" />
-                      <span>{progressPercent}% complete</span>
+                    <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="font-semibold">{progressPercent}% complete</span>
                     </div>
                   )}
                 </div>
+
+                {/* What's Inside — only shown to unenrolled users */}
+                {!isEnrolled && course.modules.length > 0 && (
+                  <div>
+                    <p className="text-blue-200/80 text-xs font-bold uppercase tracking-widest mb-3">What&apos;s Inside</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                      {course.modules.slice(0, 8).map((module) => (
+                        <div key={module.id} className="flex items-start gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-maxxed-gold mt-0.5 flex-shrink-0" />
+                          <span className="text-blue-100 leading-snug">{module.title}</span>
+                        </div>
+                      ))}
+                      {course.modules.length > 8 && (
+                        <div className="flex items-start gap-2 text-sm col-span-full">
+                          <ChevronRight className="w-4 h-4 text-blue-300 mt-0.5 flex-shrink-0" />
+                          <span className="text-blue-300">+{course.modules.length - 8} more modules</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Course Card */}
@@ -160,8 +196,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         className="object-contain"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen className="w-12 h-12 text-gray-300" />
+                      <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex flex-col items-center justify-center p-6 text-center">
+                        <BookOpen className="w-10 h-10 text-white/25 mb-3" />
+                        <p className="text-white text-sm font-bold leading-snug line-clamp-4">{course.title}</p>
                       </div>
                     )}
                   </div>
@@ -198,14 +235,21 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         )}
                       </>
                     ) : (
-                      <div className="text-center">
-                        <Lock className="w-12 h-12 text-text-muted mx-auto mb-3" />
-                        <p className="text-text-muted mb-4">
-                          Purchase this course to get full access
-                        </p>
-                        <button className="w-full py-3 bg-maxxed-gold text-white font-bold text-sm uppercase tracking-wider rounded hover:bg-yellow-600 transition-colors">
-                          Get Access
-                        </button>
+                      <div className="space-y-4">
+                        {/* CTA */}
+                        {course.price && course.price > 0 ? (
+                          <Link
+                            href={`/checkout?courseId=${course.id}`}
+                            className="flex items-center justify-center w-full py-4 bg-maxxed-gold text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-yellow-600 transition-colors shadow-md"
+                          >
+                            Get Access Now
+                          </Link>
+                        ) : (
+                          <button className="w-full py-4 bg-maxxed-gold text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-yellow-600 transition-colors shadow-md cursor-default opacity-70">
+                            Contact to Enroll
+                          </button>
+                        )}
+
                         {isAdmin && (
                           <AdminEnrollButton courseId={course.id} courseName={course.title} />
                         )}
