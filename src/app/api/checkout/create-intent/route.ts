@@ -5,14 +5,23 @@ import { stripe } from '@/lib/stripe';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const body = await request.json();
+    const { courseId, guestEmail, guestName, guestPhone } = body;
 
-    const { courseId } = await request.json();
     if (!courseId) {
       return NextResponse.json({ error: 'courseId is required' }, { status: 400 });
+    }
+
+    // Support both authenticated users and guests
+    // Wrap auth() in try/catch — cross-origin server calls have no session cookie
+    // so auth() should return null; defensive catch ensures guest flow still works
+    let session: Awaited<ReturnType<typeof auth>> = null;
+    try { session = await auth(); } catch { /* no session — treat as guest */ }
+    const isGuest = !session?.user?.id;
+
+    // Guests must provide email
+    if (isGuest && !guestEmail) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
     const course = await prisma.course.findUnique({
@@ -25,27 +34,39 @@ export async function POST(request: NextRequest) {
     }
 
     if (!course.price || course.price <= 0) {
-      return NextResponse.json({ error: 'Course is free — use enrollment directly' }, { status: 400 });
+      return NextResponse.json({ error: 'Course is free' }, { status: 400 });
     }
 
-    // Check not already enrolled
-    const existing = await prisma.enrollment.findUnique({
-      where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
-    });
-    if (existing) {
-      return NextResponse.json({ error: 'Already enrolled' }, { status: 409 });
+    // For authenticated users — check not already enrolled
+    if (!isGuest && session?.user?.id) {
+      const existing = await prisma.enrollment.findUnique({
+        where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
+      });
+      if (existing) {
+        return NextResponse.json({ error: 'Already enrolled' }, { status: 409 });
+      }
     }
+
+    const email = isGuest ? guestEmail : (session?.user?.email ?? '');
+    const name = isGuest ? (guestName ?? '') : (session?.user?.name ?? '');
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: course.price, // stored in cents
+      amount: course.price,
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
       metadata: {
         courseId: course.id,
         courseSlug: course.slug,
-        userId: session.user.id,
-        userEmail: session.user.email ?? '',
+        courseTitle: course.title,
+        // For authenticated users
+        userId: isGuest ? '' : (session?.user?.id ?? ''),
+        // For guests — webhook will create the account
+        guestEmail: isGuest ? email : '',
+        guestName: isGuest ? name : '',
+        guestPhone: isGuest ? (guestPhone ?? '') : '',
+        isGuest: isGuest ? 'true' : 'false',
       },
+      receipt_email: email,
       description: `Maxxed Out University — ${course.title}`,
     });
 
