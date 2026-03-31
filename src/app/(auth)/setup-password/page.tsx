@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,9 +12,9 @@ import { Loader2, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 function SetupPasswordContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const email = searchParams.get('email') || '';
-  const userId = searchParams.get('userId') || '';
+  const { data: session, status } = useSession();
+  const email = session?.user?.email || '';
+  const userId = session?.user?.id || '';
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -66,6 +67,17 @@ function SetupPasswordContent() {
       setIsLoading(false);
     }
   };
+
+  if (status === 'loading') {
+    return (
+      <Card className="w-full max-w-md shadow-card">
+        <CardHeader className="text-center">
+          <Loader2 className="w-8 h-8 text-maxxed-blue animate-spin mx-auto mb-4" />
+          <CardTitle className="text-2xl">Loading…</CardTitle>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   if (success) {
     return (
