@@ -31,8 +31,8 @@ function ActivateInner() {
 
       if (result?.ok && !result?.error) {
         setStatus('success');
-        setMessage('Account activated! Taking you to your dashboard…');
-        setTimeout(() => router.push('/dashboard'), 1500);
+        setMessage('Account activated! Setting up your password…');
+        setTimeout(() => router.push('/setup-password'), 1500);
       } else {
         setStatus('error');
         setMessage('This link has expired or already been used. Please contact support.');
