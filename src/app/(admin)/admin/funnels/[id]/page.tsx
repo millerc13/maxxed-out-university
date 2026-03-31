@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface Course {
@@ -56,11 +56,11 @@ const FOR_YOU_IF_PREVIEW = [
 ];
 
 function FunnelPreview({
-  headline, subheadline, ctaText, bullets, testimonials, courseName, coursePrice, courseThumbnail, containerWidth,
+  headline, subheadline, ctaText, bullets, testimonials, courseName, coursePrice, courseThumbnail, containerWidth, featuredCourses,
 }: {
   headline: string; subheadline: string; ctaText: string; bullets: string[];
   testimonials: Testimonial[]; courseName: string; coursePrice: number | null;
-  courseThumbnail: string | null; containerWidth: number;
+  courseThumbnail: string | null; containerWidth: number; featuredCourses: Course[];
 }) {
   const fmtPrice = (cents: number | null) => {
     if (cents === null) return '—';
@@ -225,8 +225,52 @@ function FunnelPreview({
             </div>
           </section>
 
+          {/* ── COURSES INCLUDED ── */}
+          {featuredCourses.length > 0 && (
+            <section className="px-5 py-20" style={{ background: '#f4f6fa' }}>
+              <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-14">
+                  <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: '#0000FF' }}>The Curriculum</p>
+                  <h2 className="font-black text-gray-900 text-3xl">Courses Included</h2>
+                  <p className="text-gray-500 mt-3 max-w-lg mx-auto text-base">Everything you need to go from zero to cash-flowing — in one place.</p>
+                </div>
+                <div className={`grid gap-5 ${
+                  featuredCourses.length === 1 ? 'max-w-sm mx-auto' :
+                  featuredCourses.length === 2 ? 'grid-cols-2 max-w-2xl mx-auto' :
+                  'grid-cols-3'
+                }`}>
+                  {featuredCourses.map((course) => (
+                    <div key={course.id} className="bg-white rounded-2xl overflow-hidden shadow-sm" style={{ border: '1px solid rgba(0,0,0,0.06)' }}>
+                      <div className="relative aspect-video bg-gray-100 overflow-hidden">
+                        {course.thumbnail ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
+                            <BookOpen className="w-10 h-10 text-white/20" />
+                          </div>
+                        )}
+                        {course.price && (
+                          <div className="absolute top-3 right-3 rounded-lg px-2.5 py-1 text-white font-black text-sm" style={{ background: 'rgba(0,0,0,0.65)' }}>
+                            {fmtPrice(course.price)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <h3 className="font-black text-gray-900 text-[15px] leading-snug mb-3">{course.title}</h3>
+                        <span className="inline-flex items-center gap-1.5 text-white font-bold text-[11px] tracking-wide uppercase px-4 py-2 rounded-lg" style={{ background: '#0000FF' }}>
+                          {cta} <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ── MEET TODD ── */}
-          <section className="px-5 py-20" style={{ background: '#f4f6fa' }}>
+          <section className="px-5 py-20" style={{ background: featuredCourses.length > 0 ? '#fff' : '#f4f6fa' }}>
             <div className="max-w-6xl mx-auto grid grid-cols-2 gap-12 items-center">
               <div className="rounded-2xl overflow-hidden aspect-[4/5] max-w-[440px]" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
                 <div className="w-full h-full flex items-center justify-center">
@@ -467,6 +511,69 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
   );
 }
 
+function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Course[]; ctaText: string }) {
+  const cta = ctaText || 'Enroll Now';
+  const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
+  if (featuredCourses.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-400">
+        <div className="text-center">
+          <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="text-sm">Select featured courses in Settings tab</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-hidden" style={{ height: '400px' }}>
+      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+          <section className="px-5 py-14" style={{ background: '#f4f6fa' }}>
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-10">
+                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>The Curriculum</p>
+                <h2 className="font-black text-gray-900 text-2xl">Courses Included</h2>
+                <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm">Everything you need to go from zero to cash-flowing — in one place.</p>
+              </div>
+              <div className={`grid gap-4 ${
+                featuredCourses.length === 1 ? 'max-w-xs mx-auto' :
+                featuredCourses.length === 2 ? 'grid-cols-2 max-w-xl mx-auto' :
+                'grid-cols-3'
+              }`}>
+                {featuredCourses.map((course) => (
+                  <div key={course.id} className="bg-white rounded-2xl overflow-hidden shadow-sm" style={{ border: '1px solid rgba(0,0,0,0.06)' }}>
+                    <div className="relative aspect-video bg-gray-100 overflow-hidden">
+                      {course.thumbnail ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
+                          <BookOpen className="w-8 h-8 text-white/20" />
+                        </div>
+                      )}
+                      {course.price && (
+                        <div className="absolute top-2 right-2 rounded-md px-2 py-0.5 text-white font-black text-xs" style={{ background: 'rgba(0,0,0,0.65)' }}>
+                          {fmtPrice(course.price)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-black text-gray-900 text-xs leading-snug mb-2">{course.title}</h3>
+                      <span className="inline-flex items-center gap-1 text-white font-bold text-[9px] tracking-wide uppercase px-3 py-1.5 rounded-md" style={{ background: '#0000FF' }}>
+                        {cta} <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Editor ─────────────────────────────────────────────────────
 export default function FunnelEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -592,6 +699,7 @@ export default function FunnelEditorPage() {
   }
 
   const selectedCourse = courses.find(c => c.id === courseId) ?? null;
+  const resolvedFeaturedCourses = courses.filter(c => featuredCourseIds.has(c.id));
 
   if (!funnel) {
     return (
@@ -906,6 +1014,59 @@ export default function FunnelEditorPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Featured Courses + Courses Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b">
+                  <h2 className="font-bold text-gray-900">Featured Courses</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Select courses to display in the Settings tab. Each will show an &ldquo;Enroll Now&rdquo; button on the funnel.</p>
+                </div>
+                <div className="p-6">
+                  {resolvedFeaturedCourses.length === 0 ? (
+                    <div className="text-center py-6 text-gray-400">
+                      <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No featured courses selected</p>
+                      <p className="text-xs mt-1">Go to the Settings tab to select courses</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {resolvedFeaturedCourses.map((c) => (
+                        <div key={c.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
+                            {c.thumbnail ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={c.thumbnail} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
+                                <BookOpen className="w-4 h-4 text-white/30" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-gray-900 text-sm truncate">{c.title}</p>
+                            <p className="text-xs text-gray-400">{c.price ? `$${(c.price / 100).toFixed(0)}` : 'Free'}</p>
+                          </div>
+                          <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            {/* Mini Courses Preview */}
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2">Courses Included Section</span>
+              </div>
+              <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
+                <MiniPreviewCourses featuredCourses={resolvedFeaturedCourses} ctaText={ctaText} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -926,7 +1087,7 @@ export default function FunnelEditorPage() {
               </div>
             </div>
             {/* Viewport */}
-            <div ref={previewContainerRef} className="overflow-y-auto bg-white" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+            <div ref={previewContainerRef} className="overflow-y-auto overflow-x-hidden bg-white" style={{ maxHeight: 'calc(100vh - 220px)' }}>
               {previewWidth > 0 && (
                 <FunnelPreview
                   headline={headline}
@@ -938,6 +1099,7 @@ export default function FunnelEditorPage() {
                   coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null}
                   courseThumbnail={selectedCourse?.thumbnail ?? funnel.course?.thumbnail ?? null}
                   containerWidth={previewWidth}
+                  featuredCourses={resolvedFeaturedCourses}
                 />
               )}
             </div>
