@@ -48,8 +48,13 @@ export async function GET(
 
   if (isStreamVideo(lesson.videoUrl)) {
     const videoId = parseStreamId(lesson.videoUrl)!;
-    const url = getSignedStreamUrl(videoId);
-    return NextResponse.json({ url, type: 'iframe' });
+    try {
+      const url = getSignedStreamUrl(videoId);
+      return NextResponse.json({ url, type: 'iframe' });
+    } catch (err: any) {
+      console.error('Stream signing error:', err?.message, err?.stack);
+      return NextResponse.json({ error: 'Signing failed', detail: err?.message }, { status: 500 });
+    }
   }
 
   // Legacy direct URL
