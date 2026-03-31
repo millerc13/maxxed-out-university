@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ExternalLink, Edit, Trash2, Copy, Check, RefreshCw, Tag } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Copy, Check, RefreshCw, Tag, Globe, Activity, Zap } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface Course {
   id: string;
@@ -23,6 +25,7 @@ interface Funnel {
 }
 
 export default function FunnelsPage() {
+  const router = useRouter();
   const [funnels, setFunnels] = useState<Funnel[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,26 +55,23 @@ export default function FunnelsPage() {
       body: JSON.stringify(newFunnel),
     });
     if (res.ok) {
+      const created = await res.json();
       setNewFunnel({ name: '', url: '', courseId: '' });
       setShowCreate(false);
-      load();
+      router.push(`/admin/funnels/${created.id}`);
     }
     setCreating(false);
   }
 
-  async function deleteFunnel(id: string, name: string) {
+  async function deleteFunnel(e: React.MouseEvent, id: string, name: string) {
+    e.stopPropagation();
     if (!confirm(`Delete funnel "${name}"? This cannot be undone.`)) return;
     await fetch(`/api/admin/funnels/${id}`, { method: 'DELETE' });
     load();
   }
 
-  async function rotateKey(id: string) {
-    if (!confirm('Rotate the API key? The funnel will stop working until you update its FUNNEL_API_KEY env var.')) return;
-    const res = await fetch(`/api/admin/funnels/${id}/rotate-key`, { method: 'POST' });
-    if (res.ok) load();
-  }
-
-  async function copyKey(key: string) {
+  async function copyKey(e: React.MouseEvent, key: string) {
+    e.stopPropagation();
     await navigator.clipboard.writeText(key);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
@@ -82,24 +82,34 @@ export default function FunnelsPage() {
     return `$${(cents / 100).toFixed(0)}`;
   }
 
+  const activeFunnels = funnels.filter(f => f.active).length;
+  const withCourse = funnels.filter(f => f.course).length;
+
+  const stats = [
+    { label: 'Total Funnels', value: funnels.length, icon: Globe, color: 'bg-blue-500' },
+    { label: 'Active', value: activeFunnels, icon: Activity, color: 'bg-green-500' },
+    { label: 'With Course', value: withCourse, icon: Zap, color: 'bg-purple-500' },
+  ];
+
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-8">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Funnels</h1>
-          <p className="text-gray-500 mt-1">Manage your sales funnel deployments and their content.</p>
+          <p className="text-gray-600 mt-1">Manage your sales funnel deployments and their content.</p>
         </div>
         <div className="flex gap-3">
           <Link
             href="/admin/funnels/promo-codes"
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <Tag className="w-4 h-4" />
             Promo Codes
           </Link>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-blue-800"
+            className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-blue-800 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Funnel
@@ -107,10 +117,31 @@ export default function FunnelsPage() {
         </div>
       </div>
 
-      {/* Create modal */}
+      {/* Stats */}
+      {!loading && funnels.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {stats.map((stat) => (
+            <Card key={stat.label} className="overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">{stat.label}</p>
+                    <p className="text-3xl font-extrabold text-gray-900">{stat.value}</p>
+                  </div>
+                  <div className={`p-3 rounded-xl ${stat.color}`}>
+                    <stat.icon className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-4">New Funnel Deployment</h2>
             <div className="space-y-4">
               <div>
@@ -159,88 +190,112 @@ export default function FunnelsPage() {
         </div>
       )}
 
+      {/* Funnel List */}
       {loading ? (
-        <div className="text-gray-400 text-sm">Loading…</div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-gray-400 text-sm">Loading…</div>
+          </CardContent>
+        </Card>
       ) : funnels.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-lg font-medium">No funnels yet</p>
-          <p className="text-sm mt-1">Add your first funnel deployment to get started.</p>
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="text-center py-16 text-gray-400">
+              <Globe className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-lg font-medium text-gray-500">No funnels yet</p>
+              <p className="text-sm mt-1">Add your first funnel deployment to get started.</p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-5 py-3 font-medium text-gray-600">Name</th>
-                <th className="text-left px-5 py-3 font-medium text-gray-600">Course</th>
-                <th className="text-left px-5 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-5 py-3 font-medium text-gray-600">API Key</th>
-                <th className="text-left px-5 py-3 font-medium text-gray-600">Updated</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody>
+        <Card>
+          <CardContent className="p-0">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="font-bold text-gray-900">All Funnels</h2>
+              <span className="text-sm text-gray-500">{funnels.length} deployment{funnels.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="divide-y">
               {funnels.map((f) => (
-                <tr key={f.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-5 py-4">
-                    <div className="font-medium text-gray-900">{f.name}</div>
-                    {f.url && (
-                      <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">{f.url}</div>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    {f.course ? (
-                      <div>
-                        <div className="text-gray-900">{f.course.title}</div>
-                        <div className="text-xs text-gray-400">{formatPrice(f.course.price)}</div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 italic">No course assigned</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                <div
+                  key={f.id}
+                  onClick={() => router.push(`/admin/funnels/${f.id}`)}
+                  className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    {/* Status dot */}
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${f.active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">{f.name}</p>
+                      {f.url && (
+                        <p className="text-sm text-gray-500 truncate max-w-xs">{f.url}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-8 flex-shrink-0">
+                    {/* Course */}
+                    <div className="text-right hidden sm:block w-48">
+                      {f.course ? (
+                        <>
+                          <p className="text-sm text-gray-900 truncate">{f.course.title}</p>
+                          <p className="text-xs text-gray-400">{formatPrice(f.course.price)}</p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">No course</p>
+                      )}
+                    </div>
+
+                    {/* Status Badge */}
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                       f.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                     }`}>
                       {f.active ? 'Active' : 'Inactive'}
                     </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-1.5">
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono truncate max-w-[140px]">
-                        {f.apiKey}
+
+                    {/* API Key */}
+                    <div className="hidden lg:flex items-center gap-1.5">
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono truncate max-w-[100px]">
+                        {f.apiKey.slice(0, 12)}…
                       </code>
-                      <button onClick={() => copyKey(f.apiKey)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                      <button
+                        onClick={(e) => copyKey(e, f.apiKey)}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
                         {copiedKey === f.apiKey ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
-                      <button onClick={() => rotateKey(f.id)} title="Rotate key" className="text-gray-400 hover:text-orange-500 flex-shrink-0">
-                        <RefreshCw className="w-3.5 h-3.5" />
-                      </button>
                     </div>
-                  </td>
-                  <td className="px-5 py-4 text-gray-400 text-xs">
-                    {new Date(f.updatedAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2 justify-end">
+
+                    {/* Updated */}
+                    <p className="text-xs text-gray-400 hidden md:block w-20 text-right">
+                      {new Date(f.updatedAt).toLocaleDateString()}
+                    </p>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
                       {f.url && (
-                        <a href={f.url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-gray-600">
+                        <a
+                          href={f.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                        >
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
-                      <Link href={`/admin/funnels/${f.id}`} className="text-gray-400 hover:text-maxxed-blue">
-                        <Edit className="w-4 h-4" />
-                      </Link>
-                      <button onClick={() => deleteFunnel(f.id, f.name)} className="text-gray-400 hover:text-red-500">
+                      <button
+                        onClick={(e) => deleteFunnel(e, f.id, f.name)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
