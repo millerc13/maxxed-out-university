@@ -62,7 +62,6 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
           data: {
             email: guestEmail,
             name: guestName || null,
-            phone: guestPhone || null,
             mustChangePassword: true, // prompt to set password on first login
           },
         });
