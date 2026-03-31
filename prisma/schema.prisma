@@ -297,15 +297,23 @@ model FunnelDeployment {
 }
 
 model FunnelConfig {
-  id           String           @id @default(cuid())
-  deploymentId String           @unique
-  headline     String?
-  subheadline  String?
-  bulletPoints Json             @default("[]")
-  testimonials Json             @default("[]")
-  ctaText      String?
-  updatedAt    DateTime         @updatedAt
-  deployment   FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  id                    String           @id @default(cuid())
+  deploymentId          String           @unique
+  headline              String?
+  subheadline           String?
+  bulletPoints          Json             @default("[]")
+  testimonials          Json             @default("[]")
+  ctaText               String?
+  featureCards          Json             @default("[]")   // { title, body }[]
+  forYouIf              Json             @default("[]")   // string[]
+  coursesLabel          String?                            // e.g. "The Curriculum"
+  coursesHeadline       String?                            // e.g. "Courses Included"
+  coursesSubheadline    String?                            // e.g. "Everything you need..."
+  featureCardsLabel     String?                            // e.g. "Inside This Course"
+  featureCardsHeadline  String?                            // e.g. "What You'll Learn"
+  featureCardsSub       String?                            // e.g. "No hype. No fluff..."
+  updatedAt             DateTime         @updatedAt
+  deployment            FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }
 
 model PromoCode {

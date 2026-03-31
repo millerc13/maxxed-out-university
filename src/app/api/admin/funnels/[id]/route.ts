@@ -41,7 +41,39 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, url, courseId, active, headline, subheadline, bulletPoints, testimonials, ctaText, featuredCourseIds } = body;
+  const {
+    name, url, courseId, active, headline, subheadline, bulletPoints, testimonials, ctaText,
+    featuredCourseIds, featureCards, forYouIf,
+    coursesLabel, coursesHeadline, coursesSubheadline,
+    featureCardsLabel, featureCardsHeadline, featureCardsSub,
+  } = body;
+
+  // Build config create/update objects dynamically
+  const configCreate: Record<string, unknown> = {
+    headline: headline ?? null,
+    subheadline: subheadline ?? null,
+    bulletPoints: bulletPoints ?? [],
+    testimonials: testimonials ?? [],
+    ctaText: ctaText ?? null,
+    featureCards: featureCards ?? [],
+    forYouIf: forYouIf ?? [],
+    coursesLabel: coursesLabel ?? null,
+    coursesHeadline: coursesHeadline ?? null,
+    coursesSubheadline: coursesSubheadline ?? null,
+    featureCardsLabel: featureCardsLabel ?? null,
+    featureCardsHeadline: featureCardsHeadline ?? null,
+    featureCardsSub: featureCardsSub ?? null,
+  };
+
+  const configUpdate: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries({
+    headline, subheadline, bulletPoints, testimonials, ctaText,
+    featureCards, forYouIf,
+    coursesLabel, coursesHeadline, coursesSubheadline,
+    featureCardsLabel, featureCardsHeadline, featureCardsSub,
+  })) {
+    if (val !== undefined) configUpdate[key] = val;
+  }
 
   const funnel = await prisma.funnelDeployment.update({
     where: { id },
@@ -57,20 +89,8 @@ export async function PUT(
       }),
       config: {
         upsert: {
-          create: {
-            headline: headline ?? null,
-            subheadline: subheadline ?? null,
-            bulletPoints: bulletPoints ?? [],
-            testimonials: testimonials ?? [],
-            ctaText: ctaText ?? null,
-          },
-          update: {
-            ...(headline !== undefined && { headline }),
-            ...(subheadline !== undefined && { subheadline }),
-            ...(bulletPoints !== undefined && { bulletPoints }),
-            ...(testimonials !== undefined && { testimonials }),
-            ...(ctaText !== undefined && { ctaText }),
-          },
+          create: configCreate,
+          update: configUpdate,
         },
       },
     },
