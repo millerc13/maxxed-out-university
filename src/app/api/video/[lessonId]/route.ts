@@ -9,6 +9,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ lessonId: string }> }
 ) {
+  try {
   const { lessonId } = await params;
   const session = await auth();
 
@@ -59,4 +60,8 @@ export async function GET(
 
   // Legacy direct URL
   return NextResponse.json({ url: lesson.videoUrl, type: 'mp4' });
+  } catch (err: any) {
+    console.error('Video route error:', err?.message, err?.stack);
+    return NextResponse.json({ error: err?.message ?? 'Unknown error', stack: err?.stack?.split('\n').slice(0,3) }, { status: 500 });
+  }
 }
