@@ -337,6 +337,136 @@ function FunnelPreview({
 }
 
 
+// ── Mini Section Previews (for Content tab) ────────────────────────
+const MINI_RENDER_WIDTH = 1000;
+const MINI_SCALE = 0.48;
+
+function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { headline: string; subheadline: string; ctaText: string; coursePrice: number | null }) {
+  const cta = ctaText || 'Enroll Now';
+  const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
+  return (
+    <div className="overflow-hidden" style={{ height: `${360}px` }}>
+      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+          <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
+            <div className="max-w-5xl mx-auto px-5 h-[50px] flex items-center justify-between">
+              <span className="font-black text-[10px] tracking-[0.2em] uppercase text-gray-900">Maxxed Out University</span>
+              <span className="text-white font-black text-[10px] tracking-[0.15em] uppercase px-4 py-2 rounded-lg" style={{ background: '#0000FF' }}>{cta}</span>
+            </div>
+          </header>
+          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 pt-14 pb-10 text-center">
+            <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-3 py-1 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#D4AF37' }} />
+              <span className="text-white/70 font-bold text-[9px] tracking-[0.2em] uppercase">Now Enrolling — Join From Anywhere</span>
+            </div>
+            <h1 className="font-black text-white text-4xl leading-[1.1] tracking-tight max-w-[700px] mx-auto mb-5">
+              {(headline || 'Your Headline Here').split(' ').map((word, i) => {
+                const clean = word.toLowerCase().replace(/[^a-z-]/g, '');
+                const accent = new Set(['real', 'exact', 'nine-figure', 'empire', 'investors', 'wealth', 'system', 'blueprint']);
+                return accent.has(clean) ? <span key={i} style={{ color: '#0000FF' }}>{word} </span> : <span key={i}>{word} </span>;
+              })}
+            </h1>
+            <p className="text-white/60 text-base max-w-[480px] mx-auto mb-8 leading-relaxed">{subheadline || 'Your subheadline goes here'}</p>
+            <div className="max-w-[700px] mx-auto mb-8 rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(255,255,255,0.1)' }}>
+              <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-2 text-white font-black text-[11px] tracking-[0.15em] uppercase px-8 py-4 rounded-xl" style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}>
+              {cta} — {fmtPrice(coursePrice)} <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+            <p className="text-white/30 text-xs mt-3 tracking-wide">One-time payment · Instant access · 30-day money back guarantee</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniPreviewBullets({ bullets, courseName }: { bullets: string[]; courseName: string }) {
+  const activeBullets = bullets.filter(Boolean);
+  return (
+    <div className="overflow-hidden" style={{ height: `${400}px` }}>
+      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+          <section className="px-5 py-12" style={{ background: '#f4f6fa' }}>
+            <div className="max-w-5xl mx-auto">
+              <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Inside {courseName || 'This Course'}</p>
+              <h2 className="font-black text-gray-900 text-2xl mb-2">What&apos;s Inside This Course:</h2>
+              <p className="text-gray-500 text-sm mb-6">Everything you need to find, fund, and close profitable real estate deals.</p>
+              <ul className="space-y-2.5">
+                {(activeBullets.length > 0 ? activeBullets : ['Add your first bullet point…']).map((b, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5" style={{ background: '#0000FF' }}>
+                      <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                    </div>
+                    <span className={`font-semibold text-sm ${activeBullets.length > 0 ? 'text-gray-800' : 'text-gray-400 italic'}`}>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[] }) {
+  const activeTestimonials = testimonials.filter(t => t.name || t.text);
+  if (activeTestimonials.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-400">
+        <div className="text-center">
+          <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="text-sm">Add testimonials to see preview</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-hidden" style={{ height: `${400}px` }}>
+      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+          <section className="bg-white px-5 py-14">
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-10">
+                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Real Results</p>
+                <h2 className="font-black text-gray-900 text-2xl">What Students Are Saying</h2>
+              </div>
+              <div className={`grid gap-4 ${activeTestimonials.length === 1 ? 'grid-cols-1 max-w-sm mx-auto' : activeTestimonials.length === 2 ? 'grid-cols-2 max-w-2xl mx-auto' : 'grid-cols-3'}`}>
+                {activeTestimonials.map((t, i) => (
+                  <div key={i} className="rounded-2xl p-5 flex flex-col" style={{ background: '#f4f6fa' }}>
+                    <div className="flex gap-0.5 mb-3">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} className="w-3 h-3" style={{ color: '#D4AF37', fill: '#D4AF37' }} />
+                      ))}
+                    </div>
+                    {t.result && (
+                      <div className="rounded-lg px-2.5 py-1.5 mb-3 border" style={{ background: 'rgba(0,0,255,0.04)', borderColor: 'rgba(0,0,255,0.12)' }}>
+                        <p className="font-bold text-[10px] uppercase tracking-wide" style={{ color: '#0000FF' }}>{t.result}</p>
+                      </div>
+                    )}
+                    {t.text && <p className="text-gray-600 text-xs leading-relaxed flex-1 mb-3 italic">&ldquo;{t.text}&rdquo;</p>}
+                    <div className="border-t border-gray-200 pt-3">
+                      <p className="font-bold text-gray-900 text-xs">{t.name}</p>
+                      {t.location && <p className="text-gray-400 text-[10px] mt-0.5">{t.location}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Editor ─────────────────────────────────────────────────────
 export default function FunnelEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -653,90 +783,129 @@ export default function FunnelEditorPage() {
 
       {/* ── TAB: Content ── */}
       {activeTab === 'content' && (
-        <div className="space-y-6">
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">Headlines & CTA</h2></div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Headline</label>
-                  <input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="The exact system Todd used to build a multi-million dollar portfolio…" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Subheadline</label>
-                  <textarea value={subheadline} onChange={(e) => setSubheadline(e.target.value)} rows={2} placeholder="Step-by-step. No fluff. Just results." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue resize-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CTA Button Text</label>
-                  <input value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Enroll Now" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h2 className="font-bold text-gray-900">What You&apos;ll Learn</h2>
-                <button onClick={addBullet} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
-                  <Plus className="w-3.5 h-3.5" /> Add
-                </button>
-              </div>
-              <div className="p-6 space-y-2">
-                {bullets.map((b, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400 flex-shrink-0 font-medium">{i + 1}</div>
-                    <input value={b} onChange={(e) => updateBullet(i, e.target.value)} placeholder={`Benefit ${i + 1}`} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                    <button onClick={() => removeBullet(i)} className="p-1.5 text-gray-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
+        <div className="space-y-8">
+          {/* ── Headlines & CTA + Hero Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">Headlines & CTA</h2></div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Headline</label>
+                    <input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="The exact system Todd used to build a multi-million dollar portfolio…" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h2 className="font-bold text-gray-900">Testimonials</h2>
-                <button onClick={addTestimonial} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
-                  <Plus className="w-3.5 h-3.5" /> Add
-                </button>
-              </div>
-              <div className="p-6 space-y-4">
-                {testimonials.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">No testimonials yet</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Subheadline</label>
+                    <textarea value={subheadline} onChange={(e) => setSubheadline(e.target.value)} rows={2} placeholder="Step-by-step. No fluff. Just results." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue resize-none" />
                   </div>
-                ) : testimonials.map((t, i) => (
-                  <div key={i} className="border border-gray-200 rounded-lg p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Testimonial {i + 1}</span>
-                      <button onClick={() => removeTestimonial(i)} className="p-1 text-gray-300 hover:text-red-400 rounded hover:bg-red-50 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">CTA Button Text</label>
+                    <input value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Enroll Now" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            {/* Mini Hero Preview */}
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2">Hero Section</span>
+              </div>
+              <div className="overflow-hidden" style={{ maxHeight: '360px' }}>
+                <MiniPreviewHero headline={headline} subheadline={subheadline} ctaText={ctaText} coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Bullets + Bullets Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b flex items-center justify-between">
+                  <h2 className="font-bold text-gray-900">What You&apos;ll Learn</h2>
+                  <button onClick={addBullet} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </button>
+                </div>
+                <div className="p-6 space-y-2">
+                  {bullets.map((b, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400 flex-shrink-0 font-medium">{i + 1}</div>
+                      <input value={b} onChange={(e) => updateBullet(i, e.target.value)} placeholder={`Benefit ${i + 1}`} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                      <button onClick={() => removeBullet(i)} className="p-1.5 text-gray-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Name</label>
-                        <input value={t.name} onChange={(e) => updateTestimonial(i, 'name', e.target.value)} placeholder="Marcus R." className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            {/* Mini Bullets Preview */}
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2">What You&apos;ll Learn Section</span>
+              </div>
+              <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
+                <MiniPreviewBullets bullets={bullets} courseName={selectedCourse?.title ?? funnel.course?.title ?? ''} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Testimonials + Testimonials Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b flex items-center justify-between">
+                  <h2 className="font-bold text-gray-900">Testimonials</h2>
+                  <button onClick={addTestimonial} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </button>
+                </div>
+                <div className="p-6 space-y-4">
+                  {testimonials.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No testimonials yet</p>
+                    </div>
+                  ) : testimonials.map((t, i) => (
+                    <div key={i} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Testimonial {i + 1}</span>
+                        <button onClick={() => removeTestimonial(i)} className="p-1 text-gray-300 hover:text-red-400 rounded hover:bg-red-50 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Name</label>
+                          <input value={t.name} onChange={(e) => updateTestimonial(i, 'name', e.target.value)} placeholder="Marcus R." className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Location</label>
+                          <input value={t.location} onChange={(e) => updateTestimonial(i, 'location', e.target.value)} placeholder="Atlanta, GA" className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue" />
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Location</label>
-                        <input value={t.location} onChange={(e) => updateTestimonial(i, 'location', e.target.value)} placeholder="Atlanta, GA" className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue" />
+                        <label className="block text-xs text-gray-500 mb-1">Result highlight</label>
+                        <input value={t.result} onChange={(e) => updateTestimonial(i, 'result', e.target.value)} placeholder="Closed first deal in 60 days" className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Quote</label>
+                        <textarea value={t.text} onChange={(e) => updateTestimonial(i, 'text', e.target.value)} rows={2} placeholder="This course changed everything for me…" className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue resize-none" />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Result highlight</label>
-                      <input value={t.result} onChange={(e) => updateTestimonial(i, 'result', e.target.value)} placeholder="Closed first deal in 60 days" className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Quote</label>
-                      <textarea value={t.text} onChange={(e) => updateTestimonial(i, 'text', e.target.value)} rows={2} placeholder="This course changed everything for me…" className="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-maxxed-blue resize-none" />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            {/* Mini Testimonials Preview */}
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2">Testimonials Section</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
+                <MiniPreviewTestimonials testimonials={testimonials} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
