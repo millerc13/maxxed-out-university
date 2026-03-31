@@ -406,7 +406,7 @@ function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { head
   const cta = ctaText || 'Enroll Now';
   const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
   return (
-    <div className="overflow-hidden" style={{ height: `${360}px` }}>
+    <div className="overflow-hidden" style={{ width: `${MINI_RENDER_WIDTH * MINI_SCALE}px`, height: `${360}px` }}>
       <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
@@ -451,7 +451,7 @@ function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { head
 function MiniPreviewBullets({ bullets, courseName }: { bullets: string[]; courseName: string }) {
   const activeBullets = bullets.filter(Boolean);
   return (
-    <div className="overflow-hidden" style={{ height: `${400}px` }}>
+    <div className="overflow-hidden" style={{ width: `${MINI_RENDER_WIDTH * MINI_SCALE}px`, height: `${400}px` }}>
       <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <section className="px-5 py-12" style={{ background: '#f4f6fa' }}>
@@ -490,7 +490,7 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
     );
   }
   return (
-    <div className="overflow-hidden" style={{ height: `${400}px` }}>
+    <div className="overflow-hidden" style={{ width: `${MINI_RENDER_WIDTH * MINI_SCALE}px`, height: `${400}px` }}>
       <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <section className="bg-white px-5 py-14">
@@ -542,7 +542,7 @@ function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Cou
     );
   }
   return (
-    <div className="overflow-hidden" style={{ height: '400px' }}>
+    <div className="overflow-hidden" style={{ width: `${MINI_RENDER_WIDTH * MINI_SCALE}px`, height: '400px' }}>
       <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <section className="px-5 py-14" style={{ background: '#f4f6fa' }}>
@@ -910,7 +910,7 @@ export default function FunnelEditorPage() {
       {activeTab === 'content' && (
         <div className="space-y-8">
           {/* ── Headlines & CTA + Hero Preview ── */}
-          <div className="grid grid-cols-2 gap-6 items-start">
+          <div className="grid gap-6 items-start" style={{ gridTemplateColumns: '1fr auto' }}>
             <Card>
               <CardContent className="p-0">
                 <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">Headlines & CTA</h2></div>
@@ -943,7 +943,7 @@ export default function FunnelEditorPage() {
           </div>
 
           {/* ── Bullets + Bullets Preview ── */}
-          <div className="grid grid-cols-2 gap-6 items-start">
+          <div className="grid gap-6 items-start" style={{ gridTemplateColumns: '1fr auto' }}>
             <Card>
               <CardContent className="p-0">
                 <div className="px-6 py-4 border-b flex items-center justify-between">
@@ -976,7 +976,7 @@ export default function FunnelEditorPage() {
           </div>
 
           {/* ── Testimonials + Testimonials Preview ── */}
-          <div className="grid grid-cols-2 gap-6 items-start">
+          <div className="grid gap-6 items-start" style={{ gridTemplateColumns: '1fr auto' }}>
             <Card>
               <CardContent className="p-0">
                 <div className="px-6 py-4 border-b flex items-center justify-between">
@@ -1033,7 +1033,7 @@ export default function FunnelEditorPage() {
           </div>
 
           {/* ── Featured Courses + Courses Preview ── */}
-          <div className="grid grid-cols-2 gap-6 items-start">
+          <div className="grid gap-6 items-start" style={{ gridTemplateColumns: '1fr auto' }}>
             <Card>
               <CardContent className="p-0">
                 <div className="px-6 py-4 border-b">
