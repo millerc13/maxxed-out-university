@@ -47,7 +47,7 @@ export async function GET(
   if (isStreamVideo(lesson.videoUrl)) {
     const videoId = parseStreamId(lesson.videoUrl)!;
     const url = getSignedStreamUrl(videoId);
-    return NextResponse.json({ url, type: 'hls' });
+    return NextResponse.json({ url, type: 'iframe' });
   }
 
   // Legacy direct URL

@@ -1,7 +1,5 @@
-const SUBDOMAIN = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN!;
-
 export function getSignedStreamUrl(videoId: string): string {
-  return `https://${SUBDOMAIN}/${videoId}/manifest/video.m3u8`;
+  return `https://iframe.cloudflarestream.com/${videoId}`;
 }
 
 export function parseStreamId(videoUrl: string): string | null {
