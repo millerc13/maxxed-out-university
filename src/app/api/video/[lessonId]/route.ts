@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getSignedVideoUrl, parseVideoKey, isR2Video } from '@/lib/r2';
+import { getSignedStreamUrl, parseStreamId, isStreamVideo } from '@/lib/stream';
 
 export async function GET(
   request: NextRequest,
@@ -14,14 +14,11 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Fetch lesson with its course (for enrollment check)
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
     include: {
       module: {
-        include: {
-          course: true,
-        },
+        select: { courseId: true },
       },
     },
   });
@@ -32,7 +29,6 @@ export async function GET(
 
   const isAdmin = (session.user as any).role === 'ADMIN';
 
-  // Free preview lessons don't need enrollment check
   if (!lesson.isFree && !isAdmin) {
     const enrollment = await prisma.enrollment.findUnique({
       where: {
@@ -48,13 +44,12 @@ export async function GET(
     }
   }
 
-  // If it's an R2 video, generate a signed URL
-  if (isR2Video(lesson.videoUrl)) {
-    const objectKey = parseVideoKey(lesson.videoUrl)!;
-    const signedUrl = await getSignedVideoUrl(objectKey);
-    return NextResponse.json({ url: signedUrl });
+  if (isStreamVideo(lesson.videoUrl)) {
+    const videoId = parseStreamId(lesson.videoUrl)!;
+    const url = getSignedStreamUrl(videoId);
+    return NextResponse.json({ url, type: 'hls' });
   }
 
-  // Legacy direct URL (filesafe.space etc) — return as-is for now
-  return NextResponse.json({ url: lesson.videoUrl });
+  // Legacy direct URL
+  return NextResponse.json({ url: lesson.videoUrl, type: 'mp4' });
 }

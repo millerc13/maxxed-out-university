@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Play, Loader2 } from 'lucide-react';
+import Hls from 'hls.js';
 
 interface VideoPlayerProps {
   lessonId: string;
@@ -10,14 +11,16 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ lessonId, title }: VideoPlayerProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [type, setType] = useState<'hls' | 'mp4'>('mp4');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchSignedUrl() {
+    async function fetchUrl() {
       setLoading(true);
       setError(false);
       try {
@@ -26,6 +29,7 @@ export function VideoPlayer({ lessonId, title }: VideoPlayerProps) {
         const data = await res.json();
         if (!cancelled) {
           setVideoUrl(data.url);
+          setType(data.type ?? 'mp4');
         }
       } catch {
         if (!cancelled) setError(true);
@@ -34,16 +38,42 @@ export function VideoPlayer({ lessonId, title }: VideoPlayerProps) {
       }
     }
 
-    fetchSignedUrl();
+    fetchUrl();
 
-    // Refresh the signed URL every 90 minutes (URL expires in 2 hours)
-    const interval = setInterval(fetchSignedUrl, 90 * 60 * 1000);
-
+    // Refresh signed URL every 90 minutes before it expires
+    const interval = setInterval(fetchUrl, 90 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
   }, [lessonId]);
+
+  // Set up HLS when we have a Stream URL
+  useEffect(() => {
+    if (!videoUrl || !videoRef.current) return;
+
+    if (type === 'hls') {
+      // Destroy previous instance
+      hlsRef.current?.destroy();
+
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(videoUrl);
+        hls.attachMedia(videoRef.current);
+        hlsRef.current = hls;
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS (Safari)
+        videoRef.current.src = videoUrl;
+      }
+    } else {
+      videoRef.current.src = videoUrl;
+    }
+
+    return () => {
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
+    };
+  }, [videoUrl, type]);
 
   if (loading) {
     return (
@@ -74,7 +104,6 @@ export function VideoPlayer({ lessonId, title }: VideoPlayerProps) {
       controls
       autoPlay={false}
       playsInline
-      src={videoUrl}
     />
   );
 }
