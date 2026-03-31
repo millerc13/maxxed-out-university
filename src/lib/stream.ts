@@ -7,8 +7,8 @@ function signToken(videoId: string): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createPrivateKey, createSign } = require('crypto');
 
-  const KEY_ID = process.env.CLOUDFLARE_STREAM_KEY_ID!;
-  const PRIVATE_KEY_B64 = process.env.CLOUDFLARE_STREAM_PRIVATE_KEY!;
+  const KEY_ID = process.env.CLOUDFLARE_STREAM_KEY_ID!.trim();
+  const PRIVATE_KEY_B64 = process.env.CLOUDFLARE_STREAM_PRIVATE_KEY!.trim();
 
   const der = Buffer.from(PRIVATE_KEY_B64, 'base64');
   const privateKey = createPrivateKey({ key: der, format: 'der', type: 'pkcs8' });
