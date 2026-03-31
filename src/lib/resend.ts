@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 export const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM = 'Maxxed Out University <learn@courses.maxxedout.com>';
-const BASE_URL = process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
+const BASE_URL = (process.env.NEXTAUTH_URL || 'https://university.maxxedout.com').replace(/\/$/, '');
 
 export async function sendMagicLinkEmail({
   to,
