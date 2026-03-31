@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
+import { createMagicLink } from '@/lib/magiclink';
+import { sendMagicLinkEmail } from '@/lib/resend';
 import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
 
-// Disable body parsing — Stripe needs raw body for signature verification
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
@@ -35,19 +36,57 @@ export async function POST(request: NextRequest) {
 }
 
 async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  const { courseId, courseSlug, userId, userEmail } = paymentIntent.metadata;
+  const {
+    courseId, courseSlug, courseTitle,
+    userId, guestEmail, guestName, guestPhone, isGuest,
+  } = paymentIntent.metadata;
 
-  if (!courseId || !userId) {
-    console.error('Webhook missing metadata:', paymentIntent.id, paymentIntent.metadata);
+  if (!courseId) {
+    console.error('Webhook missing courseId:', paymentIntent.id);
     return;
   }
 
   try {
-    // Idempotent — skip if enrollment already exists
+    let resolvedUserId = userId;
+    let userEmail = '';
+    let userName = guestName || 'Student';
+    let isNewUser = false;
+
+    if (isGuest === 'true' && guestEmail) {
+      // Find or create user by email
+      userEmail = guestEmail;
+      let user = await prisma.user.findUnique({ where: { email: guestEmail } });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email: guestEmail,
+            name: guestName || null,
+            phone: guestPhone || null,
+            mustChangePassword: true, // prompt to set password on first login
+          },
+        });
+        isNewUser = true;
+      }
+
+      resolvedUserId = user.id;
+      userName = user.name || guestName || 'Student';
+    } else if (userId) {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
+      userEmail = user?.email ?? '';
+      userName = user?.name ?? 'Student';
+    }
+
+    if (!resolvedUserId) {
+      console.error('Could not resolve userId for payment:', paymentIntent.id);
+      return;
+    }
+
+    // Idempotent enrollment
     await prisma.enrollment.upsert({
-      where: { userId_courseId: { userId, courseId } },
+      where: { userId_courseId: { userId: resolvedUserId, courseId } },
       create: {
-        userId,
+        userId: resolvedUserId,
         courseId,
         source: 'stripe',
         transactionId: paymentIntent.id,
@@ -58,12 +97,26 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
           userEmail,
         },
       },
-      update: {}, // already enrolled — no-op
+      update: {},
     });
 
-    console.log(`Enrollment created: user=${userId} course=${courseId} pi=${paymentIntent.id}`);
+    console.log(`Enrollment created: user=${resolvedUserId} course=${courseId} pi=${paymentIntent.id}`);
+
+    // Send magic link email (for new users or guest purchases)
+    console.log(`Email check: isGuest=${isGuest} isNewUser=${isNewUser} userEmail=${userEmail}`);
+    if ((isGuest === 'true' || isNewUser) && userEmail) {
+      const token = await createMagicLink(resolvedUserId);
+      console.log(`Sending magic link email to ${userEmail}`);
+      const emailResult = await sendMagicLinkEmail({
+        to: userEmail,
+        name: userName,
+        token,
+        courseName: courseTitle || 'your course',
+      });
+      console.log(`Resend result:`, JSON.stringify(emailResult));
+    }
   } catch (error) {
-    console.error('Failed to create enrollment:', error);
+    console.error('Failed to handle payment:', error);
     throw error; // Re-throw so Stripe retries
   }
 }
