@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getSignedStreamUrl, parseStreamId, isStreamVideo } from '@/lib/stream';
 
+// MUST be nodejs — Edge Runtime doesn't support Node.js crypto (used by stream.ts for RS256 signing).
 export const runtime = 'nodejs';
 
 export async function GET(
@@ -10,58 +11,58 @@ export async function GET(
   { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
-  const { lessonId } = await params;
-  const session = await auth();
+    const { lessonId } = await params;
+    const session = await auth();
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const lesson = await prisma.lesson.findUnique({
-    where: { id: lessonId },
-    include: {
-      module: {
-        select: { courseId: true },
-      },
-    },
-  });
-
-  if (!lesson || !lesson.videoUrl) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-
-  const isAdmin = (session.user as any).role === 'ADMIN';
-
-  if (!lesson.isFree && !isAdmin) {
-    const enrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: {
-          userId: session.user.id,
-          courseId: lesson.module.courseId,
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: {
+        module: {
+          select: { courseId: true },
         },
       },
     });
 
-    if (!enrollment) {
-      return NextResponse.json({ error: 'Not enrolled' }, { status: 403 });
+    if (!lesson || !lesson.videoUrl) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-  }
 
-  if (isStreamVideo(lesson.videoUrl)) {
-    const videoId = parseStreamId(lesson.videoUrl)!;
-    try {
-      const url = getSignedStreamUrl(videoId);
-      return NextResponse.json({ url, type: 'iframe' });
-    } catch (err: any) {
-      console.error('Stream signing error:', err?.message, err?.stack);
-      return NextResponse.json({ error: 'Signing failed', detail: err?.message }, { status: 500 });
+    const isAdmin = (session.user as any).role === 'ADMIN';
+
+    if (!lesson.isFree && !isAdmin) {
+      const enrollment = await prisma.enrollment.findUnique({
+        where: {
+          userId_courseId: {
+            userId: session.user.id,
+            courseId: lesson.module.courseId,
+          },
+        },
+      });
+
+      if (!enrollment) {
+        return NextResponse.json({ error: 'Not enrolled' }, { status: 403 });
+      }
     }
-  }
 
-  // Legacy direct URL
-  return NextResponse.json({ url: lesson.videoUrl, type: 'mp4' });
+    if (isStreamVideo(lesson.videoUrl)) {
+      const videoId = parseStreamId(lesson.videoUrl)!;
+      try {
+        const url = getSignedStreamUrl(videoId);
+        return NextResponse.json({ url, type: 'iframe' });
+      } catch (err: any) {
+        console.error('[video] CF Stream signing error:', err?.message, err?.stack);
+        return NextResponse.json({ error: 'Video unavailable' }, { status: 500 });
+      }
+    }
+
+    // Legacy: non-Stream videos stored as plain URLs in the DB
+    return NextResponse.json({ url: lesson.videoUrl, type: 'mp4' });
   } catch (err: any) {
-    console.error('Video route error:', err?.message, err?.stack);
-    return NextResponse.json({ error: err?.message ?? 'Unknown error', stack: err?.stack?.split('\n').slice(0,3) }, { status: 500 });
+    console.error('[video] Route error:', err?.message, err?.stack);
+    return NextResponse.json({ error: 'Video unavailable' }, { status: 500 });
   }
 }
