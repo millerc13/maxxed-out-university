@@ -28,9 +28,11 @@ function signToken(videoId: string): string {
   return `${header}.${payload}.${sig}`;
 }
 
+const SUBDOMAIN = process.env.CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN!;
+
 export function getSignedStreamUrl(videoId: string): string {
   const token = signToken(videoId);
-  return `https://iframe.cloudflarestream.com/${token}`;
+  return `https://${SUBDOMAIN}/${token}/iframe`;
 }
 
 export function parseStreamId(videoUrl: string): string | null {
