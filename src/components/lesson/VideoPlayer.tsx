@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Play, Loader2 } from 'lucide-react';
-import Hls from 'hls.js';
 
 interface VideoPlayerProps {
   lessonId: string;
@@ -15,7 +14,7 @@ export function VideoPlayer({ lessonId, title }: VideoPlayerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  const hlsRef = useRef<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +39,6 @@ export function VideoPlayer({ lessonId, title }: VideoPlayerProps) {
 
     fetchUrl();
 
-    // Refresh signed URL every 90 minutes before it expires
     const interval = setInterval(fetchUrl, 90 * 60 * 1000);
     return () => {
       cancelled = true;
@@ -53,18 +51,21 @@ export function VideoPlayer({ lessonId, title }: VideoPlayerProps) {
     if (!videoUrl || !videoRef.current) return;
 
     if (type === 'hls') {
-      // Destroy previous instance
       hlsRef.current?.destroy();
 
-      if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(videoUrl);
-        hls.attachMedia(videoRef.current);
-        hlsRef.current = hls;
-      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS (Safari)
-        videoRef.current.src = videoUrl;
-      }
+      (async () => {
+        const { default: Hls } = await import('hls.js');
+        if (!videoRef.current) return;
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(videoUrl);
+          hls.attachMedia(videoRef.current);
+          hlsRef.current = hls;
+        } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+          // Native HLS (Safari)
+          videoRef.current.src = videoUrl;
+        }
+      })();
     } else {
       videoRef.current.src = videoUrl;
     }
