@@ -47,3 +47,17 @@ prisma/*.db-journal
 # Misc
 *.tsbuildinfo
 next-env.d.ts
+
+# Project notes and scripts (local only)
+notes.md
+maxxed-out.md
+filming-scripts/
+fanbasis/
+skills-lock.json
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Claude/agent files
+.claude/
+.agents/
