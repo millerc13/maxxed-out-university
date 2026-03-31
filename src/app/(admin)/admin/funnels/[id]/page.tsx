@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Trash2, ChevronLeft, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface Course {
@@ -167,6 +167,7 @@ export default function FunnelEditorPage() {
   const [copiedKey, setCopiedKey] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'settings' | 'content'>('settings');
+  const [showAllCourses, setShowAllCourses] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -407,16 +408,29 @@ export default function FunnelEditorPage() {
               {/* Featured Courses */}
               <Card>
                 <CardContent className="p-0">
-                  <div className="px-6 py-4 border-b">
-                    <h2 className="font-bold text-gray-900">Featured Courses</h2>
-                    <p className="text-sm text-gray-500 mt-0.5">Select which courses to showcase on the funnel page.</p>
+                  <div className="px-6 py-4 border-b flex items-center justify-between">
+                    <div>
+                      <h2 className="font-bold text-gray-900">Featured Courses</h2>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {featuredCourseIds.size} of {courses.length} selected
+                      </p>
+                    </div>
+                    {courses.length > 6 && (
+                      <button
+                        onClick={() => setShowAllCourses(!showAllCourses)}
+                        className="flex items-center gap-1 text-sm text-maxxed-blue font-medium hover:underline"
+                      >
+                        {showAllCourses ? 'Show less' : 'Show all'}
+                        <ChevronDown className={`w-4 h-4 transition-transform ${showAllCourses ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
                   </div>
                   <div className="p-6">
                     {courses.length === 0 ? (
                       <p className="text-sm text-gray-400 italic">No published courses yet.</p>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {courses.map((c) => {
+                      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${!showAllCourses && courses.length > 6 ? 'max-h-[280px] overflow-hidden relative' : ''}`}>
+                        {(showAllCourses ? courses : courses.slice(0, 8)).map((c) => {
                           const selected = featuredCourseIds.has(c.id);
                           return (
                             <button
@@ -460,6 +474,9 @@ export default function FunnelEditorPage() {
                             </button>
                           );
                         })}
+                        {!showAllCourses && courses.length > 6 && (
+                          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none col-span-full" />
+                        )}
                       </div>
                     )}
                   </div>
@@ -677,7 +694,7 @@ export default function FunnelEditorPage() {
             </div>
             {/* Phone frame */}
             <div className="bg-gray-900 rounded-[24px] p-2 shadow-xl ring-1 ring-gray-800">
-              <div className="rounded-[18px] overflow-hidden">
+              <div className="rounded-[18px] overflow-hidden max-h-[520px] overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
             <FunnelPreview
               headline={headline}
               subheadline={subheadline}

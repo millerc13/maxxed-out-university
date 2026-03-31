@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ExternalLink, Trash2, Copy, Check, RefreshCw, Tag, Globe, Activity, Zap } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Copy, Check, RefreshCw, Tag, Globe, Activity, Zap, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -285,6 +285,7 @@ export default function FunnelsPage() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                      <ChevronRight className="w-4 h-4 text-gray-300 ml-1" />
                     </div>
                   </div>
                 </div>
