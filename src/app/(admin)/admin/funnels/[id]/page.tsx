@@ -63,7 +63,7 @@ function FunnelPreview({
   courseThumbnail: string | null; containerWidth: number; featuredCourses: Course[];
 }) {
   const innerRef = useRef<HTMLDivElement>(null);
-  const [innerHeight, setInnerHeight] = useState(0);
+  const [scaledHeight, setScaledHeight] = useState<number>(0);
   const fmtPrice = (cents: number | null) => {
     if (cents === null) return '—';
     return `$${(cents / 100).toFixed(0)}`;
@@ -77,23 +77,25 @@ function FunnelPreview({
   const RENDER_WIDTH = 1280;
   const scale = containerWidth > 0 ? containerWidth / RENDER_WIDTH : 0.7;
 
-  // Measure the actual inner content height so we can set the wrapper height to match the scaled visual
+  // Measure inner content and compute scaled height so the wrapper collapses properly.
+  // CSS transform doesn't affect layout flow, so we must set explicit wrapper height.
   useEffect(() => {
     const el = innerRef.current;
     if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setInnerHeight(entry.contentRect.height);
-      }
-    });
+    const measure = () => {
+      const h = el.scrollHeight;
+      if (h > 0) setScaledHeight(Math.ceil(h * scale));
+    };
+    measure();
+    const observer = new ResizeObserver(() => measure());
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [scale]);
 
   return (
-    <div className="relative overflow-hidden" style={{ width: `${containerWidth}px`, height: innerHeight > 0 ? `${innerHeight * scale}px` : 'auto' }}>
+    <div style={{ width: '100%', height: scaledHeight > 0 ? scaledHeight : undefined, overflow: 'hidden', position: 'relative' }}>
       <div
-        className="origin-top-left select-none"
+        className="select-none"
         style={{
           width: `${RENDER_WIDTH}px`,
           transform: `scale(${scale})`,
@@ -1102,7 +1104,7 @@ export default function FunnelEditorPage() {
               </div>
             </div>
             {/* Viewport */}
-            <div ref={previewContainerRef} className="overflow-y-auto overflow-x-hidden bg-white" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+            <div ref={previewContainerRef} className="overflow-hidden bg-white">
               {previewWidth > 0 && (
                 <FunnelPreview
                   headline={headline}
