@@ -3,6 +3,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
+import { verifyMagicLink } from './magiclink';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -15,6 +16,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/login/error',
   },
   providers: [
+    // Magic link sign-in — used after purchase email
+    Credentials({
+      id: 'magiclink',
+      name: 'Magic Link',
+      credentials: { token: { type: 'text' } },
+      async authorize(credentials) {
+        const token = credentials?.token as string;
+        if (!token) return null;
+
+        const user = await verifyMagicLink(token);
+        if (!user) return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+          role: user.role,
+          mustChangePassword: user.mustChangePassword,
+        };
+      },
+    }),
     Credentials({
       name: 'credentials',
       credentials: {
