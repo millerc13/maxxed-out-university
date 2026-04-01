@@ -46,6 +46,8 @@ interface FunnelData {
     bulletsLabel: string | null;
     bulletsHeadline: string | null;
     bulletsSub: string | null;
+    vslVideoUrl: string | null;
+    instructorImageUrl: string | null;
   } | null;
 }
 
@@ -75,6 +77,7 @@ function FunnelPreview({
   headline, subheadline, ctaText, bullets, testimonials, courseName, coursePrice, courseThumbnail, containerWidth, featuredCourses,
   featureCards, forYouIf, coursesLabel, coursesHeadline, coursesSubheadline, featureCardsLabel, featureCardsHeadline, featureCardsSub,
   bulletsLabel, bulletsHeadline, bulletsSub,
+  vslVideoUrl, instructorImageUrl,
 }: {
   headline: string; subheadline: string; ctaText: string; bullets: string[];
   testimonials: Testimonial[]; courseName: string; coursePrice: number | null;
@@ -83,6 +86,7 @@ function FunnelPreview({
   coursesLabel: string; coursesHeadline: string; coursesSubheadline: string;
   featureCardsLabel: string; featureCardsHeadline: string; featureCardsSub: string;
   bulletsLabel: string; bulletsHeadline: string; bulletsSub: string;
+  vslVideoUrl: string; instructorImageUrl: string;
 }) {
   const innerRef = useRef<HTMLDivElement>(null);
   const [scaledHeight, setScaledHeight] = useState<number>(0);
@@ -158,16 +162,22 @@ function FunnelPreview({
             <p className="text-white/60 text-lg max-w-[560px] mx-auto mb-10 leading-relaxed">
               {subheadline || 'Your subheadline goes here'}
             </p>
-            {/* VSL placeholder */}
+            {/* VSL video or placeholder */}
             <div className="max-w-[860px] mx-auto mb-10 rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(255,255,255,0.1)' }}>
-              <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)', boxShadow: '0 0 40px rgba(0,0,255,0.4)' }}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
-                  </div>
-                  <p className="text-white/40 text-sm font-semibold tracking-wide">VSL video coming soon</p>
+              {vslVideoUrl ? (
+                <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                  <iframe src={vslVideoUrl} className="absolute inset-0 w-full h-full" allow="autoplay; fullscreen" allowFullScreen />
                 </div>
-              </div>
+              ) : (
+                <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)', boxShadow: '0 0 40px rgba(0,0,255,0.4)' }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
+                    </div>
+                    <p className="text-white/40 text-sm font-semibold tracking-wide">Add a VSL video URL in the Content tab</p>
+                  </div>
+                </div>
+              )}
             </div>
             <span className="inline-flex items-center gap-2.5 text-white font-black text-[13px] tracking-[0.15em] uppercase px-10 py-5 rounded-xl" style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}>
               {cta} — {fmtPrice(coursePrice)} <ArrowRight className="w-4 h-4" />
@@ -312,14 +322,19 @@ function FunnelPreview({
           <section className="px-5 py-20" style={{ background: featuredCourses.length > 0 ? '#fff' : '#f4f6fa' }}>
             <div className="max-w-6xl mx-auto grid grid-cols-2 gap-12 items-center">
               <div className="rounded-2xl overflow-hidden aspect-[4/5] max-w-[440px]" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.15)' }}>
-                      <span className="text-3xl font-black" style={{ color: '#D4AF37' }}>TP</span>
+                {instructorImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={instructorImageUrl} alt="Instructor" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.15)' }}>
+                        <span className="text-3xl font-black" style={{ color: '#D4AF37' }}>TP</span>
+                      </div>
+                      <p className="text-white/60 text-sm">Add instructor photo in Content tab</p>
                     </div>
-                    <p className="text-white/60 text-sm">Instructor Photo</p>
                   </div>
-                </div>
+                )}
               </div>
               <div>
                 <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: '#0000FF' }}>Your Instructor</p>
@@ -453,7 +468,7 @@ function ScaledPreviewWrapper({ children, maxHeight }: { children: React.ReactNo
   );
 }
 
-function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { headline: string; subheadline: string; ctaText: string; coursePrice: number | null }) {
+function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice, vslVideoUrl }: { headline: string; subheadline: string; ctaText: string; coursePrice: number | null; vslVideoUrl: string }) {
   const cta = ctaText || 'Enroll Now';
   const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
   return (
@@ -478,13 +493,19 @@ function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { head
             </h1>
             <p className="text-white/60 text-base max-w-[480px] mx-auto mb-8 leading-relaxed">{subheadline || 'Your subheadline goes here'}</p>
             <div className="max-w-[700px] mx-auto mb-8 rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(255,255,255,0.1)' }}>
-              <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
+              {vslVideoUrl ? (
+                <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                  <iframe src={vslVideoUrl} className="absolute inset-0 w-full h-full" allow="autoplay; fullscreen" allowFullScreen />
+                </div>
+              ) : (
+                <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
             <span className="inline-flex items-center gap-2 text-white font-black text-[11px] tracking-[0.15em] uppercase px-8 py-4 rounded-xl" style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}>
               {cta} — {fmtPrice(coursePrice)} <ArrowRight className="w-3.5 h-3.5" />
@@ -730,6 +751,8 @@ export default function FunnelEditorPage() {
   const [featureCardsLabel, setFeatureCardsLabel] = useState('Inside This Course');
   const [featureCardsHeadline, setFeatureCardsHeadline] = useState("What You'll Learn");
   const [featureCardsSub, setFeatureCardsSub] = useState('No hype. No fluff. No motivational nonsense. Just real strategies that work.');
+  const [vslVideoUrl, setVslVideoUrl] = useState('');
+  const [instructorImageUrl, setInstructorImageUrl] = useState('');
   const [bulletsLabel, setBulletsLabel] = useState('Inside This Course');
   const [bulletsHeadline, setBulletsHeadline] = useState("What's Inside This Course:");
   const [bulletsSub, setBulletsSub] = useState('Everything you need to find, fund, and close profitable real estate deals.');
@@ -774,6 +797,8 @@ export default function FunnelEditorPage() {
     setFeatureCardsLabel(f.config?.featureCardsLabel ?? 'Inside This Course');
     setFeatureCardsHeadline(f.config?.featureCardsHeadline ?? "What You'll Learn");
     setFeatureCardsSub(f.config?.featureCardsSub ?? 'No hype. No fluff. No motivational nonsense. Just real strategies that work.');
+    setVslVideoUrl(f.config?.vslVideoUrl ?? '');
+    setInstructorImageUrl(f.config?.instructorImageUrl ?? '');
     setBulletsLabel(f.config?.bulletsLabel ?? 'Inside This Course');
     setBulletsHeadline(f.config?.bulletsHeadline ?? "What's Inside This Course:");
     setBulletsSub(f.config?.bulletsSub ?? 'Everything you need to find, fund, and close profitable real estate deals.');
@@ -807,6 +832,8 @@ export default function FunnelEditorPage() {
           bulletsLabel: bulletsLabel || null,
           bulletsHeadline: bulletsHeadline || null,
           bulletsSub: bulletsSub || null,
+          vslVideoUrl: vslVideoUrl || null,
+          instructorImageUrl: instructorImageUrl || null,
         }),
       });
       if (!res.ok) {
@@ -1072,6 +1099,18 @@ export default function FunnelEditorPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">CTA Button Text</label>
                     <input value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Enroll Now" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
                   </div>
+                  <div className="border-t pt-4 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">VSL Video URL</label>
+                      <input value={vslVideoUrl} onChange={(e) => setVslVideoUrl(e.target.value)} placeholder="https://www.youtube.com/embed/... or Vimeo/Wistia embed URL" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono text-xs" />
+                      <p className="text-xs text-gray-400 mt-1">Paste an embed URL (YouTube, Vimeo, Wistia, etc.)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Instructor Photo URL</label>
+                      <input value={instructorImageUrl} onChange={(e) => setInstructorImageUrl(e.target.value)} placeholder="https://example.com/photo.jpg" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono text-xs" />
+                      <p className="text-xs text-gray-400 mt-1">Used in the &ldquo;Meet Todd&rdquo; section</p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1082,7 +1121,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">Hero Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '360px' }}>
-                <MiniPreviewHero headline={headline} subheadline={subheadline} ctaText={ctaText} coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null} />
+                <MiniPreviewHero headline={headline} subheadline={subheadline} ctaText={ctaText} coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null} vslVideoUrl={vslVideoUrl} />
               </div>
             </div>
           </div>
@@ -1404,6 +1443,8 @@ export default function FunnelEditorPage() {
                   bulletsLabel={bulletsLabel || 'Inside This Course'}
                   bulletsHeadline={bulletsHeadline || "What's Inside This Course:"}
                   bulletsSub={bulletsSub || 'Everything you need to find, fund, and close profitable real estate deals.'}
+                  vslVideoUrl={vslVideoUrl}
+                  instructorImageUrl={instructorImageUrl}
                 />
               )}
             </div>
