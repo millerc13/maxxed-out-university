@@ -500,70 +500,75 @@ function ScaledPreviewWrapper({ children, maxHeight }: { children: React.ReactNo
   );
 }
 
-function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice, vslVideoUrl }: { headline: string; subheadline: string; ctaText: string; coursePrice: number | null; vslVideoUrl: string }) {
+function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice, vslVideoUrl, template }: { headline: string; subheadline: string; ctaText: string; coursePrice: number | null; vslVideoUrl: string; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
+  const isBold = template === 'bold';
   const cta = ctaText || 'Enroll Now';
   const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
   return (
     <ScaledPreviewWrapper maxHeight={420}>
-          <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
+          <header className="shadow-sm" style={{ background: theme.navBg, borderTop: `3px solid ${theme.navBorder}` }}>
             <div className="max-w-5xl mx-auto px-5 h-[50px] flex items-center justify-between">
-              <span className="font-black text-[10px] tracking-[0.2em] uppercase text-gray-900">Maxxed Out University</span>
-              <span className="text-white font-black text-[10px] tracking-[0.15em] uppercase px-4 py-2 rounded-lg" style={{ background: '#0000FF' }}>{cta}</span>
+              <span className="font-black text-[10px] tracking-[0.2em] uppercase" style={{ color: theme.navText }}>Maxxed Out University</span>
+              <span className="text-white font-black text-[10px] tracking-[0.15em] uppercase px-4 py-2 rounded-lg" style={{ background: theme.accent }}>{cta}</span>
             </div>
           </header>
-          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 pt-14 pb-10 text-center">
-            <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-3 py-1 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#D4AF37' }} />
-              <span className="text-white/70 font-bold text-[9px] tracking-[0.2em] uppercase">Now Enrolling — Join From Anywhere</span>
+          <section style={{ background: isBold ? theme.heroBg : theme.heroBg }} className="px-5 pt-14 pb-10 text-center">
+            <div className={`inline-flex items-center gap-2 border rounded-full px-3 py-1 mb-6 ${isBold ? 'border-gray-300' : 'border-white/20'}`}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: theme.gold }} />
+              <span className={`font-bold text-[9px] tracking-[0.2em] uppercase ${isBold ? 'text-gray-500' : 'text-white/70'}`}>Now Enrolling — Join From Anywhere</span>
             </div>
-            <h1 className="font-black text-white text-4xl leading-[1.1] tracking-tight max-w-[700px] mx-auto mb-5">
+            <h1 className={`font-black text-4xl leading-[1.1] tracking-tight max-w-[700px] mx-auto mb-5 ${isBold ? 'text-black' : 'text-white'}`}>
               {(headline || 'Your Headline Here').split(' ').map((word, i) => {
                 const clean = word.toLowerCase().replace(/[^a-z-]/g, '');
                 const accent = new Set(['real', 'exact', 'nine-figure', 'empire', 'investors', 'wealth', 'system', 'blueprint']);
-                return accent.has(clean) ? <span key={i} style={{ color: '#0000FF' }}>{word} </span> : <span key={i}>{word} </span>;
+                return accent.has(clean) ? <span key={i} style={{ color: theme.accent }}>{word} </span> : <span key={i}>{word} </span>;
               })}
             </h1>
-            <p className="text-white/60 text-base max-w-[480px] mx-auto mb-8 leading-relaxed">{subheadline || 'Your subheadline goes here'}</p>
+            <p className={`text-base max-w-[480px] mx-auto mb-8 leading-relaxed ${isBold ? 'text-gray-500' : 'text-white/60'}`}>{subheadline || 'Your subheadline goes here'}</p>
             <div className="max-w-[700px] mx-auto mb-8 rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(255,255,255,0.1)' }}>
               {vslVideoUrl ? (
                 <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
                   <iframe src={vslVideoUrl} className="absolute inset-0 w-full h-full" allow="autoplay; fullscreen" allowFullScreen />
                 </div>
               ) : (
-                <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
+                <div className="relative w-full" style={{ paddingBottom: '56.25%', background: isDark ? theme.surfaceBg : '#0a1628' }}>
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)' }}>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: `${theme.accent}e6` }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-            <span className="inline-flex items-center gap-2 text-white font-black text-[11px] tracking-[0.15em] uppercase px-8 py-4 rounded-xl" style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}>
+            <span className="inline-flex items-center gap-2 text-white font-black text-[11px] tracking-[0.15em] uppercase px-8 py-4 rounded-xl" style={{ background: theme.accent, boxShadow: `0 8px 32px ${theme.accent}59` }}>
               {cta} — {fmtPrice(coursePrice)} <ArrowRight className="w-3.5 h-3.5" />
             </span>
-            <p className="text-white/30 text-xs mt-3 tracking-wide">One-time payment · Instant access · 30-day money back guarantee</p>
+            <p className={`text-xs mt-3 tracking-wide ${isBold ? 'text-gray-400' : 'text-white/30'}`}>One-time payment · Instant access · 30-day money back guarantee</p>
           </section>
     </ScaledPreviewWrapper>
   );
 }
 
-function MiniPreviewBullets({ bullets, label, headline, sub }: { bullets: string[]; label: string; headline: string; sub: string }) {
+function MiniPreviewBullets({ bullets, label, headline, sub, template }: { bullets: string[]; label: string; headline: string; sub: string; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
   const activeBullets = bullets.filter(Boolean);
   return (
     <ScaledPreviewWrapper maxHeight={450}>
-          <section className="px-5 py-12" style={{ background: '#f4f6fa' }}>
+          <section className="px-5 py-12" style={{ background: theme.sectionBg }}>
             <div className="max-w-5xl mx-auto">
-              <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{label}</p>
-              <h2 className="font-black text-gray-900 text-2xl mb-2">{headline}</h2>
-              <p className="text-gray-500 text-sm mb-6">{sub}</p>
+              <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: theme.accent }}>{label}</p>
+              <h2 className="font-black text-2xl mb-2" style={{ color: theme.textPrimary }}>{headline}</h2>
+              <p className="text-sm mb-6" style={{ color: theme.textSecondary }}>{sub}</p>
               <ul className="space-y-2.5">
                 {(activeBullets.length > 0 ? activeBullets : ['Add your first bullet point…']).map((b, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5" style={{ background: '#0000FF' }}>
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5" style={{ background: theme.accent }}>
                       <Check className="w-3 h-3 text-white" strokeWidth={3} />
                     </div>
-                    <span className={`font-semibold text-sm ${activeBullets.length > 0 ? 'text-gray-800' : 'text-gray-400 italic'}`}>{b}</span>
+                    <span className={`font-semibold text-sm ${activeBullets.length > 0 ? '' : 'italic'}`} style={{ color: activeBullets.length > 0 ? theme.textPrimary : theme.textSecondary }}>{b}</span>
                   </li>
                 ))}
               </ul>
@@ -573,7 +578,9 @@ function MiniPreviewBullets({ bullets, label, headline, sub }: { bullets: string
   );
 }
 
-function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[] }) {
+function MiniPreviewTestimonials({ testimonials, template }: { testimonials: Testimonial[]; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
   const activeTestimonials = testimonials.filter(t => t.name || t.text);
   if (activeTestimonials.length === 0) {
     return (
@@ -587,29 +594,29 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
   }
   return (
     <ScaledPreviewWrapper maxHeight={450}>
-          <section className="bg-white px-5 py-14">
+          <section className="px-5 py-14" style={{ background: isDark ? theme.surfaceBg : '#fff' }}>
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-10">
-                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Real Results</p>
-                <h2 className="font-black text-gray-900 text-2xl">What Students Are Saying</h2>
+                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: theme.accent }}>Real Results</p>
+                <h2 className="font-black text-2xl" style={{ color: theme.textPrimary }}>What Students Are Saying</h2>
               </div>
               <div className={`grid gap-4 ${activeTestimonials.length === 1 ? 'grid-cols-1 max-w-sm mx-auto' : activeTestimonials.length === 2 ? 'grid-cols-2 max-w-2xl mx-auto' : 'grid-cols-3'}`}>
                 {activeTestimonials.map((t, i) => (
-                  <div key={i} className="rounded-2xl p-5 flex flex-col" style={{ background: '#f4f6fa' }}>
+                  <div key={i} className="rounded-2xl p-5 flex flex-col" style={{ background: isDark ? theme.cardBg : theme.sectionBg }}>
                     <div className="flex gap-0.5 mb-3">
                       {Array.from({ length: 5 }).map((_, j) => (
-                        <Star key={j} className="w-3 h-3" style={{ color: '#D4AF37', fill: '#D4AF37' }} />
+                        <Star key={j} className="w-3 h-3" style={{ color: theme.gold, fill: theme.gold }} />
                       ))}
                     </div>
                     {t.result && (
-                      <div className="rounded-lg px-2.5 py-1.5 mb-3 border" style={{ background: 'rgba(0,0,255,0.04)', borderColor: 'rgba(0,0,255,0.12)' }}>
-                        <p className="font-bold text-[10px] uppercase tracking-wide" style={{ color: '#0000FF' }}>{t.result}</p>
+                      <div className="rounded-lg px-2.5 py-1.5 mb-3 border" style={{ background: `${theme.accent}0a`, borderColor: `${theme.accent}1f` }}>
+                        <p className="font-bold text-[10px] uppercase tracking-wide" style={{ color: theme.accent }}>{t.result}</p>
                       </div>
                     )}
-                    {t.text && <p className="text-gray-600 text-xs leading-relaxed flex-1 mb-3 italic">&ldquo;{t.text}&rdquo;</p>}
-                    <div className="border-t border-gray-200 pt-3">
-                      <p className="font-bold text-gray-900 text-xs">{t.name}</p>
-                      {t.location && <p className="text-gray-400 text-[10px] mt-0.5">{t.location}</p>}
+                    {t.text && <p className="text-xs leading-relaxed flex-1 mb-3 italic" style={{ color: theme.textSecondary }}>&ldquo;{t.text}&rdquo;</p>}
+                    <div className="pt-3" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb'}` }}>
+                      <p className="font-bold text-xs" style={{ color: theme.textPrimary }}>{t.name}</p>
+                      {t.location && <p className="text-[10px] mt-0.5" style={{ color: theme.textSecondary }}>{t.location}</p>}
                     </div>
                   </div>
                 ))}
@@ -620,7 +627,9 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
   );
 }
 
-function MiniPreviewCourses({ featuredCourses, ctaText, label, headline, sub }: { featuredCourses: Course[]; ctaText: string; label: string; headline: string; sub: string }) {
+function MiniPreviewCourses({ featuredCourses, ctaText, label, headline, sub, template }: { featuredCourses: Course[]; ctaText: string; label: string; headline: string; sub: string; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
   const cta = ctaText || 'Enroll Now';
   const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
   if (featuredCourses.length === 0) {
@@ -635,12 +644,12 @@ function MiniPreviewCourses({ featuredCourses, ctaText, label, headline, sub }: 
   }
   return (
     <ScaledPreviewWrapper maxHeight={450}>
-          <section className="px-5 py-14" style={{ background: '#f4f6fa' }}>
+          <section className="px-5 py-14" style={{ background: theme.sectionBg }}>
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-10">
-                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{label}</p>
-                <h2 className="font-black text-gray-900 text-2xl">{headline}</h2>
-                <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm">{sub}</p>
+                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: theme.accent }}>{label}</p>
+                <h2 className="font-black text-2xl" style={{ color: theme.textPrimary }}>{headline}</h2>
+                <p className="mt-2 max-w-md mx-auto text-sm" style={{ color: theme.textSecondary }}>{sub}</p>
               </div>
               <div className={`grid gap-4 ${
                 featuredCourses.length === 1 ? 'max-w-xs mx-auto' :
@@ -648,7 +657,7 @@ function MiniPreviewCourses({ featuredCourses, ctaText, label, headline, sub }: 
                 'grid-cols-3'
               }`}>
                 {featuredCourses.map((course) => (
-                  <div key={course.id} className="bg-white rounded-2xl overflow-hidden shadow-sm" style={{ border: '1px solid rgba(0,0,0,0.06)' }}>
+                  <div key={course.id} className="rounded-2xl overflow-hidden shadow-sm" style={{ background: isDark ? theme.cardBg : '#fff', border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
                     <div className="relative aspect-video bg-gray-100 overflow-hidden">
                       {course.thumbnail ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -665,8 +674,8 @@ function MiniPreviewCourses({ featuredCourses, ctaText, label, headline, sub }: 
                       )}
                     </div>
                     <div className="p-4">
-                      <h3 className="font-black text-gray-900 text-xs leading-snug mb-2">{course.title}</h3>
-                      <span className="inline-flex items-center gap-1 text-white font-bold text-[9px] tracking-wide uppercase px-3 py-1.5 rounded-md" style={{ background: '#0000FF' }}>
+                      <h3 className="font-black text-xs leading-snug mb-2" style={{ color: theme.textPrimary }}>{course.title}</h3>
+                      <span className="inline-flex items-center gap-1 text-white font-bold text-[9px] tracking-wide uppercase px-3 py-1.5 rounded-md" style={{ background: theme.accent }}>
                         {cta} <ArrowRight className="w-2.5 h-2.5" />
                       </span>
                     </div>
@@ -679,7 +688,9 @@ function MiniPreviewCourses({ featuredCourses, ctaText, label, headline, sub }: 
   );
 }
 
-function MiniPreviewFeatureCards({ featureCards, label, headline, sub }: { featureCards: FeatureCard[]; label: string; headline: string; sub: string }) {
+function MiniPreviewFeatureCards({ featureCards, label, headline, sub, template }: { featureCards: FeatureCard[]; label: string; headline: string; sub: string; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
   const activeCards = featureCards.filter(c => c.title || c.body);
   if (activeCards.length === 0) {
     return (
@@ -693,21 +704,21 @@ function MiniPreviewFeatureCards({ featureCards, label, headline, sub }: { featu
   }
   return (
     <ScaledPreviewWrapper maxHeight={700}>
-          <section className="bg-white px-5 py-14">
+          <section className="px-5 py-14" style={{ background: isDark ? theme.surfaceBg : '#fff' }}>
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-10">
-                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{label}</p>
-                <h2 className="font-black text-gray-900 text-2xl">{headline}</h2>
-                <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm">{sub}</p>
+                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: theme.accent }}>{label}</p>
+                <h2 className="font-black text-2xl" style={{ color: theme.textPrimary }}>{headline}</h2>
+                <p className="mt-2 max-w-md mx-auto text-sm" style={{ color: theme.textSecondary }}>{sub}</p>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {activeCards.map((card, i) => (
-                  <div key={i} className="rounded-xl p-5" style={{ background: '#f4f6fa' }}>
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: 'rgba(0,0,255,0.08)' }}>
-                      <div className="w-4 h-4 rounded" style={{ background: '#0000FF' }} />
+                  <div key={i} className="rounded-xl p-5" style={{ background: isDark ? theme.cardBg : theme.sectionBg }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: `${theme.accent}14` }}>
+                      <div className="w-4 h-4 rounded" style={{ background: theme.accent }} />
                     </div>
-                    <h3 className="font-black text-gray-900 text-[13px] uppercase tracking-wide mb-1.5">{card.title || 'Card Title'}</h3>
-                    <p className="text-gray-500 text-xs leading-relaxed">{card.body || 'Card description'}</p>
+                    <h3 className="font-black text-[13px] uppercase tracking-wide mb-1.5" style={{ color: theme.textPrimary }}>{card.title || 'Card Title'}</h3>
+                    <p className="text-xs leading-relaxed" style={{ color: theme.textSecondary }}>{card.body || 'Card description'}</p>
                   </div>
                 ))}
               </div>
@@ -717,19 +728,22 @@ function MiniPreviewFeatureCards({ featureCards, label, headline, sub }: { featu
   );
 }
 
-function MiniPreviewVSL({ vslVideoUrl }: { vslVideoUrl: string }) {
+function MiniPreviewVSL({ vslVideoUrl, template }: { vslVideoUrl: string; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
+  const isBold = template === 'bold';
   return (
     <ScaledPreviewWrapper maxHeight={320}>
-          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 py-10 text-center">
+          <section style={{ background: isBold ? theme.heroBg : theme.heroBg }} className="px-5 py-10 text-center">
             <div className="max-w-[700px] mx-auto rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(255,255,255,0.1)' }}>
               {vslVideoUrl ? (
                 <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
                   <iframe src={vslVideoUrl} className="absolute inset-0 w-full h-full" allow="autoplay; fullscreen" allowFullScreen />
                 </div>
               ) : (
-                <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
+                <div className="relative w-full" style={{ paddingBottom: '56.25%', background: isDark ? theme.surfaceBg : '#0a1628' }}>
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)' }}>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: `${theme.accent}e6` }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
                     </div>
                     <p className="text-white/40 text-xs font-semibold">Paste a video embed URL</p>
@@ -742,10 +756,12 @@ function MiniPreviewVSL({ vslVideoUrl }: { vslVideoUrl: string }) {
   );
 }
 
-function MiniPreviewInstructor({ instructorImageUrl }: { instructorImageUrl: string }) {
+function MiniPreviewInstructor({ instructorImageUrl, template }: { instructorImageUrl: string; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
   return (
     <ScaledPreviewWrapper maxHeight={350}>
-          <section className="px-5 py-10" style={{ background: '#f4f6fa' }}>
+          <section className="px-5 py-10" style={{ background: theme.sectionBg }}>
             <div className="max-w-5xl mx-auto grid grid-cols-2 gap-8 items-center">
               <div className="rounded-2xl overflow-hidden aspect-[4/5] max-w-[320px]" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
                 {instructorImageUrl ? (
@@ -754,8 +770,8 @@ function MiniPreviewInstructor({ instructorImageUrl }: { instructorImageUrl: str
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <div className="text-center">
-                      <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.15)' }}>
-                        <span className="text-2xl font-black" style={{ color: '#D4AF37' }}>TP</span>
+                      <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: `${theme.gold}26` }}>
+                        <span className="text-2xl font-black" style={{ color: theme.gold }}>TP</span>
                       </div>
                       <p className="text-white/50 text-xs">Paste an image URL</p>
                     </div>
@@ -763,11 +779,11 @@ function MiniPreviewInstructor({ instructorImageUrl }: { instructorImageUrl: str
                 )}
               </div>
               <div>
-                <p className="font-bold text-[8px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Your Instructor</p>
-                <h2 className="font-black text-gray-900 text-2xl mb-3 leading-tight">
-                  Meet <span style={{ color: '#0000FF' }}>Todd Pultz</span>
+                <p className="font-bold text-[8px] tracking-[0.2em] uppercase mb-2" style={{ color: theme.accent }}>Your Instructor</p>
+                <h2 className="font-black text-2xl mb-3 leading-tight" style={{ color: theme.textPrimary }}>
+                  Meet <span style={{ color: theme.accent }}>Todd Pultz</span>
                 </h2>
-                <p className="text-gray-500 text-xs leading-relaxed">
+                <p className="text-xs leading-relaxed" style={{ color: theme.textSecondary }}>
                   Todd Pultz is a nine-figure entrepreneur who built his empire from nothing.
                 </p>
               </div>
@@ -777,7 +793,9 @@ function MiniPreviewInstructor({ instructorImageUrl }: { instructorImageUrl: str
   );
 }
 
-function MiniPreviewForYouIf({ forYouIf }: { forYouIf: string[] }) {
+function MiniPreviewForYouIf({ forYouIf, template }: { forYouIf: string[]; template?: string }) {
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
   const activeItems = forYouIf.filter(Boolean);
   if (activeItems.length === 0) {
     return (
@@ -791,14 +809,14 @@ function MiniPreviewForYouIf({ forYouIf }: { forYouIf: string[] }) {
   }
   return (
     <ScaledPreviewWrapper maxHeight={350}>
-          <section className="px-5 py-10" style={{ background: '#f4f6fa' }}>
+          <section className="px-5 py-10" style={{ background: theme.sectionBg }}>
             <div className="max-w-5xl mx-auto">
-              <div className="border rounded-xl p-6 bg-white" style={{ borderColor: 'rgba(0,0,255,0.2)' }}>
-                <p className="font-black text-[10px] tracking-[0.2em] uppercase mb-4" style={{ color: '#0000FF' }}>This Course Is For You If:</p>
+              <div className="border rounded-xl p-6" style={{ borderColor: `${theme.accent}33`, background: isDark ? theme.cardBg : '#fff' }}>
+                <p className="font-black text-[10px] tracking-[0.2em] uppercase mb-4" style={{ color: theme.accent }}>This Course Is For You If:</p>
                 <ul className="space-y-2.5">
                   {activeItems.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
-                      <span className="font-bold mt-0.5 flex-shrink-0" style={{ color: '#0000FF' }}>→</span>{item}
+                    <li key={i} className="flex items-start gap-2.5 text-sm" style={{ color: theme.textSecondary }}>
+                      <span className="font-bold mt-0.5 flex-shrink-0" style={{ color: theme.accent }}>→</span>{item}
                     </li>
                   ))}
                 </ul>
@@ -1070,42 +1088,6 @@ export default function FunnelEditorPage() {
       {/* ── TAB: Settings ── */}
       {activeTab === 'settings' && (
         <div className="space-y-6">
-          {/* Template Selector */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">Template</h2></div>
-              <div className="p-6">
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: 'classic', name: 'Classic', desc: 'Light & clean', color: '#0000FF' },
-                    { id: 'dark', name: 'Dark Mode', desc: 'Sleek & modern', color: '#06b6d4' },
-                    { id: 'bold', name: 'Bold', desc: 'High-contrast', color: '#dc2626' },
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setTemplate(t.id)}
-                      className={`relative text-left rounded-xl border-2 p-4 transition-all ${
-                        template === t.id
-                          ? 'border-maxxed-blue bg-blue-50/50 shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="w-full h-1.5 rounded-full mb-3" style={{ background: t.color }} />
-                      <p className="font-bold text-sm text-gray-900">{t.name}</p>
-                      <p className="text-xs text-gray-500">{t.desc}</p>
-                      {template === t.id && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-maxxed-blue flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardContent className="p-0">
               <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">General</h2></div>
@@ -1233,6 +1215,35 @@ export default function FunnelEditorPage() {
       {/* ── TAB: Content ── */}
       {activeTab === 'content' && (
         <div className="space-y-8">
+          {/* ── Template Selector ── */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { id: 'classic', name: 'Classic', desc: 'Light & clean', color: '#0000FF' },
+              { id: 'dark', name: 'Dark Mode', desc: 'Sleek & modern', color: '#06b6d4' },
+              { id: 'bold', name: 'Bold', desc: 'High-contrast', color: '#dc2626' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTemplate(t.id)}
+                className={`relative text-left rounded-xl border-2 p-4 transition-all ${
+                  template === t.id
+                    ? 'border-maxxed-blue bg-blue-50/50 shadow-sm'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="w-full h-1.5 rounded-full mb-3" style={{ background: t.color }} />
+                <p className="font-bold text-sm text-gray-900">{t.name}</p>
+                <p className="text-xs text-gray-500">{t.desc}</p>
+                {template === t.id && (
+                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-maxxed-blue flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+
           {/* ── Headlines & CTA + Hero Preview ── */}
           <div className="grid grid-cols-2 gap-6 items-start">
             <Card>
@@ -1261,7 +1272,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">Hero Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '360px' }}>
-                <MiniPreviewHero headline={headline} subheadline={subheadline} ctaText={ctaText} coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null} vslVideoUrl={vslVideoUrl} />
+                <MiniPreviewHero headline={headline} subheadline={subheadline} ctaText={ctaText} coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null} vslVideoUrl={vslVideoUrl} template={template} />
               </div>
             </div>
           </div>
@@ -1289,7 +1300,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">Hero Video</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '320px' }}>
-                <MiniPreviewVSL vslVideoUrl={vslVideoUrl} />
+                <MiniPreviewVSL vslVideoUrl={vslVideoUrl} template={template} />
               </div>
             </div>
           </div>
@@ -1317,7 +1328,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">Meet the Instructor</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '350px' }}>
-                <MiniPreviewInstructor instructorImageUrl={instructorImageUrl} />
+                <MiniPreviewInstructor instructorImageUrl={instructorImageUrl} template={template} />
               </div>
             </div>
           </div>
@@ -1372,7 +1383,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">What You&apos;ll Learn Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
-                <MiniPreviewBullets bullets={bullets} label={bulletsLabel || 'Inside This Course'} headline={bulletsHeadline || "What's Inside This Course:"} sub={bulletsSub || 'Everything you need to find, fund, and close profitable real estate deals.'} />
+                <MiniPreviewBullets bullets={bullets} label={bulletsLabel || 'Inside This Course'} headline={bulletsHeadline || "What's Inside This Course:"} sub={bulletsSub || 'Everything you need to find, fund, and close profitable real estate deals.'} template={template} />
               </div>
             </div>
           </div>
@@ -1427,7 +1438,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">Feature Cards Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '700px' }}>
-                <MiniPreviewFeatureCards featureCards={featureCards} label={featureCardsLabel || 'Inside This Course'} headline={featureCardsHeadline || "What You'll Learn"} sub={featureCardsSub || 'No hype. No fluff. No motivational nonsense. Just real strategies that work.'} />
+                <MiniPreviewFeatureCards featureCards={featureCards} label={featureCardsLabel || 'Inside This Course'} headline={featureCardsHeadline || "What You'll Learn"} sub={featureCardsSub || 'No hype. No fluff. No motivational nonsense. Just real strategies that work.'} template={template} />
               </div>
             </div>
           </div>
@@ -1463,7 +1474,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">For You If Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '350px' }}>
-                <MiniPreviewForYouIf forYouIf={forYouIf} />
+                <MiniPreviewForYouIf forYouIf={forYouIf} template={template} />
               </div>
             </div>
           </div>
@@ -1520,7 +1531,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">Testimonials Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
-                <MiniPreviewTestimonials testimonials={testimonials} />
+                <MiniPreviewTestimonials testimonials={testimonials} template={template} />
               </div>
             </div>
           </div>
@@ -1591,7 +1602,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2 font-medium">Courses Included Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '450px' }}>
-                <MiniPreviewCourses featuredCourses={resolvedFeaturedCourses} ctaText={ctaText} label={coursesLabel || 'The Curriculum'} headline={coursesHeadline || 'Courses Included'} sub={coursesSubheadline || 'Everything you need to go from zero to cash-flowing — in one place.'} />
+                <MiniPreviewCourses featuredCourses={resolvedFeaturedCourses} ctaText={ctaText} label={coursesLabel || 'The Curriculum'} headline={coursesHeadline || 'Courses Included'} sub={coursesSubheadline || 'Everything you need to go from zero to cash-flowing — in one place.'} template={template} />
               </div>
             </div>
           </div>
