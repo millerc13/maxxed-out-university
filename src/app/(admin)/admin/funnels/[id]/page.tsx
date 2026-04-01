@@ -621,6 +621,44 @@ function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Cou
   );
 }
 
+function MiniPreviewFeatureCards({ featureCards, label, headline, sub }: { featureCards: FeatureCard[]; label: string; headline: string; sub: string }) {
+  const activeCards = featureCards.filter(c => c.title || c.body);
+  if (activeCards.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-400">
+        <div className="text-center">
+          <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="text-sm">Add feature cards to see preview</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <ScaledPreviewWrapper maxHeight={500}>
+          <section className="bg-white px-5 py-14">
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-10">
+                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{label}</p>
+                <h2 className="font-black text-gray-900 text-2xl">{headline}</h2>
+                <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm">{sub}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {activeCards.map((card, i) => (
+                  <div key={i} className="rounded-xl p-5" style={{ background: '#f4f6fa' }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: 'rgba(0,0,255,0.08)' }}>
+                      <div className="w-4 h-4 rounded" style={{ background: '#0000FF' }} />
+                    </div>
+                    <h3 className="font-black text-gray-900 text-[13px] uppercase tracking-wide mb-1.5">{card.title || 'Card Title'}</h3>
+                    <p className="text-gray-500 text-xs leading-relaxed">{card.body || 'Card description'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+    </ScaledPreviewWrapper>
+  );
+}
+
 // ── Main Editor ─────────────────────────────────────────────────────
 export default function FunnelEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -1029,48 +1067,60 @@ export default function FunnelEditorPage() {
             </div>
           </div>
 
-          {/* ── Feature Cards Section ── */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b">
-                <h2 className="font-bold text-gray-900">Feature Cards Section</h2>
-                <p className="text-sm text-gray-500 mt-0.5">The &ldquo;What You&apos;ll Learn&rdquo; grid of feature cards on the funnel page.</p>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Section Label</label>
-                    <input value={featureCardsLabel} onChange={(e) => setFeatureCardsLabel(e.target.value)} placeholder="Inside This Course" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+          {/* ── Feature Cards + Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b">
+                  <h2 className="font-bold text-gray-900">Feature Cards Section</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">The &ldquo;What You&apos;ll Learn&rdquo; grid of feature cards on the funnel page.</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Label</label>
+                      <input value={featureCardsLabel} onChange={(e) => setFeatureCardsLabel(e.target.value)} placeholder="Inside This Course" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Headline</label>
+                      <input value={featureCardsHeadline} onChange={(e) => setFeatureCardsHeadline(e.target.value)} placeholder="What You'll Learn" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Subtext</label>
+                      <input value={featureCardsSub} onChange={(e) => setFeatureCardsSub(e.target.value)} placeholder="No hype. No fluff..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Section Headline</label>
-                    <input value={featureCardsHeadline} onChange={(e) => setFeatureCardsHeadline(e.target.value)} placeholder="What You'll Learn" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Section Subtext</label>
-                    <input value={featureCardsSub} onChange={(e) => setFeatureCardsSub(e.target.value)} placeholder="No hype. No fluff..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium text-gray-700">Cards</p>
+                      <button onClick={() => setFeatureCards([...featureCards, { title: '', body: '' }])} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
+                        <Plus className="w-3.5 h-3.5" /> Add Card
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {featureCards.map((card, i) => (
+                        <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-2 relative group">
+                          <button onClick={() => setFeatureCards(featureCards.filter((_, j) => j !== i))} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-400 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <input value={card.title} onChange={(e) => { const updated = [...featureCards]; updated[i] = { ...updated[i], title: e.target.value }; setFeatureCards(updated); }} placeholder="Card title" className="w-full border border-gray-200 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-medium" />
+                          <textarea value={card.body} onChange={(e) => { const updated = [...featureCards]; updated[i] = { ...updated[i], body: e.target.value }; setFeatureCards(updated); }} placeholder="Card description" rows={2} className="w-full border border-gray-200 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue resize-none" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium text-gray-700">Cards</p>
-                    <button onClick={() => setFeatureCards([...featureCards, { title: '', body: '' }])} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
-                      <Plus className="w-3.5 h-3.5" /> Add Card
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {featureCards.map((card, i) => (
-                      <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-2 relative group">
-                        <button onClick={() => setFeatureCards(featureCards.filter((_, j) => j !== i))} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-400 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
-                        <input value={card.title} onChange={(e) => { const updated = [...featureCards]; updated[i] = { ...updated[i], title: e.target.value }; setFeatureCards(updated); }} placeholder="Card title" className="w-full border border-gray-200 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-medium" />
-                        <textarea value={card.body} onChange={(e) => { const updated = [...featureCards]; updated[i] = { ...updated[i], body: e.target.value }; setFeatureCards(updated); }} placeholder="Card description" rows={2} className="w-full border border-gray-200 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue resize-none" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              </CardContent>
+            </Card>
+            {/* Mini Feature Cards Preview */}
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2">Feature Cards Section</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="overflow-hidden" style={{ maxHeight: '500px' }}>
+                <MiniPreviewFeatureCards featureCards={featureCards} label={featureCardsLabel || 'Inside This Course'} headline={featureCardsHeadline || "What You'll Learn"} sub={featureCardsSub || 'No hype. No fluff. No motivational nonsense. Just real strategies that work.'} />
+              </div>
+            </div>
+          </div>
 
           {/* ── "For You If" Items ── */}
           <Card>
