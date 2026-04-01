@@ -664,6 +664,38 @@ function MiniPreviewFeatureCards({ featureCards, label, headline, sub }: { featu
   );
 }
 
+function MiniPreviewForYouIf({ forYouIf }: { forYouIf: string[] }) {
+  const activeItems = forYouIf.filter(Boolean);
+  if (activeItems.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-400">
+        <div className="text-center">
+          <ArrowRight className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="text-sm">Add items to see preview</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <ScaledPreviewWrapper maxHeight={350}>
+          <section className="px-5 py-10" style={{ background: '#f4f6fa' }}>
+            <div className="max-w-5xl mx-auto">
+              <div className="border rounded-xl p-6 bg-white" style={{ borderColor: 'rgba(0,0,255,0.2)' }}>
+                <p className="font-black text-[10px] tracking-[0.2em] uppercase mb-4" style={{ color: '#0000FF' }}>This Course Is For You If:</p>
+                <ul className="space-y-2.5">
+                  {activeItems.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
+                      <span className="font-bold mt-0.5 flex-shrink-0" style={{ color: '#0000FF' }}>→</span>{item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+    </ScaledPreviewWrapper>
+  );
+}
+
 // ── Main Editor ─────────────────────────────────────────────────────
 export default function FunnelEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -1158,29 +1190,41 @@ export default function FunnelEditorPage() {
             </div>
           </div>
 
-          {/* ── "For You If" Items ── */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <div>
-                  <h2 className="font-bold text-gray-900">This Course Is For You If</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">Shown alongside the bullet points section.</p>
-                </div>
-                <button onClick={() => setForYouIf([...forYouIf, ''])} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
-                  <Plus className="w-3.5 h-3.5" /> Add
-                </button>
-              </div>
-              <div className="p-6 space-y-2">
-                {forYouIf.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-maxxed-blue font-bold flex-shrink-0">→</span>
-                    <input value={item} onChange={(e) => { const updated = [...forYouIf]; updated[i] = e.target.value; setForYouIf(updated); }} placeholder={`Reason ${i + 1}`} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                    <button onClick={() => setForYouIf(forYouIf.filter((_, j) => j !== i))} className="p-1.5 text-gray-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
+          {/* ── "For You If" Items + Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b flex items-center justify-between">
+                  <div>
+                    <h2 className="font-bold text-gray-900">This Course Is For You If</h2>
+                    <p className="text-sm text-gray-500 mt-0.5">Shown alongside the bullet points section.</p>
                   </div>
-                ))}
+                  <button onClick={() => setForYouIf([...forYouIf, ''])} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </button>
+                </div>
+                <div className="p-6 space-y-2">
+                  {forYouIf.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-maxxed-blue font-bold flex-shrink-0">→</span>
+                      <input value={item} onChange={(e) => { const updated = [...forYouIf]; updated[i] = e.target.value; setForYouIf(updated); }} placeholder={`Reason ${i + 1}`} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                      <button onClick={() => setForYouIf(forYouIf.filter((_, j) => j !== i))} className="p-1.5 text-gray-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            {/* Mini For You If Preview */}
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2">For You If Section</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="overflow-hidden" style={{ maxHeight: '350px' }}>
+                <MiniPreviewForYouIf forYouIf={forYouIf} />
+              </div>
+            </div>
+          </div>
 
           {/* ── Testimonials + Testimonials Preview ── */}
           <div className="grid grid-cols-2 gap-6 items-start">
