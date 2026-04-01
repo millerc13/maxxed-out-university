@@ -870,69 +870,76 @@ export default function FunnelEditorPage() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/admin/funnels')}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{funnel.name}</h1>
-            <p className="text-gray-500 text-sm mt-0.5">Edit funnel settings and content</p>
+    <div className="space-y-0">
+      {/* ── Header + Tabs (sticky bar with background) ── */}
+      <div className="-mx-6 -mt-6 mb-6 px-6 pt-5 pb-0 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/admin/funnels')}
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{funnel.name}</h1>
+              <p className="text-gray-500 text-sm mt-0.5">Edit funnel settings and content</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {funnel.url && (
+              <a href={funnel.url} target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors">
+                <ExternalLink className="w-4 h-4" /> View Live
+              </a>
+            )}
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {active ? 'Active' : 'Inactive'}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {funnel.url && (
-            <a href={funnel.url} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              <ExternalLink className="w-4 h-4" /> View Live
-            </a>
-          )}
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {active ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-      </div>
 
-      {/* ── Tabs ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-          {([
-            { key: 'settings', label: 'Settings', icon: Settings },
-            { key: 'content', label: 'Content', icon: FileText },
-            { key: 'preview', label: 'Preview', icon: Eye },
-          ] as const).map((tab) => (
+        {/* Tabs + Save */}
+        <div className="flex items-end justify-between">
+          <div className="flex gap-0">
+            {([
+              { key: 'settings', label: 'Settings', icon: Settings },
+              { key: 'content', label: 'Content', icon: FileText },
+              { key: 'preview', label: 'Preview', icon: Eye },
+            ] as const).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors relative ${
+                  activeTab === tab.key
+                    ? 'text-maxxed-blue'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+                {activeTab === tab.key && (
+                  <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-maxxed-blue rounded-t-full" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Save — always visible */}
+          <div className="flex items-center gap-3 pb-2">
+            {saveError && <p className="text-red-500 text-sm font-medium">{saveError}</p>}
+            {saved && <p className="text-green-600 text-sm font-medium flex items-center gap-1"><Check className="w-4 h-4" /> Saved</p>}
+            {!saveError && !saved && activeTab !== 'preview' && (
+              <p className="text-gray-400 text-sm">Unsaved changes won&apos;t go live</p>
+            )}
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-              }`}
+              onClick={save}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
             >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
+              {saving ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving…</> : <><Save className="w-4 h-4" /> Save Changes</>}
             </button>
-          ))}
-        </div>
-
-        {/* Save — always visible */}
-        <div className="flex items-center gap-3">
-          {saveError && <p className="text-red-500 text-sm font-medium">{saveError}</p>}
-          {saved && <p className="text-green-600 text-sm font-medium flex items-center gap-1"><Check className="w-4 h-4" /> Saved</p>}
-          {!saveError && !saved && activeTab !== 'preview' && (
-            <p className="text-gray-400 text-sm">Unsaved changes won&apos;t go live</p>
-          )}
-          <button
-            onClick={save}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
-          >
-            {saving ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving…</> : <><Save className="w-4 h-4" /> Save Changes</>}
-          </button>
+          </div>
         </div>
       </div>
 
@@ -1069,10 +1076,10 @@ export default function FunnelEditorPage() {
               </CardContent>
             </Card>
             {/* Mini Hero Preview */}
-            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
-                <span className="text-[10px] text-gray-400 ml-2">Hero Section</span>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">Hero Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '360px' }}>
                 <MiniPreviewHero headline={headline} subheadline={subheadline} ctaText={ctaText} coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null} />
@@ -1124,10 +1131,10 @@ export default function FunnelEditorPage() {
               </CardContent>
             </Card>
             {/* Mini Bullets Preview */}
-            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
-                <span className="text-[10px] text-gray-400 ml-2">What You&apos;ll Learn Section</span>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">What You&apos;ll Learn Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
                 <MiniPreviewBullets bullets={bullets} label={bulletsLabel || 'Inside This Course'} headline={bulletsHeadline || "What's Inside This Course:"} sub={bulletsSub || 'Everything you need to find, fund, and close profitable real estate deals.'} />
@@ -1179,10 +1186,10 @@ export default function FunnelEditorPage() {
               </CardContent>
             </Card>
             {/* Mini Feature Cards Preview */}
-            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
-                <span className="text-[10px] text-gray-400 ml-2">Feature Cards Section</span>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">Feature Cards Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '700px' }}>
                 <MiniPreviewFeatureCards featureCards={featureCards} label={featureCardsLabel || 'Inside This Course'} headline={featureCardsHeadline || "What You'll Learn"} sub={featureCardsSub || 'No hype. No fluff. No motivational nonsense. Just real strategies that work.'} />
@@ -1215,10 +1222,10 @@ export default function FunnelEditorPage() {
               </CardContent>
             </Card>
             {/* Mini For You If Preview */}
-            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
-                <span className="text-[10px] text-gray-400 ml-2">For You If Section</span>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">For You If Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '350px' }}>
                 <MiniPreviewForYouIf forYouIf={forYouIf} />
@@ -1272,10 +1279,10 @@ export default function FunnelEditorPage() {
               </CardContent>
             </Card>
             {/* Mini Testimonials Preview */}
-            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
-                <span className="text-[10px] text-gray-400 ml-2">Testimonials Section</span>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">Testimonials Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
                 <MiniPreviewTestimonials testimonials={testimonials} />
@@ -1343,10 +1350,10 @@ export default function FunnelEditorPage() {
               </CardContent>
             </Card>
             {/* Mini Courses Preview */}
-            <div className="rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-sm">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border-b border-gray-200">
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
-                <span className="text-[10px] text-gray-400 ml-2">Courses Included Section</span>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">Courses Included Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '450px' }}>
                 <MiniPreviewCourses featuredCourses={resolvedFeaturedCourses} ctaText={ctaText} label={coursesLabel || 'The Curriculum'} headline={coursesHeadline || 'Courses Included'} sub={coursesSubheadline || 'Everything you need to go from zero to cash-flowing — in one place.'} />
@@ -1360,15 +1367,15 @@ export default function FunnelEditorPage() {
       {activeTab === 'preview' && (
         <div className="space-y-3 overflow-hidden">
           {/* Browser frame */}
-          <div className="bg-gray-950 rounded-xl overflow-hidden ring-1 ring-gray-200 shadow-lg">
+          <div className="bg-gray-950 rounded-xl overflow-hidden ring-1 ring-gray-800/30 shadow-lg">
             {/* Chrome bar */}
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 border-b border-gray-200">
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 border-b border-gray-700">
               <div className="flex gap-1.5">
                 <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
                 <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
                 <div className="w-3 h-3 rounded-full bg-[#28c840]" />
               </div>
-              <div className="flex-1 mx-3 bg-white border border-gray-200 rounded-md px-3 py-1 text-xs text-gray-500 font-mono truncate">
+              <div className="flex-1 mx-3 bg-gray-700/50 border border-gray-600 rounded-md px-3 py-1 text-xs text-gray-400 font-mono truncate">
                 {funnel.url || 'https://funnel.maxxedout.com'}
               </div>
             </div>
