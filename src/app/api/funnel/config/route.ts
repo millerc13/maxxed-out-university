@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // Public endpoint — called server-side by funnel deployments on each render.
-// Auth is via the funnel's API key OR subdomain lookup.
+// Auth is via the funnel's API key or subdomain lookup.
 export async function GET(request: NextRequest) {
   const apiKey =
     request.headers.get('x-funnel-api-key') ??

@@ -285,7 +285,7 @@ model FunnelDeployment {
   name            String
   url             String
   apiKey          String       @unique @default(cuid())
-  subdomain       String?      @unique                    // e.g. "reeb" → reeb.join.maxxedout.com
+  subdomain       String?      @unique
   courseId        String?
   active          Boolean      @default(true)
   createdAt       DateTime     @default(now())

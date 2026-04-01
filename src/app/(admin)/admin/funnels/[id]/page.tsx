@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen, Globe } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface Course {
@@ -797,8 +797,6 @@ export default function FunnelEditorPage() {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [subdomain, setSubdomain] = useState('');
-  const [provisioning, setProvisioning] = useState(false);
-  const [provisionResult, setProvisionResult] = useState<{ success?: boolean; error?: string; domain?: string } | null>(null);
   const [courseId, setCourseId] = useState('');
   const [featuredCourseIds, setFeaturedCourseIds] = useState<Set<string>>(new Set());
   const [active, setActive] = useState(true);
@@ -928,33 +926,6 @@ export default function FunnelEditorPage() {
     setTimeout(() => setCopiedKey(false), 2000);
   }
 
-  async function provisionDomain() {
-    if (!subdomain) return;
-    setProvisioning(true);
-    setProvisionResult(null);
-    try {
-      // Save subdomain first
-      await fetch(`/api/admin/funnels/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subdomain: subdomain.toLowerCase().trim() }),
-      });
-      // Then provision DNS + Vercel
-      const res = await fetch(`/api/admin/funnels/${id}/provision-domain`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setProvisionResult({ success: true, domain: data.domain });
-        load(); // refresh to pick up new URL
-      } else {
-        setProvisionResult({ error: data.error || 'Provisioning failed' });
-      }
-    } catch (err) {
-      setProvisionResult({ error: err instanceof Error ? err.message : 'Provisioning failed' });
-    } finally {
-      setProvisioning(false);
-    }
-  }
-
   function addBullet() { setBullets([...bullets, '']); }
   function removeBullet(i: number) { setBullets(bullets.filter((_, idx) => idx !== i)); }
   function updateBullet(i: number, val: string) { setBullets(bullets.map((b, idx) => idx === i ? val : b)); }
@@ -1077,6 +1048,25 @@ export default function FunnelEditorPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Deployed URL</label>
                   <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://funnel.maxxedout.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subdomain <span className="text-gray-400 font-normal">(for config lookup)</span></label>
+                  <div className="flex items-center gap-0">
+                    <input
+                      value={subdomain}
+                      onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="my-funnel"
+                      className="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono"
+                    />
+                    <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500 font-mono whitespace-nowrap">
+                      .join.maxxedout.com
+                    </span>
+                  </div>
+                  {subdomain && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Funnel app will serve this config when accessed at <span className="font-mono text-gray-600">{subdomain}.join.maxxedout.com</span>
+                    </p>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Primary Course <span className="text-gray-400 font-normal">(checkout)</span></label>
@@ -1094,64 +1084,6 @@ export default function FunnelEditorPage() {
                     </label>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b">
-                <h2 className="font-bold text-gray-900">Custom Domain</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Provision a subdomain at <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">*.join.maxxedout.com</code></p>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Subdomain</label>
-                  <div className="flex items-center gap-0">
-                    <input
-                      value={subdomain}
-                      onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                      placeholder="reeb"
-                      className="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono"
-                    />
-                    <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500 font-mono whitespace-nowrap">
-                      .join.maxxedout.com
-                    </span>
-                  </div>
-                  {subdomain && (
-                    <p className="text-xs text-gray-400 mt-1.5">
-                      Will be live at <span className="font-mono font-medium text-gray-600">https://{subdomain}.join.maxxedout.com</span>
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={provisionDomain}
-                  disabled={provisioning || !subdomain || subdomain.length < 3}
-                  className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors"
-                >
-                  {provisioning ? (
-                    <><RefreshCw className="w-4 h-4 animate-spin" /> Provisioning…</>
-                  ) : (
-                    <><Globe className="w-4 h-4" /> Provision Domain</>
-                  )}
-                </button>
-                {provisionResult?.success && (
-                  <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-green-800">Domain provisioned</p>
-                      <p className="text-xs text-green-600 mt-0.5">
-                        <span className="font-mono">{provisionResult.domain}</span> — DNS may take a few minutes to propagate.
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {provisionResult?.error && (
-                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <span className="text-red-500 font-bold text-sm mt-0.5 flex-shrink-0">!</span>
-                    <p className="text-sm text-red-700">{provisionResult.error}</p>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
