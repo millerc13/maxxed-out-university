@@ -48,7 +48,7 @@ export async function PUT(
     featureCardsLabel, featureCardsHeadline, featureCardsSub,
     bulletsLabel, bulletsHeadline, bulletsSub,
     vslVideoUrl, instructorImageUrl,
-    subdomain,
+    template, subdomain,
   } = body;
 
   // Build config create/update objects dynamically
@@ -71,6 +71,7 @@ export async function PUT(
     bulletsSub: bulletsSub ?? null,
     vslVideoUrl: vslVideoUrl ?? null,
     instructorImageUrl: instructorImageUrl ?? null,
+    template: template ?? 'classic',
   };
 
   const configUpdate: Record<string, unknown> = {};
@@ -80,7 +81,7 @@ export async function PUT(
     coursesLabel, coursesHeadline, coursesSubheadline,
     featureCardsLabel, featureCardsHeadline, featureCardsSub,
     bulletsLabel, bulletsHeadline, bulletsSub,
-    vslVideoUrl, instructorImageUrl,
+    vslVideoUrl, instructorImageUrl, template,
   })) {
     if (val !== undefined) configUpdate[key] = val;
   }

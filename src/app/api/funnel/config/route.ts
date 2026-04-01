@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
       bulletsLabel: deployment.config?.bulletsLabel ?? null,
       bulletsHeadline: deployment.config?.bulletsHeadline ?? null,
       bulletsSub: deployment.config?.bulletsSub ?? null,
+      template: deployment.config?.template ?? 'classic',
     },
     promoEnabled,
   });

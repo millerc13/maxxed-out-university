@@ -49,6 +49,7 @@ interface FunnelData {
     bulletsSub: string | null;
     vslVideoUrl: string | null;
     instructorImageUrl: string | null;
+    template: string | null;
   } | null;
 }
 
@@ -74,11 +75,38 @@ const DEFAULT_FOR_YOU_IF = [
   "You want real strategies, not motivational fluff",
 ];
 
+const TEMPLATE_THEMES = {
+  classic: {
+    accent: '#0000FF', gold: '#D4AF37',
+    heroBg: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)',
+    sectionBg: '#f4f6fa', cardBg: '#f4f6fa', surfaceBg: '#fff',
+    textPrimary: '#111827', textSecondary: '#6b7280',
+    navBg: '#fff', navBorder: '#0000FF', navText: '#111827',
+    footerBg: '#000',
+  },
+  dark: {
+    accent: '#06b6d4', gold: '#D4AF37',
+    heroBg: 'linear-gradient(160deg, #0a0e17 0%, #111827 100%)',
+    sectionBg: '#111827', cardBg: '#1a1f2e', surfaceBg: '#0a0e17',
+    textPrimary: '#f3f4f6', textSecondary: '#9ca3af',
+    navBg: '#0a0e17', navBorder: '#06b6d4', navText: '#f3f4f6',
+    footerBg: '#050810',
+  },
+  bold: {
+    accent: '#dc2626', gold: '#dc2626',
+    heroBg: '#ffffff',
+    sectionBg: '#000000', cardBg: '#000000', surfaceBg: '#ffffff',
+    textPrimary: '#000000', textSecondary: '#4b5563',
+    navBg: '#000000', navBorder: '#dc2626', navText: '#ffffff',
+    footerBg: '#000000',
+  },
+} as const;
+
 function FunnelPreview({
   headline, subheadline, ctaText, bullets, testimonials, courseName, coursePrice, courseThumbnail, containerWidth, featuredCourses,
   featureCards, forYouIf, coursesLabel, coursesHeadline, coursesSubheadline, featureCardsLabel, featureCardsHeadline, featureCardsSub,
   bulletsLabel, bulletsHeadline, bulletsSub,
-  vslVideoUrl, instructorImageUrl,
+  vslVideoUrl, instructorImageUrl, template = 'classic',
 }: {
   headline: string; subheadline: string; ctaText: string; bullets: string[];
   testimonials: Testimonial[]; courseName: string; coursePrice: number | null;
@@ -87,7 +115,7 @@ function FunnelPreview({
   coursesLabel: string; coursesHeadline: string; coursesSubheadline: string;
   featureCardsLabel: string; featureCardsHeadline: string; featureCardsSub: string;
   bulletsLabel: string; bulletsHeadline: string; bulletsSub: string;
-  vslVideoUrl: string; instructorImageUrl: string;
+  vslVideoUrl: string; instructorImageUrl: string; template?: string;
 }) {
   const innerRef = useRef<HTMLDivElement>(null);
   const [scaledHeight, setScaledHeight] = useState<number>(0);
@@ -99,6 +127,9 @@ function FunnelPreview({
   const activeBullets = bullets.filter(Boolean);
   const activeTestimonials = testimonials.filter(t => t.name || t.text);
   const cta = ctaText || 'Enroll Now';
+  const theme = TEMPLATE_THEMES[template as keyof typeof TEMPLATE_THEMES] ?? TEMPLATE_THEMES.classic;
+  const isDark = template === 'dark';
+  const isBold = template === 'bold';
 
   // Render at 1280px desktop and scale to fit container
   const RENDER_WIDTH = 1280;
@@ -132,35 +163,35 @@ function FunnelPreview({
         <div ref={innerRef} className="font-sans" style={{ width: `${RENDER_WIDTH}px` }}>
 
           {/* ── NAV ── */}
-          <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
+          <header className="shadow-sm" style={{ background: theme.navBg, borderTop: `3px solid ${theme.navBorder}` }}>
             <div className="max-w-7xl mx-auto px-5 h-[60px] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <span className="font-black text-[11px] tracking-[0.2em] uppercase text-gray-900">
+                <span className="font-black text-[11px] tracking-[0.2em] uppercase" style={{ color: theme.navText }}>
                   Maxxed Out University
                 </span>
               </div>
-              <span className="text-white font-black text-[11px] tracking-[0.15em] uppercase px-5 py-2.5 rounded-lg" style={{ background: '#0000FF' }}>
+              <span className="text-white font-black text-[11px] tracking-[0.15em] uppercase px-5 py-2.5 rounded-lg" style={{ background: theme.accent }}>
                 {cta}
               </span>
             </div>
           </header>
 
           {/* ── HERO ── */}
-          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 pt-16 pb-12 text-center">
-            <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 mb-8">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#D4AF37' }} />
-              <span className="text-white/70 font-bold text-[10px] tracking-[0.2em] uppercase">Now Enrolling — Join From Anywhere</span>
+          <section style={{ background: isBold ? theme.heroBg : theme.heroBg }} className="px-5 pt-16 pb-12 text-center">
+            <div className={`inline-flex items-center gap-2 border rounded-full px-4 py-1.5 mb-8 ${isBold ? 'border-gray-300' : 'border-white/20'}`}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: theme.gold }} />
+              <span className={`font-bold text-[10px] tracking-[0.2em] uppercase ${isBold ? 'text-gray-500' : 'text-white/70'}`}>Now Enrolling — Join From Anywhere</span>
             </div>
-            <h1 className="font-black text-white text-5xl leading-[1.08] tracking-tight max-w-[820px] mx-auto mb-6">
+            <h1 className={`font-black text-5xl leading-[1.08] tracking-tight max-w-[820px] mx-auto mb-6 ${isBold ? 'text-black' : 'text-white'}`}>
               {(headline || 'Your Headline Here').split(' ').map((word, i) => {
                 const clean = word.toLowerCase().replace(/[^a-z-]/g, '');
                 const accent = new Set(['real', 'exact', 'nine-figure', 'empire', 'investors', 'wealth', 'system', 'blueprint']);
                 return accent.has(clean)
-                  ? <span key={i} style={{ color: '#0000FF' }}>{word} </span>
+                  ? <span key={i} style={{ color: theme.accent }}>{word} </span>
                   : <span key={i}>{word} </span>;
               })}
             </h1>
-            <p className="text-white/60 text-lg max-w-[560px] mx-auto mb-10 leading-relaxed">
+            <p className={`text-lg max-w-[560px] mx-auto mb-10 leading-relaxed ${isBold ? 'text-gray-500' : 'text-white/60'}`}>
               {subheadline || 'Your subheadline goes here'}
             </p>
             {/* VSL video or placeholder */}
@@ -180,35 +211,35 @@ function FunnelPreview({
                 </div>
               )}
             </div>
-            <span className="inline-flex items-center gap-2.5 text-white font-black text-[13px] tracking-[0.15em] uppercase px-10 py-5 rounded-xl" style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}>
+            <span className="inline-flex items-center gap-2.5 text-white font-black text-[13px] tracking-[0.15em] uppercase px-10 py-5 rounded-xl" style={{ background: theme.accent, boxShadow: `0 8px 32px ${theme.accent}59` }}>
               {cta} — {fmtPrice(coursePrice)} <ArrowRight className="w-4 h-4" />
             </span>
-            <p className="text-white/30 text-xs mt-4 tracking-wide">One-time payment · Instant access · 30-day money back guarantee</p>
+            <p className={`text-xs mt-4 tracking-wide ${isBold ? 'text-gray-400' : 'text-white/30'}`}>One-time payment · Instant access · 30-day money back guarantee</p>
           </section>
 
           {/* ── 2-COL: Bullets + enrollment card ── */}
-          <section className="px-5 py-16" style={{ background: '#f4f6fa' }}>
+          <section className="px-5 py-16" style={{ background: theme.sectionBg }}>
             <div className="max-w-6xl mx-auto grid" style={{ gridTemplateColumns: '1fr 360px', gap: '40px' }}>
               <div>
-                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{bulletsLabel}</p>
-                <h2 className="font-black text-gray-900 text-3xl mb-2">{bulletsHeadline}</h2>
-                <p className="text-gray-500 mb-8">{bulletsSub}</p>
+                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-2" style={{ color: theme.accent }}>{bulletsLabel}</p>
+                <h2 className="font-black text-3xl mb-2" style={{ color: theme.textPrimary }}>{bulletsHeadline}</h2>
+                <p style={{ color: theme.textSecondary }} className="mb-8">{bulletsSub}</p>
                 <ul className="space-y-3 mb-10">
                   {activeBullets.map((b, i) => (
                     <li key={i} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5" style={{ background: '#0000FF' }}>
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5" style={{ background: theme.accent }}>
                         <Check className="w-3 h-3 text-white" strokeWidth={3} />
                       </div>
-                      <span className="font-semibold text-gray-800 text-sm">{b}</span>
+                      <span className="font-semibold text-sm" style={{ color: theme.textPrimary }}>{b}</span>
                     </li>
                   ))}
                 </ul>
-                <div className="border rounded-xl p-6 bg-white" style={{ borderColor: 'rgba(0,0,255,0.2)' }}>
-                  <p className="font-black text-[10px] tracking-[0.2em] uppercase mb-4" style={{ color: '#0000FF' }}>This Course Is For You If:</p>
+                <div className="border rounded-xl p-6" style={{ borderColor: `${theme.accent}33`, background: isDark ? theme.cardBg : '#fff' }}>
+                  <p className="font-black text-[10px] tracking-[0.2em] uppercase mb-4" style={{ color: theme.accent }}>This Course Is For You If:</p>
                   <ul className="space-y-2.5">
                     {forYouIf.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
-                        <span className="font-bold mt-0.5 flex-shrink-0" style={{ color: '#0000FF' }}>→</span>{item}
+                      <li key={i} className="flex items-start gap-2.5 text-sm" style={{ color: theme.textSecondary }}>
+                        <span className="font-bold mt-0.5 flex-shrink-0" style={{ color: theme.accent }}>→</span>{item}
                       </li>
                     ))}
                   </ul>
@@ -216,15 +247,15 @@ function FunnelPreview({
               </div>
               {/* Enrollment card */}
               <div>
-                <div className="bg-white rounded-2xl overflow-hidden shadow-xl" style={{ borderTop: '4px solid #D4AF37' }}>
+                <div className="rounded-2xl overflow-hidden shadow-xl" style={{ borderTop: `4px solid ${theme.gold}`, background: isDark ? theme.cardBg : '#fff' }}>
                   {courseThumbnail && (
                     <div className="aspect-video bg-gray-100 overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={courseThumbnail} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}
-                  <div style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-6 py-6">
-                    <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-1" style={{ color: '#D4AF37' }}>Maxxed Out University</p>
+                  <div style={{ background: isBold ? '#000' : 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-6 py-6">
+                    <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-1" style={{ color: theme.gold }}>Maxxed Out University</p>
                     <h3 className="text-white font-black text-xl leading-snug mb-4">{courseName || 'Course Name'}</h3>
                     <div className="text-white/40 text-[10px] uppercase tracking-widest mb-1">Your Investment</div>
                     <div className="text-white font-black text-4xl">{fmtPrice(coursePrice)}</div>
@@ -241,7 +272,7 @@ function FunnelPreview({
                     </ul>
                   </div>
                   <div className="px-6 py-5 text-center">
-                    <span className="w-full flex items-center justify-center gap-2 text-white font-black text-[12px] tracking-[0.15em] uppercase py-4 rounded-xl" style={{ background: '#0000FF' }}>
+                    <span className="w-full flex items-center justify-center gap-2 text-white font-black text-[12px] tracking-[0.15em] uppercase py-4 rounded-xl" style={{ background: theme.accent }}>
                       {cta} <ArrowRight className="w-3.5 h-3.5" />
                     </span>
                     <div className="flex items-center justify-center gap-1.5 text-gray-400 text-[11px] mt-3">
@@ -254,21 +285,21 @@ function FunnelPreview({
           </section>
 
           {/* ── FEATURE CARDS ── */}
-          <section className="bg-white px-5 py-20">
+          <section className="px-5 py-20" style={{ background: isDark ? theme.surfaceBg : '#fff' }}>
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-14">
-                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: '#0000FF' }}>{featureCardsLabel}</p>
-                <h2 className="font-black text-gray-900 text-3xl">{featureCardsHeadline}</h2>
-                <p className="text-gray-500 mt-3 max-w-lg mx-auto text-base">{featureCardsSub}</p>
+                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: theme.accent }}>{featureCardsLabel}</p>
+                <h2 className="font-black text-3xl" style={{ color: theme.textPrimary }}>{featureCardsHeadline}</h2>
+                <p className="mt-3 max-w-lg mx-auto text-base" style={{ color: theme.textSecondary }}>{featureCardsSub}</p>
               </div>
               <div className="grid grid-cols-3 gap-5">
                 {featureCards.map((card) => (
-                  <div key={card.title} className="rounded-2xl p-6" style={{ background: '#f4f6fa' }}>
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'rgba(0,0,255,0.08)' }}>
-                      <div className="w-5 h-5 rounded" style={{ background: '#0000FF' }} />
+                  <div key={card.title} className="rounded-2xl p-6" style={{ background: isDark ? theme.cardBg : theme.sectionBg }}>
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: `${theme.accent}14` }}>
+                      <div className="w-5 h-5 rounded" style={{ background: theme.accent }} />
                     </div>
-                    <h3 className="font-black text-gray-900 text-[15px] uppercase tracking-wide mb-2">{card.title}</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">{card.body}</p>
+                    <h3 className="font-black text-[15px] uppercase tracking-wide mb-2" style={{ color: theme.textPrimary }}>{card.title}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: theme.textSecondary }}>{card.body}</p>
                   </div>
                 ))}
               </div>
@@ -277,12 +308,12 @@ function FunnelPreview({
 
           {/* ── COURSES INCLUDED ── */}
           {featuredCourses.length > 0 && (
-            <section className="px-5 py-20" style={{ background: '#f4f6fa' }}>
+            <section className="px-5 py-20" style={{ background: theme.sectionBg }}>
               <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-14">
-                  <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: '#0000FF' }}>{coursesLabel}</p>
-                  <h2 className="font-black text-gray-900 text-3xl">{coursesHeadline}</h2>
-                  <p className="text-gray-500 mt-3 max-w-lg mx-auto text-base">{coursesSubheadline}</p>
+                  <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: theme.accent }}>{coursesLabel}</p>
+                  <h2 className="font-black text-3xl" style={{ color: theme.textPrimary }}>{coursesHeadline}</h2>
+                  <p className="mt-3 max-w-lg mx-auto text-base" style={{ color: theme.textSecondary }}>{coursesSubheadline}</p>
                 </div>
                 <div className={`grid gap-5 ${
                   featuredCourses.length === 1 ? 'max-w-sm mx-auto' :
@@ -308,7 +339,7 @@ function FunnelPreview({
                       </div>
                       <div className="p-5">
                         <h3 className="font-black text-gray-900 text-[15px] leading-snug mb-3">{course.title}</h3>
-                        <span className="inline-flex items-center gap-1.5 text-white font-bold text-[11px] tracking-wide uppercase px-4 py-2 rounded-lg" style={{ background: '#0000FF' }}>
+                        <span className="inline-flex items-center gap-1.5 text-white font-bold text-[11px] tracking-wide uppercase px-4 py-2 rounded-lg" style={{ background: theme.accent }}>
                           {cta} <ArrowRight className="w-3 h-3" />
                         </span>
                       </div>
@@ -320,7 +351,7 @@ function FunnelPreview({
           )}
 
           {/* ── MEET TODD ── */}
-          <section className="px-5 py-20" style={{ background: featuredCourses.length > 0 ? '#fff' : '#f4f6fa' }}>
+          <section className="px-5 py-20" style={{ background: isDark ? theme.sectionBg : (featuredCourses.length > 0 ? '#fff' : '#f4f6fa') }}>
             <div className="max-w-6xl mx-auto grid grid-cols-2 gap-12 items-center">
               <div className="rounded-2xl overflow-hidden aspect-[4/5] max-w-[440px]" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
                 {instructorImageUrl ? (
@@ -330,7 +361,7 @@ function FunnelPreview({
                   <div className="w-full h-full flex items-center justify-center">
                     <div className="text-center">
                       <div className="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.15)' }}>
-                        <span className="text-3xl font-black" style={{ color: '#D4AF37' }}>TP</span>
+                        <span className="text-3xl font-black" style={{ color: theme.gold }}>TP</span>
                       </div>
                       <p className="text-white/60 text-sm">Add instructor photo in Content tab</p>
                     </div>
@@ -338,17 +369,17 @@ function FunnelPreview({
                 )}
               </div>
               <div>
-                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: '#0000FF' }}>Your Instructor</p>
-                <h2 className="font-black text-gray-900 text-4xl mb-6 leading-tight">
-                  Meet <span style={{ color: '#0000FF' }}>Todd Pultz</span>
+                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: theme.accent }}>Your Instructor</p>
+                <h2 className="font-black text-4xl mb-6 leading-tight" style={{ color: theme.textPrimary }}>
+                  Meet <span style={{ color: theme.accent }}>Todd Pultz</span>
                 </h2>
-                <p className="text-gray-600 leading-relaxed mb-4">
+                <p className="leading-relaxed mb-4" style={{ color: theme.textSecondary }}>
                   Todd Pultz is a nine-figure entrepreneur who built his empire from nothing. Growing up broke with no money, no connections, and no roadmap, he made every mistake imaginable.
                 </p>
-                <p className="text-gray-600 leading-relaxed mb-8">
+                <p className="leading-relaxed mb-8" style={{ color: theme.textSecondary }}>
                   What changed everything wasn&apos;t working harder — it was learning how entrepreneurship and real estate actually work.
                 </p>
-                <span className="inline-flex items-center gap-2 text-white font-black text-[12px] tracking-[0.15em] uppercase px-8 py-4 rounded-xl" style={{ background: '#0000FF' }}>
+                <span className="inline-flex items-center gap-2 text-white font-black text-[12px] tracking-[0.15em] uppercase px-8 py-4 rounded-xl" style={{ background: theme.accent }}>
                   Learn From Todd <ArrowRight className="w-4 h-4" />
                 </span>
               </div>
@@ -357,29 +388,29 @@ function FunnelPreview({
 
           {/* ── TESTIMONIALS ── */}
           {activeTestimonials.length > 0 && (
-            <section className="bg-white px-5 py-20">
+            <section className="px-5 py-20" style={{ background: isDark ? theme.surfaceBg : '#fff' }}>
               <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-14">
-                  <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: '#0000FF' }}>Real Results</p>
-                  <h2 className="font-black text-gray-900 text-3xl">What Students Are Saying</h2>
+                  <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-3" style={{ color: theme.accent }}>Real Results</p>
+                  <h2 className="font-black text-3xl" style={{ color: theme.textPrimary }}>What Students Are Saying</h2>
                 </div>
                 <div className="grid grid-cols-3 gap-5">
                   {activeTestimonials.map((t, i) => (
-                    <div key={i} className="rounded-2xl p-6 flex flex-col" style={{ background: '#f4f6fa' }}>
+                    <div key={i} className="rounded-2xl p-6 flex flex-col" style={{ background: isDark ? theme.cardBg : theme.sectionBg }}>
                       <div className="flex gap-0.5 mb-4">
                         {Array.from({ length: 5 }).map((_, j) => (
-                          <Star key={j} className="w-3.5 h-3.5" style={{ color: '#D4AF37', fill: '#D4AF37' }} />
+                          <Star key={j} className="w-3.5 h-3.5" style={{ color: theme.gold, fill: theme.gold }} />
                         ))}
                       </div>
                       {t.result && (
-                        <div className="rounded-lg px-3 py-2 mb-4 border" style={{ background: 'rgba(0,0,255,0.04)', borderColor: 'rgba(0,0,255,0.12)' }}>
-                          <p className="font-bold text-[11px] uppercase tracking-wide" style={{ color: '#0000FF' }}>{t.result}</p>
+                        <div className="rounded-lg px-3 py-2 mb-4 border" style={{ background: `${theme.accent}0a`, borderColor: `${theme.accent}1f` }}>
+                          <p className="font-bold text-[11px] uppercase tracking-wide" style={{ color: theme.accent }}>{t.result}</p>
                         </div>
                       )}
-                      {t.text && <p className="text-gray-600 text-sm leading-relaxed flex-1 mb-4 italic">&ldquo;{t.text}&rdquo;</p>}
-                      <div className="border-t border-gray-200 pt-4">
-                        <p className="font-bold text-gray-900 text-sm">{t.name}</p>
-                        {t.location && <p className="text-gray-400 text-xs mt-0.5">{t.location}</p>}
+                      {t.text && <p className="text-sm leading-relaxed flex-1 mb-4 italic" style={{ color: theme.textSecondary }}>&ldquo;{t.text}&rdquo;</p>}
+                      <div className="pt-4" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb'}` }}>
+                        <p className="font-bold text-sm" style={{ color: theme.textPrimary }}>{t.name}</p>
+                        {t.location && <p className="text-xs mt-0.5" style={{ color: theme.textSecondary }}>{t.location}</p>}
                       </div>
                     </div>
                   ))}
@@ -389,11 +420,11 @@ function FunnelPreview({
           )}
 
           {/* ── SOCIAL PROOF ── */}
-          <section className="border-y border-gray-200 px-5 py-8" style={{ background: '#f4f6fa' }}>
+          <section className="px-5 py-8" style={{ background: theme.sectionBg, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#e5e7eb'}`, borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#e5e7eb'}` }}>
             <div className="max-w-4xl mx-auto flex items-center justify-center gap-16">
               {[
-                { value: '2,400+', label: 'Students Enrolled', color: '#0000FF' },
-                { value: '4.9 / 5', label: 'Average Rating', color: '#D4AF37' },
+                { value: '2,400+', label: 'Students Enrolled', color: theme.accent },
+                { value: '4.9 / 5', label: 'Average Rating', color: theme.gold },
                 { value: '30-Day', label: 'Money Back Guarantee', color: '#16a34a' },
               ].map((s, i) => (
                 <div key={i} className="flex items-center gap-3">
@@ -401,8 +432,8 @@ function FunnelPreview({
                     <div className="w-5 h-5 rounded" style={{ background: s.color }} />
                   </div>
                   <div>
-                    <div className="font-black text-xl text-gray-900">{s.value}</div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide">{s.label}</div>
+                    <div className="font-black text-xl" style={{ color: theme.textPrimary }}>{s.value}</div>
+                    <div className="text-xs uppercase tracking-wide" style={{ color: theme.textSecondary }}>{s.label}</div>
                   </div>
                 </div>
               ))}
@@ -410,23 +441,23 @@ function FunnelPreview({
           </section>
 
           {/* ── FINAL CTA ── */}
-          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 py-24 text-center">
-            <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-5" style={{ color: '#D4AF37' }}>Ready to Build Your Empire?</p>
+          <section style={{ background: isBold ? '#000' : 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 py-24 text-center">
+            <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-5" style={{ color: theme.gold }}>Ready to Build Your Empire?</p>
             <h2 className="font-black text-white text-5xl leading-tight tracking-tight mb-5 max-w-3xl mx-auto">
-              Ready To <span style={{ color: '#0000FF' }}>Change Your Life?</span>
+              Ready To <span style={{ color: theme.accent }}>Change Your Life?</span>
             </h2>
             <p className="text-white/50 text-base max-w-lg mx-auto mb-12 leading-relaxed">
               Stop working hard and staying stuck. Learn the mindset and strategies that actually build wealth.
             </p>
-            <span className="inline-flex items-center gap-2.5 text-white font-black text-[13px] tracking-[0.15em] uppercase px-12 py-5 rounded-xl" style={{ background: '#0000FF', boxShadow: '0 8px 32px rgba(0,0,255,0.35)' }}>
+            <span className="inline-flex items-center gap-2.5 text-white font-black text-[13px] tracking-[0.15em] uppercase px-12 py-5 rounded-xl" style={{ background: theme.accent, boxShadow: `0 8px 32px ${theme.accent}59` }}>
               {cta} — {fmtPrice(coursePrice)} <ArrowRight className="w-4 h-4" />
             </span>
             <p className="text-white/25 text-xs mt-4">Secure checkout · 256-bit SSL · 30-day money back guarantee</p>
           </section>
 
           {/* ── Footer ── */}
-          <footer className="bg-black px-5 py-8 text-center">
-            <p className="text-gray-600 text-xs">© 2026 Maxxed Out University · All rights reserved</p>
+          <footer className="px-5 py-8 text-center" style={{ background: theme.footerBg }}>
+            <p className="text-gray-600 text-xs">&copy; 2026 Maxxed Out University · All rights reserved</p>
           </footer>
 
         </div>
@@ -818,6 +849,7 @@ export default function FunnelEditorPage() {
   const [bulletsLabel, setBulletsLabel] = useState('Inside This Course');
   const [bulletsHeadline, setBulletsHeadline] = useState("What's Inside This Course:");
   const [bulletsSub, setBulletsSub] = useState('Everything you need to find, fund, and close profitable real estate deals.');
+  const [template, setTemplate] = useState('classic');
 
   // Measure preview container width for accurate scaling
   useEffect(() => {
@@ -865,6 +897,7 @@ export default function FunnelEditorPage() {
     setBulletsLabel(f.config?.bulletsLabel ?? 'Inside This Course');
     setBulletsHeadline(f.config?.bulletsHeadline ?? "What's Inside This Course:");
     setBulletsSub(f.config?.bulletsSub ?? 'Everything you need to find, fund, and close profitable real estate deals.');
+    setTemplate(f.config?.template ?? 'classic');
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -897,6 +930,7 @@ export default function FunnelEditorPage() {
           bulletsSub: bulletsSub || null,
           vslVideoUrl: vslVideoUrl || null,
           instructorImageUrl: instructorImageUrl || null,
+          template,
         }),
       });
       if (!res.ok) {
@@ -1036,6 +1070,42 @@ export default function FunnelEditorPage() {
       {/* ── TAB: Settings ── */}
       {activeTab === 'settings' && (
         <div className="space-y-6">
+          {/* Template Selector */}
+          <Card>
+            <CardContent className="p-0">
+              <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">Template</h2></div>
+              <div className="p-6">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'classic', name: 'Classic', desc: 'Light & clean', color: '#0000FF' },
+                    { id: 'dark', name: 'Dark Mode', desc: 'Sleek & modern', color: '#06b6d4' },
+                    { id: 'bold', name: 'Bold', desc: 'High-contrast', color: '#dc2626' },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTemplate(t.id)}
+                      className={`relative text-left rounded-xl border-2 p-4 transition-all ${
+                        template === t.id
+                          ? 'border-maxxed-blue bg-blue-50/50 shadow-sm'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="w-full h-1.5 rounded-full mb-3" style={{ background: t.color }} />
+                      <p className="font-bold text-sm text-gray-900">{t.name}</p>
+                      <p className="text-xs text-gray-500">{t.desc}</p>
+                      {template === t.id && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-maxxed-blue flex items-center justify-center">
+                          <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="p-0">
               <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">General</h2></div>
@@ -1571,6 +1641,7 @@ export default function FunnelEditorPage() {
                   bulletsSub={bulletsSub || 'Everything you need to find, fund, and close profitable real estate deals.'}
                   vslVideoUrl={vslVideoUrl}
                   instructorImageUrl={instructorImageUrl}
+                  template={template}
                 />
               )}
             </div>

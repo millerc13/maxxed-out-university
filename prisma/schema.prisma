@@ -319,6 +319,7 @@ model FunnelConfig {
   bulletsLabel          String?                            // e.g. "Inside This Course"
   bulletsHeadline       String?                            // e.g. "What's Inside This Course:"
   bulletsSub            String?                            // e.g. "Everything you need to find..."
+  template              String           @default("classic") // "classic" | "dark" | "bold"
   updatedAt             DateTime         @updatedAt
   deployment            FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }
