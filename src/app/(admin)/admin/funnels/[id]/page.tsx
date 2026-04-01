@@ -417,15 +417,42 @@ function FunnelPreview({
 
 // ── Mini Section Previews (for Content tab) ────────────────────────
 const MINI_RENDER_WIDTH = 1000;
-const MINI_SCALE = 0.55;
+
+// Wrapper that measures its own width and scales inner content to fill it
+function ScaledPreviewWrapper({ children, maxHeight }: { children: React.ReactNode; maxHeight: number }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) setContainerWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scale = containerWidth > 0 ? containerWidth / MINI_RENDER_WIDTH : 0;
+
+  return (
+    <div ref={containerRef} className="relative overflow-hidden w-full" style={{ height: `${maxHeight}px` }}>
+      {scale > 0 && (
+        <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+          <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+            {children}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { headline: string; subheadline: string; ctaText: string; coursePrice: number | null }) {
   const cta = ctaText || 'Enroll Now';
   const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
   return (
-    <div className="relative overflow-hidden w-full" style={{ height: `${360}px` }}>
-      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
-        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+    <ScaledPreviewWrapper maxHeight={420}>
           <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
             <div className="max-w-5xl mx-auto px-5 h-[50px] flex items-center justify-between">
               <span className="font-black text-[10px] tracking-[0.2em] uppercase text-gray-900">Maxxed Out University</span>
@@ -459,18 +486,14 @@ function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { head
             </span>
             <p className="text-white/30 text-xs mt-3 tracking-wide">One-time payment · Instant access · 30-day money back guarantee</p>
           </section>
-        </div>
-      </div>
-    </div>
+    </ScaledPreviewWrapper>
   );
 }
 
 function MiniPreviewBullets({ bullets, courseName }: { bullets: string[]; courseName: string }) {
   const activeBullets = bullets.filter(Boolean);
   return (
-    <div className="relative overflow-hidden w-full" style={{ height: `${400}px` }}>
-      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
-        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+    <ScaledPreviewWrapper maxHeight={450}>
           <section className="px-5 py-12" style={{ background: '#f4f6fa' }}>
             <div className="max-w-5xl mx-auto">
               <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Inside {courseName || 'This Course'}</p>
@@ -488,9 +511,7 @@ function MiniPreviewBullets({ bullets, courseName }: { bullets: string[]; course
               </ul>
             </div>
           </section>
-        </div>
-      </div>
-    </div>
+    </ScaledPreviewWrapper>
   );
 }
 
@@ -507,9 +528,7 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
     );
   }
   return (
-    <div className="relative overflow-hidden w-full" style={{ height: `${400}px` }}>
-      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
-        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+    <ScaledPreviewWrapper maxHeight={450}>
           <section className="bg-white px-5 py-14">
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-10">
@@ -539,9 +558,7 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
               </div>
             </div>
           </section>
-        </div>
-      </div>
-    </div>
+    </ScaledPreviewWrapper>
   );
 }
 
@@ -559,9 +576,7 @@ function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Cou
     );
   }
   return (
-    <div className="relative overflow-hidden w-full" style={{ height: '400px' }}>
-      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
-        <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
+    <ScaledPreviewWrapper maxHeight={450}>
           <section className="px-5 py-14" style={{ background: '#f4f6fa' }}>
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-10">
@@ -602,9 +617,7 @@ function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Cou
               </div>
             </div>
           </section>
-        </div>
-      </div>
-    </div>
+    </ScaledPreviewWrapper>
   );
 }
 
