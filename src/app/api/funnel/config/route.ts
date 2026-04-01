@@ -85,6 +85,9 @@ export async function GET(request: NextRequest) {
       featureCardsLabel: deployment.config?.featureCardsLabel ?? null,
       featureCardsHeadline: deployment.config?.featureCardsHeadline ?? null,
       featureCardsSub: deployment.config?.featureCardsSub ?? null,
+      bulletsLabel: deployment.config?.bulletsLabel ?? null,
+      bulletsHeadline: deployment.config?.bulletsHeadline ?? null,
+      bulletsSub: deployment.config?.bulletsSub ?? null,
     },
     promoEnabled,
   });

@@ -43,6 +43,9 @@ interface FunnelData {
     featureCardsLabel: string | null;
     featureCardsHeadline: string | null;
     featureCardsSub: string | null;
+    bulletsLabel: string | null;
+    bulletsHeadline: string | null;
+    bulletsSub: string | null;
   } | null;
 }
 
@@ -71,6 +74,7 @@ const DEFAULT_FOR_YOU_IF = [
 function FunnelPreview({
   headline, subheadline, ctaText, bullets, testimonials, courseName, coursePrice, courseThumbnail, containerWidth, featuredCourses,
   featureCards, forYouIf, coursesLabel, coursesHeadline, coursesSubheadline, featureCardsLabel, featureCardsHeadline, featureCardsSub,
+  bulletsLabel, bulletsHeadline, bulletsSub,
 }: {
   headline: string; subheadline: string; ctaText: string; bullets: string[];
   testimonials: Testimonial[]; courseName: string; coursePrice: number | null;
@@ -78,6 +82,7 @@ function FunnelPreview({
   featureCards: FeatureCard[]; forYouIf: string[];
   coursesLabel: string; coursesHeadline: string; coursesSubheadline: string;
   featureCardsLabel: string; featureCardsHeadline: string; featureCardsSub: string;
+  bulletsLabel: string; bulletsHeadline: string; bulletsSub: string;
 }) {
   const innerRef = useRef<HTMLDivElement>(null);
   const [scaledHeight, setScaledHeight] = useState<number>(0);
@@ -174,9 +179,9 @@ function FunnelPreview({
           <section className="px-5 py-16" style={{ background: '#f4f6fa' }}>
             <div className="max-w-6xl mx-auto grid" style={{ gridTemplateColumns: '1fr 360px', gap: '40px' }}>
               <div>
-                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Inside {courseName || 'This Course'}</p>
-                <h2 className="font-black text-gray-900 text-3xl mb-2">What&apos;s Inside This Course:</h2>
-                <p className="text-gray-500 mb-8">Everything you need to find, fund, and close profitable real estate deals.</p>
+                <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{bulletsLabel}</p>
+                <h2 className="font-black text-gray-900 text-3xl mb-2">{bulletsHeadline}</h2>
+                <p className="text-gray-500 mb-8">{bulletsSub}</p>
                 <ul className="space-y-3 mb-10">
                   {activeBullets.map((b, i) => (
                     <li key={i} className="flex items-start gap-3">
@@ -490,15 +495,15 @@ function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { head
   );
 }
 
-function MiniPreviewBullets({ bullets, courseName }: { bullets: string[]; courseName: string }) {
+function MiniPreviewBullets({ bullets, label, headline, sub }: { bullets: string[]; label: string; headline: string; sub: string }) {
   const activeBullets = bullets.filter(Boolean);
   return (
     <ScaledPreviewWrapper maxHeight={450}>
           <section className="px-5 py-12" style={{ background: '#f4f6fa' }}>
             <div className="max-w-5xl mx-auto">
-              <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Inside {courseName || 'This Course'}</p>
-              <h2 className="font-black text-gray-900 text-2xl mb-2">What&apos;s Inside This Course:</h2>
-              <p className="text-gray-500 text-sm mb-6">Everything you need to find, fund, and close profitable real estate deals.</p>
+              <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{label}</p>
+              <h2 className="font-black text-gray-900 text-2xl mb-2">{headline}</h2>
+              <p className="text-gray-500 text-sm mb-6">{sub}</p>
               <ul className="space-y-2.5">
                 {(activeBullets.length > 0 ? activeBullets : ['Add your first bullet point…']).map((b, i) => (
                   <li key={i} className="flex items-start gap-3">
@@ -562,7 +567,7 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
   );
 }
 
-function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Course[]; ctaText: string }) {
+function MiniPreviewCourses({ featuredCourses, ctaText, label, headline, sub }: { featuredCourses: Course[]; ctaText: string; label: string; headline: string; sub: string }) {
   const cta = ctaText || 'Enroll Now';
   const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
   if (featuredCourses.length === 0) {
@@ -570,7 +575,7 @@ function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Cou
       <div className="flex items-center justify-center py-12 text-gray-400">
         <div className="text-center">
           <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-          <p className="text-sm">Select featured courses in Settings tab</p>
+          <p className="text-sm">Select featured courses to see preview</p>
         </div>
       </div>
     );
@@ -580,9 +585,9 @@ function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Cou
           <section className="px-5 py-14" style={{ background: '#f4f6fa' }}>
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-10">
-                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>The Curriculum</p>
-                <h2 className="font-black text-gray-900 text-2xl">Courses Included</h2>
-                <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm">Everything you need to go from zero to cash-flowing — in one place.</p>
+                <p className="font-bold text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>{label}</p>
+                <h2 className="font-black text-gray-900 text-2xl">{headline}</h2>
+                <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm">{sub}</p>
               </div>
               <div className={`grid gap-4 ${
                 featuredCourses.length === 1 ? 'max-w-xs mx-auto' :
@@ -634,7 +639,7 @@ function MiniPreviewFeatureCards({ featureCards, label, headline, sub }: { featu
     );
   }
   return (
-    <ScaledPreviewWrapper maxHeight={500}>
+    <ScaledPreviewWrapper maxHeight={700}>
           <section className="bg-white px-5 py-14">
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-10">
@@ -693,6 +698,9 @@ export default function FunnelEditorPage() {
   const [featureCardsLabel, setFeatureCardsLabel] = useState('Inside This Course');
   const [featureCardsHeadline, setFeatureCardsHeadline] = useState("What You'll Learn");
   const [featureCardsSub, setFeatureCardsSub] = useState('No hype. No fluff. No motivational nonsense. Just real strategies that work.');
+  const [bulletsLabel, setBulletsLabel] = useState('Inside This Course');
+  const [bulletsHeadline, setBulletsHeadline] = useState("What's Inside This Course:");
+  const [bulletsSub, setBulletsSub] = useState('Everything you need to find, fund, and close profitable real estate deals.');
 
   // Measure preview container width for accurate scaling
   useEffect(() => {
@@ -734,6 +742,9 @@ export default function FunnelEditorPage() {
     setFeatureCardsLabel(f.config?.featureCardsLabel ?? 'Inside This Course');
     setFeatureCardsHeadline(f.config?.featureCardsHeadline ?? "What You'll Learn");
     setFeatureCardsSub(f.config?.featureCardsSub ?? 'No hype. No fluff. No motivational nonsense. Just real strategies that work.');
+    setBulletsLabel(f.config?.bulletsLabel ?? 'Inside This Course');
+    setBulletsHeadline(f.config?.bulletsHeadline ?? "What's Inside This Course:");
+    setBulletsSub(f.config?.bulletsSub ?? 'Everything you need to find, fund, and close profitable real estate deals.');
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -761,6 +772,9 @@ export default function FunnelEditorPage() {
           featureCardsLabel: featureCardsLabel || null,
           featureCardsHeadline: featureCardsHeadline || null,
           featureCardsSub: featureCardsSub || null,
+          bulletsLabel: bulletsLabel || null,
+          bulletsHeadline: bulletsHeadline || null,
+          bulletsSub: bulletsSub || null,
         }),
       });
       if (!res.ok) {
@@ -1038,20 +1052,42 @@ export default function FunnelEditorPage() {
           <div className="grid grid-cols-2 gap-6 items-start">
             <Card>
               <CardContent className="p-0">
-                <div className="px-6 py-4 border-b flex items-center justify-between">
+                <div className="px-6 py-4 border-b">
                   <h2 className="font-bold text-gray-900">What You&apos;ll Learn</h2>
-                  <button onClick={addBullet} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
-                    <Plus className="w-3.5 h-3.5" /> Add
-                  </button>
+                  <p className="text-sm text-gray-500 mt-0.5">The bullet points section with enrollment card on the funnel page.</p>
                 </div>
-                <div className="p-6 space-y-2">
-                  {bullets.map((b, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400 flex-shrink-0 font-medium">{i + 1}</div>
-                      <input value={b} onChange={(e) => updateBullet(i, e.target.value)} placeholder={`Benefit ${i + 1}`} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                      <button onClick={() => removeBullet(i)} className="p-1.5 text-gray-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                <div className="p-6 space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Label</label>
+                      <input value={bulletsLabel} onChange={(e) => setBulletsLabel(e.target.value)} placeholder="Inside This Course" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
                     </div>
-                  ))}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Headline</label>
+                      <input value={bulletsHeadline} onChange={(e) => setBulletsHeadline(e.target.value)} placeholder="What's Inside This Course:" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Subtext</label>
+                      <input value={bulletsSub} onChange={(e) => setBulletsSub(e.target.value)} placeholder="Everything you need to find, fund, and close..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                    </div>
+                  </div>
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium text-gray-700">Bullet Points</p>
+                      <button onClick={addBullet} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-maxxed-blue hover:bg-blue-50 rounded-lg transition-colors font-medium">
+                        <Plus className="w-3.5 h-3.5" /> Add
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {bullets.map((b, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400 flex-shrink-0 font-medium">{i + 1}</div>
+                          <input value={b} onChange={(e) => updateBullet(i, e.target.value)} placeholder={`Benefit ${i + 1}`} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                          <button onClick={() => removeBullet(i)} className="p-1.5 text-gray-300 hover:text-red-400 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1062,7 +1098,7 @@ export default function FunnelEditorPage() {
                 <span className="text-[10px] text-gray-400 ml-2">What You&apos;ll Learn Section</span>
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
-                <MiniPreviewBullets bullets={bullets} courseName={selectedCourse?.title ?? funnel.course?.title ?? ''} />
+                <MiniPreviewBullets bullets={bullets} label={bulletsLabel || 'Inside This Course'} headline={bulletsHeadline || "What's Inside This Course:"} sub={bulletsSub || 'Everything you need to find, fund, and close profitable real estate deals.'} />
               </div>
             </div>
           </div>
@@ -1116,7 +1152,7 @@ export default function FunnelEditorPage() {
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
                 <span className="text-[10px] text-gray-400 ml-2">Feature Cards Section</span>
               </div>
-              <div className="overflow-hidden" style={{ maxHeight: '500px' }}>
+              <div className="overflow-hidden" style={{ maxHeight: '700px' }}>
                 <MiniPreviewFeatureCards featureCards={featureCards} label={featureCardsLabel || 'Inside This Course'} headline={featureCardsHeadline || "What You'll Learn"} sub={featureCardsSub || 'No hype. No fluff. No motivational nonsense. Just real strategies that work.'} />
               </div>
             </div>
@@ -1203,70 +1239,62 @@ export default function FunnelEditorPage() {
             </div>
           </div>
 
-          {/* ── Courses Included Section Headers ── */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-6 py-4 border-b">
-                <h2 className="font-bold text-gray-900">Courses Included Section</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Header text for the featured courses grid on the funnel page.</p>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Section Label</label>
-                    <input value={coursesLabel} onChange={(e) => setCoursesLabel(e.target.value)} placeholder="The Curriculum" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Section Headline</label>
-                    <input value={coursesHeadline} onChange={(e) => setCoursesHeadline(e.target.value)} placeholder="Courses Included" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Section Subtext</label>
-                    <input value={coursesSubheadline} onChange={(e) => setCoursesSubheadline(e.target.value)} placeholder="Everything you need..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Featured Courses + Courses Preview ── */}
+          {/* ── Courses Included + Preview ── */}
           <div className="grid grid-cols-2 gap-6 items-start">
             <Card>
               <CardContent className="p-0">
                 <div className="px-6 py-4 border-b">
-                  <h2 className="font-bold text-gray-900">Featured Courses</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">Select courses to display in the Settings tab. Each will show an &ldquo;Enroll Now&rdquo; button on the funnel.</p>
+                  <h2 className="font-bold text-gray-900">Courses Included Section</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Featured courses grid on the funnel page.</p>
                 </div>
-                <div className="p-6">
-                  {resolvedFeaturedCourses.length === 0 ? (
-                    <div className="text-center py-6 text-gray-400">
-                      <BookOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                      <p className="text-sm">No featured courses selected</p>
-                      <p className="text-xs mt-1">Go to the Settings tab to select courses</p>
+                <div className="p-6 space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Label</label>
+                      <input value={coursesLabel} onChange={(e) => setCoursesLabel(e.target.value)} placeholder="The Curriculum" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {resolvedFeaturedCourses.map((c) => (
-                        <div key={c.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200">
-                            {c.thumbnail ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={c.thumbnail} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
-                                <BookOpen className="w-4 h-4 text-white/30" />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Headline</label>
+                      <input value={coursesHeadline} onChange={(e) => setCoursesHeadline(e.target.value)} placeholder="Courses Included" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Section Subtext</label>
+                      <input value={coursesSubheadline} onChange={(e) => setCoursesSubheadline(e.target.value)} placeholder="Everything you need..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
+                    </div>
+                  </div>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium text-gray-700 mb-3">Featured Courses</p>
+                    {courses.length === 0 ? (
+                      <p className="text-sm text-gray-400 italic">No published courses yet.</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                        {courses.map((c) => {
+                          const selected = featuredCourseIds.has(c.id);
+                          return (
+                            <button key={c.id} type="button"
+                              onClick={() => { setFeaturedCourseIds((prev) => { const next = new Set(prev); if (next.has(c.id)) next.delete(c.id); else next.add(c.id); return next; }); }}
+                              className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-all ${selected ? 'bg-blue-50/60 ring-1 ring-maxxed-blue/20' : 'hover:bg-gray-50'}`}>
+                              <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                                {c.thumbnail ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={c.thumbnail} alt={c.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
+                                    <BookOpen className="w-3.5 h-3.5 text-white/30" />
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-gray-900 text-sm truncate">{c.title}</p>
-                            <p className="text-xs text-gray-400">{c.price ? `$${(c.price / 100).toFixed(0)}` : 'Free'}</p>
-                          </div>
-                          <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium truncate ${selected ? 'text-maxxed-blue' : 'text-gray-900'}`}>{c.title}</p>
+                                <p className="text-xs text-gray-400">{formatPrice(c.price)}</p>
+                              </div>
+                              {selected && <div className="w-5 h-5 rounded-full bg-maxxed-blue flex items-center justify-center flex-shrink-0"><Check className="w-3 h-3 text-white" /></div>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1276,8 +1304,8 @@ export default function FunnelEditorPage() {
                 <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
                 <span className="text-[10px] text-gray-400 ml-2">Courses Included Section</span>
               </div>
-              <div className="overflow-hidden" style={{ maxHeight: '400px' }}>
-                <MiniPreviewCourses featuredCourses={resolvedFeaturedCourses} ctaText={ctaText} />
+              <div className="overflow-hidden" style={{ maxHeight: '450px' }}>
+                <MiniPreviewCourses featuredCourses={resolvedFeaturedCourses} ctaText={ctaText} label={coursesLabel || 'The Curriculum'} headline={coursesHeadline || 'Courses Included'} sub={coursesSubheadline || 'Everything you need to go from zero to cash-flowing — in one place.'} />
               </div>
             </div>
           </div>
@@ -1322,6 +1350,9 @@ export default function FunnelEditorPage() {
                   featureCardsLabel={featureCardsLabel || 'Inside This Course'}
                   featureCardsHeadline={featureCardsHeadline || "What You'll Learn"}
                   featureCardsSub={featureCardsSub || 'No hype. No fluff. No motivational nonsense. Just real strategies that work.'}
+                  bulletsLabel={bulletsLabel || 'Inside This Course'}
+                  bulletsHeadline={bulletsHeadline || "What's Inside This Course:"}
+                  bulletsSub={bulletsSub || 'Everything you need to find, fund, and close profitable real estate deals.'}
                 />
               )}
             </div>
