@@ -423,8 +423,8 @@ function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { head
   const cta = ctaText || 'Enroll Now';
   const fmtPrice = (cents: number | null) => cents === null ? '—' : `$${(cents / 100).toFixed(0)}`;
   return (
-    <div className="overflow-hidden" style={{ height: `${360}px` }}>
-      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+    <div className="relative overflow-hidden w-full" style={{ height: `${360}px` }}>
+      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <header className="bg-white shadow-sm" style={{ borderTop: '3px solid #0000FF' }}>
             <div className="max-w-5xl mx-auto px-5 h-[50px] flex items-center justify-between">
@@ -468,8 +468,8 @@ function MiniPreviewHero({ headline, subheadline, ctaText, coursePrice }: { head
 function MiniPreviewBullets({ bullets, courseName }: { bullets: string[]; courseName: string }) {
   const activeBullets = bullets.filter(Boolean);
   return (
-    <div className="overflow-hidden" style={{ height: `${400}px` }}>
-      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+    <div className="relative overflow-hidden w-full" style={{ height: `${400}px` }}>
+      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <section className="px-5 py-12" style={{ background: '#f4f6fa' }}>
             <div className="max-w-5xl mx-auto">
@@ -507,8 +507,8 @@ function MiniPreviewTestimonials({ testimonials }: { testimonials: Testimonial[]
     );
   }
   return (
-    <div className="overflow-hidden" style={{ height: `${400}px` }}>
-      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+    <div className="relative overflow-hidden w-full" style={{ height: `${400}px` }}>
+      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <section className="bg-white px-5 py-14">
             <div className="max-w-5xl mx-auto">
@@ -559,8 +559,8 @@ function MiniPreviewCourses({ featuredCourses, ctaText }: { featuredCourses: Cou
     );
   }
   return (
-    <div className="overflow-hidden" style={{ height: '400px' }}>
-      <div className="origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
+    <div className="relative overflow-hidden w-full" style={{ height: '400px' }}>
+      <div className="absolute top-0 left-0 origin-top-left select-none pointer-events-none" style={{ width: `${MINI_RENDER_WIDTH}px`, transform: `scale(${MINI_SCALE})`, transformOrigin: 'top left' }}>
         <div className="font-sans" style={{ width: `${MINI_RENDER_WIDTH}px` }}>
           <section className="px-5 py-14" style={{ background: '#f4f6fa' }}>
             <div className="max-w-5xl mx-auto">
