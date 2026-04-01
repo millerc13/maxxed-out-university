@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen, Globe } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface Course {
@@ -25,6 +25,7 @@ interface FunnelData {
   name: string;
   url: string;
   apiKey: string;
+  subdomain: string | null;
   active: boolean;
   courseId: string | null;
   course: Course | null;
@@ -795,6 +796,9 @@ export default function FunnelEditorPage() {
   // Form state
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
+  const [subdomain, setSubdomain] = useState('');
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionResult, setProvisionResult] = useState<{ success?: boolean; error?: string; domain?: string } | null>(null);
   const [courseId, setCourseId] = useState('');
   const [featuredCourseIds, setFeaturedCourseIds] = useState<Set<string>>(new Set());
   const [active, setActive] = useState(true);
@@ -841,6 +845,7 @@ export default function FunnelEditorPage() {
 
     setName(f.name ?? '');
     setUrl(f.url ?? '');
+    setSubdomain(f.subdomain ?? '');
     setCourseId(f.courseId ?? '');
     setFeaturedCourseIds(new Set((f.featuredCourses ?? []).map((c: Course) => c.id)));
     setActive(f.active ?? true);
@@ -874,7 +879,7 @@ export default function FunnelEditorPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, url, courseId: courseId || null, active,
+          name, url, courseId: courseId || null, active, subdomain: subdomain || null,
           featuredCourseIds: Array.from(featuredCourseIds),
           headline: headline || null,
           subheadline: subheadline || null,
@@ -921,6 +926,33 @@ export default function FunnelEditorPage() {
     await navigator.clipboard.writeText(funnel.apiKey);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
+  }
+
+  async function provisionDomain() {
+    if (!subdomain) return;
+    setProvisioning(true);
+    setProvisionResult(null);
+    try {
+      // Save subdomain first
+      await fetch(`/api/admin/funnels/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subdomain: subdomain.toLowerCase().trim() }),
+      });
+      // Then provision DNS + Vercel
+      const res = await fetch(`/api/admin/funnels/${id}/provision-domain`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setProvisionResult({ success: true, domain: data.domain });
+        load(); // refresh to pick up new URL
+      } else {
+        setProvisionResult({ error: data.error || 'Provisioning failed' });
+      }
+    } catch (err) {
+      setProvisionResult({ error: err instanceof Error ? err.message : 'Provisioning failed' });
+    } finally {
+      setProvisioning(false);
+    }
   }
 
   function addBullet() { setBullets([...bullets, '']); }
@@ -1062,6 +1094,64 @@ export default function FunnelEditorPage() {
                     </label>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-0">
+              <div className="px-6 py-4 border-b">
+                <h2 className="font-bold text-gray-900">Custom Domain</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Provision a subdomain at <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">*.join.maxxedout.com</code></p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subdomain</label>
+                  <div className="flex items-center gap-0">
+                    <input
+                      value={subdomain}
+                      onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                      placeholder="reeb"
+                      className="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono"
+                    />
+                    <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500 font-mono whitespace-nowrap">
+                      .join.maxxedout.com
+                    </span>
+                  </div>
+                  {subdomain && (
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Will be live at <span className="font-mono font-medium text-gray-600">https://{subdomain}.join.maxxedout.com</span>
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={provisionDomain}
+                  disabled={provisioning || !subdomain || subdomain.length < 3}
+                  className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors"
+                >
+                  {provisioning ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin" /> Provisioning…</>
+                  ) : (
+                    <><Globe className="w-4 h-4" /> Provision Domain</>
+                  )}
+                </button>
+                {provisionResult?.success && (
+                  <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Domain provisioned</p>
+                      <p className="text-xs text-green-600 mt-0.5">
+                        <span className="font-mono">{provisionResult.domain}</span> — DNS may take a few minutes to propagate.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {provisionResult?.error && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <span className="text-red-500 font-bold text-sm mt-0.5 flex-shrink-0">!</span>
+                    <p className="text-sm text-red-700">{provisionResult.error}</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

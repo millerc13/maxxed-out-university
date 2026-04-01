@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // Public endpoint — called server-side by funnel deployments on each render.
-// Auth is via the funnel's API key (generated in the admin panel).
+// Auth is via the funnel's API key OR subdomain lookup.
 export async function GET(request: NextRequest) {
   const apiKey =
     request.headers.get('x-funnel-api-key') ??
     request.nextUrl.searchParams.get('apiKey');
+  const subdomain = request.nextUrl.searchParams.get('subdomain');
 
-  if (!apiKey) {
-    return NextResponse.json({ error: 'Missing API key' }, { status: 401 });
+  if (!apiKey && !subdomain) {
+    return NextResponse.json({ error: 'Missing API key or subdomain' }, { status: 401 });
   }
 
-  const deployment = await prisma.funnelDeployment.findUnique({
-    where: { apiKey },
+  const deployment = await prisma.funnelDeployment.findFirst({
+    where: apiKey ? { apiKey } : { subdomain },
     include: {
       config: true,
       course: {

@@ -48,6 +48,7 @@ export async function PUT(
     featureCardsLabel, featureCardsHeadline, featureCardsSub,
     bulletsLabel, bulletsHeadline, bulletsSub,
     vslVideoUrl, instructorImageUrl,
+    subdomain,
   } = body;
 
   // Build config create/update objects dynamically
@@ -90,6 +91,7 @@ export async function PUT(
       ...(name !== undefined && { name }),
       ...(url !== undefined && { url }),
       ...(courseId !== undefined && { courseId: courseId || null }),
+      ...(subdomain !== undefined && { subdomain: subdomain || null }),
       ...(active !== undefined && { active }),
       ...(featuredCourseIds !== undefined && {
         featuredCourses: {
