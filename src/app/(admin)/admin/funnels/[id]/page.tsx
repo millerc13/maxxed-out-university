@@ -685,6 +685,66 @@ function MiniPreviewFeatureCards({ featureCards, label, headline, sub }: { featu
   );
 }
 
+function MiniPreviewVSL({ vslVideoUrl }: { vslVideoUrl: string }) {
+  return (
+    <ScaledPreviewWrapper maxHeight={320}>
+          <section style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }} className="px-5 py-10 text-center">
+            <div className="max-w-[700px] mx-auto rounded-2xl overflow-hidden" style={{ border: '2px solid rgba(255,255,255,0.1)' }}>
+              {vslVideoUrl ? (
+                <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                  <iframe src={vslVideoUrl} className="absolute inset-0 w-full h-full" allow="autoplay; fullscreen" allowFullScreen />
+                </div>
+              ) : (
+                <div className="relative w-full" style={{ paddingBottom: '56.25%', background: '#0a1628' }}>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(0,0,255,0.9)' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
+                    </div>
+                    <p className="text-white/40 text-xs font-semibold">Paste a video embed URL</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+    </ScaledPreviewWrapper>
+  );
+}
+
+function MiniPreviewInstructor({ instructorImageUrl }: { instructorImageUrl: string }) {
+  return (
+    <ScaledPreviewWrapper maxHeight={350}>
+          <section className="px-5 py-10" style={{ background: '#f4f6fa' }}>
+            <div className="max-w-5xl mx-auto grid grid-cols-2 gap-8 items-center">
+              <div className="rounded-2xl overflow-hidden aspect-[4/5] max-w-[320px]" style={{ background: 'linear-gradient(160deg, #0f2040 0%, #0c1829 100%)' }}>
+                {instructorImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={instructorImageUrl} alt="Instructor" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.15)' }}>
+                        <span className="text-2xl font-black" style={{ color: '#D4AF37' }}>TP</span>
+                      </div>
+                      <p className="text-white/50 text-xs">Paste an image URL</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="font-bold text-[8px] tracking-[0.2em] uppercase mb-2" style={{ color: '#0000FF' }}>Your Instructor</p>
+                <h2 className="font-black text-gray-900 text-2xl mb-3 leading-tight">
+                  Meet <span style={{ color: '#0000FF' }}>Todd Pultz</span>
+                </h2>
+                <p className="text-gray-500 text-xs leading-relaxed">
+                  Todd Pultz is a nine-figure entrepreneur who built his empire from nothing.
+                </p>
+              </div>
+            </div>
+          </section>
+    </ScaledPreviewWrapper>
+  );
+}
+
 function MiniPreviewForYouIf({ forYouIf }: { forYouIf: string[] }) {
   const activeItems = forYouIf.filter(Boolean);
   if (activeItems.length === 0) {
@@ -1099,18 +1159,6 @@ export default function FunnelEditorPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">CTA Button Text</label>
                     <input value={ctaText} onChange={(e) => setCtaText(e.target.value)} placeholder="Enroll Now" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue" />
                   </div>
-                  <div className="border-t pt-4 space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">VSL Video URL</label>
-                      <input value={vslVideoUrl} onChange={(e) => setVslVideoUrl(e.target.value)} placeholder="https://www.youtube.com/embed/... or Vimeo/Wistia embed URL" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono text-xs" />
-                      <p className="text-xs text-gray-400 mt-1">Paste an embed URL (YouTube, Vimeo, Wistia, etc.)</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Instructor Photo URL</label>
-                      <input value={instructorImageUrl} onChange={(e) => setInstructorImageUrl(e.target.value)} placeholder="https://example.com/photo.jpg" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono text-xs" />
-                      <p className="text-xs text-gray-400 mt-1">Used in the &ldquo;Meet Todd&rdquo; section</p>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1122,6 +1170,62 @@ export default function FunnelEditorPage() {
               </div>
               <div className="overflow-hidden" style={{ maxHeight: '360px' }}>
                 <MiniPreviewHero headline={headline} subheadline={subheadline} ctaText={ctaText} coursePrice={selectedCourse?.price ?? funnel.course?.price ?? null} vslVideoUrl={vslVideoUrl} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── VSL Video + Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b">
+                  <h2 className="font-bold text-gray-900">VSL Video</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">The main video in the hero section of the funnel.</p>
+                </div>
+                <div className="p-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Video Embed URL</label>
+                    <input value={vslVideoUrl} onChange={(e) => setVslVideoUrl(e.target.value)} placeholder="https://www.youtube.com/embed/... or Vimeo/Wistia embed URL" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono text-xs" />
+                    <p className="text-xs text-gray-400 mt-1">Paste an embed URL (YouTube, Vimeo, Wistia, etc.)</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">Hero Video</span>
+              </div>
+              <div className="overflow-hidden" style={{ maxHeight: '320px' }}>
+                <MiniPreviewVSL vslVideoUrl={vslVideoUrl} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Instructor Photo + Preview ── */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+            <Card>
+              <CardContent className="p-0">
+                <div className="px-6 py-4 border-b">
+                  <h2 className="font-bold text-gray-900">Instructor Photo</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Shown in the &ldquo;Meet Todd&rdquo; section of the funnel.</p>
+                </div>
+                <div className="p-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                    <input value={instructorImageUrl} onChange={(e) => setInstructorImageUrl(e.target.value)} placeholder="https://example.com/photo.jpg" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono text-xs" />
+                    <p className="text-xs text-gray-400 mt-1">Direct link to an image (JPG, PNG, WebP)</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="rounded-xl overflow-hidden ring-1 ring-gray-800/20 shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border-b border-gray-700">
+                <div className="flex gap-1"><div className="w-2 h-2 rounded-full bg-[#ff5f57]" /><div className="w-2 h-2 rounded-full bg-[#febc2e]" /><div className="w-2 h-2 rounded-full bg-[#28c840]" /></div>
+                <span className="text-[10px] text-gray-400 ml-2 font-medium">Meet the Instructor</span>
+              </div>
+              <div className="overflow-hidden" style={{ maxHeight: '350px' }}>
+                <MiniPreviewInstructor instructorImageUrl={instructorImageUrl} />
               </div>
             </div>
           </div>
