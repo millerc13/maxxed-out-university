@@ -6,11 +6,12 @@ import Image from 'next/image';
 import { CheckoutClient } from '@/components/checkout/CheckoutClient';
 import { stripePublishableKey } from '@/lib/stripe';
 
-async function getDefaultProvider() {
-  const provider = await prisma.paymentProvider.findFirst({
-    where: { isDefault: true, enabled: true },
+async function getEnabledProviders() {
+  const providers = await prisma.paymentProvider.findMany({
+    where: { enabled: true },
+    select: { provider: true },
   });
-  return provider?.provider ?? 'stripe';
+  return providers.map(p => p.provider);
 }
 
 interface CheckoutPageProps {
@@ -49,7 +50,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     }
   }
 
-  const defaultProvider = await getDefaultProvider();
+  const enabledProviders = await getEnabledProviders();
 
   return (
     <div style={{ background: '#f4f6fa', minHeight: '100vh' }}>
@@ -84,7 +85,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           prefillEmail={session?.user?.email ?? null}
           prefillName={session?.user?.name ?? null}
           isAuthenticated={!!session?.user?.id}
-          defaultProvider={defaultProvider}
+          enabledProviders={enabledProviders}
         />
       </main>
     </div>

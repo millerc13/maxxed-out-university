@@ -25,7 +25,7 @@ interface CheckoutClientProps {
   prefillEmail: string | null;
   prefillName: string | null;
   isAuthenticated: boolean;
-  defaultProvider?: string;
+  enabledProviders?: string[];
 }
 
 function formatPrice(cents: number) {
@@ -77,7 +77,7 @@ function ContactFields({
   );
 }
 
-// ── Payment Form ──────────────────────────────────────────────────────────────
+// ── Stripe Payment Form ─────────────────────────────────────────────────────
 function PaymentForm({
   course,
   contact,
@@ -96,7 +96,6 @@ function PaymentForm({
     e.preventDefault();
     if (!stripe || !elements) return;
 
-    // Validate contact fields for guests
     if (!isAuthenticated) {
       if (!contact.firstName || !contact.lastName || !contact.email) {
         setError('Please fill in your name and email above.');
@@ -183,12 +182,18 @@ export function CheckoutClient({
   prefillEmail,
   prefillName,
   isAuthenticated,
-  defaultProvider = 'stripe',
+  enabledProviders = ['stripe'],
 }: CheckoutClientProps) {
+  const showStripe = enabledProviders.includes('stripe');
+  const showFanbasis = enabledProviders.includes('fanbasis');
+
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
   const [intentCreated, setIntentCreated] = useState(false);
+
+  const [fanbasisLoading, setFanbasisLoading] = useState(false);
+  const [fanbasisError, setFanbasisError] = useState<string | null>(null);
 
   const [contact, setContact] = useState<ContactInfo>({
     firstName: prefillName?.split(' ')[0] ?? '',
@@ -199,15 +204,11 @@ export function CheckoutClient({
 
   const stripePromise = useMemo(() => loadStripe(publishableKey), [publishableKey]);
 
-  const isFanbasis = defaultProvider === 'fanbasis';
-
-  // For authenticated users, create intent immediately (Stripe only)
-  // For guests, create intent when they click "Continue to Payment"
-  const [showPayment, setShowPayment] = useState(isAuthenticated && !isFanbasis);
+  const [showPayment, setShowPayment] = useState(isAuthenticated);
 
   async function createIntent() {
-    setLoading(true);
-    setInitError(null);
+    setStripeLoading(true);
+    setStripeError(null);
     try {
       const res = await fetch('/api/checkout/create-intent', {
         method: 'POST',
@@ -226,15 +227,19 @@ export function CheckoutClient({
       setClientSecret(data.clientSecret);
       setIntentCreated(true);
     } catch (err: any) {
-      setInitError(err.message);
+      setStripeError(err.message);
     } finally {
-      setLoading(false);
+      setStripeLoading(false);
     }
   }
 
   async function handleFanbasisCheckout() {
-    setLoading(true);
-    setInitError(null);
+    if (!isAuthenticated && (!contact.firstName || !contact.lastName || !contact.email)) {
+      setFanbasisError('Please fill in your name and email above.');
+      return;
+    }
+    setFanbasisLoading(true);
+    setFanbasisError(null);
     try {
       const res = await fetch('/api/checkout/fanbasis', {
         method: 'POST',
@@ -250,28 +255,23 @@ export function CheckoutClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to initialize checkout');
-      // Redirect to Fanbasis payment page
       window.location.href = data.paymentLink;
     } catch (err: any) {
-      setInitError(err.message);
-      setLoading(false);
+      setFanbasisError(err.message);
+      setFanbasisLoading(false);
     }
   }
 
   useEffect(() => {
-    if (isAuthenticated && !isFanbasis) {
+    if (isAuthenticated && showStripe) {
       createIntent();
     }
-  }, [isAuthenticated, isFanbasis]);
+  }, [isAuthenticated, showStripe]);
 
   function handleContinue() {
     if (!contact.firstName || !contact.lastName || !contact.email) return;
-    if (isFanbasis) {
-      handleFanbasisCheckout();
-      return;
-    }
     setShowPayment(true);
-    createIntent();
+    if (showStripe) createIntent();
   }
 
   const included = [
@@ -356,51 +356,8 @@ export function CheckoutClient({
           />
         )}
 
-        {/* Fanbasis: single checkout button */}
-        {isFanbasis && (
-          <>
-            {!isAuthenticated && !loading && (
-              <button
-                onClick={handleContinue}
-                disabled={!contact.firstName || !contact.lastName || !contact.email || loading}
-                style={{ background: '#1d4ed8' }}
-                className="w-full py-4 text-white font-extrabold text-sm uppercase tracking-[0.15em] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all mb-4"
-              >
-                Continue to Payment →
-              </button>
-            )}
-            {isAuthenticated && !loading && (
-              <button
-                onClick={handleFanbasisCheckout}
-                disabled={loading}
-                style={{ background: '#1d4ed8' }}
-                className="w-full py-4 text-white font-extrabold text-sm uppercase tracking-[0.15em] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all mb-4"
-              >
-                {`Enroll Now — ${formatPrice(course.price)}`}
-              </button>
-            )}
-            {loading && (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '14px' }}>
-                Redirecting to payment…
-              </div>
-            )}
-            {initError && (
-              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
-                {initError}
-              </div>
-            )}
-            <div className="flex items-center justify-center gap-2 text-[11px]" style={{ color: '#9ca3af' }}>
-              <Lock className="w-3 h-3" />
-              <span>Secure payment · Powered by Fanbasis</span>
-            </div>
-          </>
-        )}
-
-        {/* Stripe flow */}
-        {!isFanbasis && (
-          <>
-        {/* Guest: show Continue button before payment */}
-        {!isAuthenticated && !showPayment && (
+        {/* Guest: show Continue button before payment (Stripe needs intent created first) */}
+        {!isAuthenticated && !showPayment && showStripe && (
           <button
             onClick={handleContinue}
             disabled={!contact.firstName || !contact.lastName || !contact.email}
@@ -411,46 +368,90 @@ export function CheckoutClient({
           </button>
         )}
 
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '14px' }}>
-            Initializing secure checkout…
-          </div>
+        {/* ── Stripe Section ── */}
+        {showStripe && showPayment && (
+          <>
+            {stripeLoading && (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '14px' }}>
+                Initializing secure checkout…
+              </div>
+            )}
+
+            {stripeError && (
+              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
+                {stripeError}
+              </div>
+            )}
+
+            {clientSecret && (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret,
+                  appearance: {
+                    theme: 'stripe',
+                    variables: {
+                      colorPrimary: '#0c1829',
+                      colorText: '#0c1829',
+                      colorTextSecondary: '#6b7280',
+                      borderRadius: '8px',
+                      fontFamily: 'Montserrat, sans-serif',
+                      fontSizeBase: '14px',
+                      spacingUnit: '5px',
+                    },
+                    rules: {
+                      '.Input': { border: '1.5px solid #e5e7eb' },
+                      '.Input:focus': { border: '1.5px solid #0c1829', boxShadow: '0 0 0 3px rgba(12,24,41,0.06)' },
+                      '.Tab--selected': { border: '1.5px solid #0c1829', boxShadow: '0 0 0 2px rgba(12,24,41,0.06)' },
+                      '.Label': { fontWeight: '600', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7280' },
+                    },
+                  },
+                }}
+              >
+                <PaymentForm course={course} contact={contact} isAuthenticated={isAuthenticated} />
+              </Elements>
+            )}
+          </>
         )}
 
-        {initError && (
-          <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-            {initError}
-          </div>
-        )}
+        {/* ── Fanbasis Section ── */}
+        {showFanbasis && (
+          <>
+            {/* Divider between Stripe and Fanbasis */}
+            {showStripe && showPayment && (
+              <div className="flex items-center gap-4 my-6">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">or</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+            )}
 
-        {clientSecret && showPayment && (
-          <Elements
-            stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: 'stripe',
-                variables: {
-                  colorPrimary: '#0c1829',
-                  colorText: '#0c1829',
-                  colorTextSecondary: '#6b7280',
-                  borderRadius: '8px',
-                  fontFamily: 'Montserrat, sans-serif',
-                  fontSizeBase: '14px',
-                  spacingUnit: '5px',
-                },
-                rules: {
-                  '.Input': { border: '1.5px solid #e5e7eb' },
-                  '.Input:focus': { border: '1.5px solid #0c1829', boxShadow: '0 0 0 3px rgba(12,24,41,0.06)' },
-                  '.Tab--selected': { border: '1.5px solid #0c1829', boxShadow: '0 0 0 2px rgba(12,24,41,0.06)' },
-                  '.Label': { fontWeight: '600', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7280' },
-                },
-              },
-            }}
-          >
-            <PaymentForm course={course} contact={contact} isAuthenticated={isAuthenticated} />
-          </Elements>
-        )}
+            <button
+              onClick={handleFanbasisCheckout}
+              disabled={fanbasisLoading || (!isAuthenticated && (!contact.firstName || !contact.lastName || !contact.email))}
+              className="w-full py-4 rounded-lg font-extrabold text-sm uppercase tracking-[0.15em] transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              style={{ background: '#FF3860', color: '#ffffff' }}
+            >
+              {fanbasisLoading ? (
+                'Redirecting…'
+              ) : (
+                <>
+                  <img src="/images/new-fanbasis-white.png" alt="Fanbasis" className="h-5 w-auto" />
+                  Pay with Fanbasis
+                </>
+              )}
+            </button>
+
+            {fanbasisError && (
+              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3 mt-3">
+                {fanbasisError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-center gap-2 text-[11px] mt-3" style={{ color: '#9ca3af' }}>
+              <Lock className="w-3 h-3" />
+              <span>You&apos;ll be redirected to Fanbasis to complete payment</span>
+            </div>
           </>
         )}
       </div>
