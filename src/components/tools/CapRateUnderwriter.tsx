@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useCallback, forwardRef, useImperativeHandle, type ChangeEvent } from 'react';
-import type { CalculatorHandle } from '@/components/tools/ToolWrapper';
+import Image from 'next/image';
+import type { ToolHandle, ExportPayload } from '@/components/tools/ExportableToolShell';
 import { pmt, formatCurrency, formatCurrencyDetailed, formatPercent } from '@/lib/calc-utils';
 
 /* ------------------------------------------------------------------ */
@@ -411,7 +412,7 @@ function ScenarioColumn({
 /*  Main Component                                                    */
 /* ------------------------------------------------------------------ */
 
-export const CapRateUnderwriter = forwardRef<CalculatorHandle>(function CapRateUnderwriter(_, ref) {
+export const CapRateUnderwriter = forwardRef<ToolHandle>(function CapRateUnderwriter(_, ref) {
   const [shared, setShared] = useState<SharedInputs>(defaultShared);
   const [current, setCurrent] = useState<ScenarioInputs>(defaultScenario);
   const [asking, setAsking] = useState<ScenarioInputs>(defaultScenario);
@@ -420,23 +421,42 @@ export const CapRateUnderwriter = forwardRef<CalculatorHandle>(function CapRateU
   const askingResults = useScenarioResults(asking, shared);
 
   useImperativeHandle(ref, () => ({
-    getState: () => ({
-      inputs: { shared, current, asking },
-      results: {
-        currentNoi: currentResults.noi,
-        currentCapRate: currentResults.capRate,
-        currentCashFlow: currentResults.monthlyNet,
-        askingNoi: askingResults.noi,
-        askingCapRate: askingResults.capRate,
-        askingCashFlow: askingResults.monthlyNet,
-      },
+    getExportData: (): ExportPayload => ({
+      title: 'Cap Rate Underwriter',
+      type: 'calculator',
+      sections: [
+        {
+          heading: 'Shared Assumptions',
+          rows: [
+            { label: 'Vacancy Rate', value: `${shared.vacancyPct}%` },
+            { label: 'Expense Ratio', value: `${shared.expenseRatio}%` },
+            { label: 'Closing Cost %', value: `${shared.closingPct}%` },
+            { label: 'Target Cap Rate', value: `${shared.targetCapRate}%` },
+            { label: 'LTV', value: `${shared.ltv}%` },
+            { label: 'Interest Rate', value: `${shared.interestRate}%` },
+            { label: 'Loan Term', value: `${shared.loanTerm} years` },
+          ],
+        },
+        {
+          heading: 'Current Scenario',
+          rows: [
+            { label: 'Purchase Price', value: formatCurrency(Number(current.purchasePrice) || 0) },
+            { label: 'NOI', value: formatCurrency(currentResults.noi) },
+            { label: 'Cap Rate', value: formatPercent(currentResults.capRate) },
+            { label: 'Monthly Cash Flow', value: formatCurrency(currentResults.monthlyNet) },
+          ],
+        },
+        {
+          heading: 'Asking Scenario',
+          rows: [
+            { label: 'Purchase Price', value: formatCurrency(Number(asking.purchasePrice) || 0) },
+            { label: 'NOI', value: formatPercent(askingResults.noi) },
+            { label: 'Cap Rate', value: formatPercent(askingResults.capRate) },
+            { label: 'Monthly Cash Flow', value: formatCurrency(askingResults.monthlyNet) },
+          ],
+        },
+      ],
     }),
-    loadState: (inputs: Record<string, any>) => {
-      if (inputs.shared) setShared(inputs.shared);
-      if (inputs.current) setCurrent(inputs.current);
-      if (inputs.asking) setAsking(inputs.asking);
-    },
-    getName: () => 'Untitled Report',
   }));
 
   const setSharedField = useCallback(
@@ -455,11 +475,20 @@ export const CapRateUnderwriter = forwardRef<CalculatorHandle>(function CapRateU
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Title + Reset */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Cap Rate Underwriter</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Compare two deal scenarios side by side
-          </p>
+        <div className="flex items-center gap-4">
+          <Image
+            src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png"
+            alt="Maxxed Out"
+            width={120}
+            height={47}
+            className="h-10 w-auto"
+          />
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Cap Rate Underwriter</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Compare two deal scenarios side by side
+            </p>
+          </div>
         </div>
         <button
           onClick={handleReset}
@@ -507,3 +536,5 @@ export const CapRateUnderwriter = forwardRef<CalculatorHandle>(function CapRateU
     </div>
   );
 });
+
+export default CapRateUnderwriter;

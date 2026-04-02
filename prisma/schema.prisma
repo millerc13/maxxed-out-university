@@ -27,7 +27,7 @@ model User {
   progress           LessonProgress[]
   magicLinks         MagicLink[]
   sessions           Session[]
-  savedReports       SavedReport[]
+
 }
 
 model Account {
@@ -375,19 +375,6 @@ enum QuestionType {
   TRUE_FALSE
 }
 
-model SavedReport {
-  id        String   @id @default(cuid())
-  name      String
-  toolSlug  String
-  inputs    Json
-  results   Json
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, toolSlug])
-}
 
 model Tool {
   id          String   @id @default(cuid())

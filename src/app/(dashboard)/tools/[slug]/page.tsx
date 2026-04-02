@@ -6,15 +6,9 @@ import { isEffectivelyEnrolled } from '@/lib/enrollment';
 import { Header, Footer } from '@/components/layout';
 import { ArrowLeft, Lock, Wrench } from 'lucide-react';
 import Link from 'next/link';
-import MultiFamilyCalculator from '@/components/tools/MultiFamilyCalculator';
-import { CapRateUnderwriter } from '@/components/tools/CapRateUnderwriter';
-import { ToolWrapper } from '@/components/tools/ToolWrapper';
-import type { CalculatorHandle } from '@/components/tools/ToolWrapper';
-
-const TOOL_COMPONENTS: Record<string, React.ForwardRefExoticComponent<React.RefAttributes<CalculatorHandle>>> = {
-  'multi-family-calculator': MultiFamilyCalculator,
-  'cap-rate-underwriter': CapRateUnderwriter,
-};
+import Image from 'next/image';
+import { TOOL_REGISTRY } from '@/components/tools/registry';
+import { ToolRenderer } from '@/components/tools/ToolRenderer';
 
 export default async function ToolPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -79,24 +73,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
     );
   }
 
-  const ToolComponent = TOOL_COMPONENTS[slug];
-
-  // Fetch saved reports for this user + tool
-  const savedReports = await prisma.savedReport.findMany({
-    where: { userId: session.user.id!, toolSlug: slug },
-    select: { id: true, name: true, toolSlug: true, results: true, createdAt: true, updatedAt: true },
-    orderBy: { updatedAt: 'desc' },
-  });
-  const totalReportCount = await prisma.savedReport.count({
-    where: { userId: session.user.id! },
-  });
-
-  const serializedReports = savedReports.map((r) => ({
-    ...r,
-    results: r.results as Record<string, any>,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-  }));
+  const hasComponent = slug in TOOL_REGISTRY;
 
   return (
     <>
@@ -113,31 +90,34 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
               <span>/</span>
               <span className="text-gray-900 font-medium">{tool.title}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0000CC]/10 flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-[#0000CC]" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#0000CC]/10 flex items-center justify-center">
+                  <Wrench className="w-5 h-5 text-[#0000CC]" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-extrabold text-gray-900">{tool.title}</h1>
+                  <p className="text-sm text-gray-500">
+                    Included with <Link href={`/courses/${tool.course.slug}`} className="text-[#0000CC] hover:underline">{tool.course.title}</Link>
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-extrabold text-gray-900">{tool.title}</h1>
-                <p className="text-sm text-gray-500">
-                  Included with <Link href={`/courses/${tool.course.slug}`} className="text-[#0000CC] hover:underline">{tool.course.title}</Link>
-                </p>
-              </div>
+              <Image
+                src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png"
+                alt="Maxxed Out"
+                width={140}
+                height={55}
+                className="h-10 w-auto hidden sm:block"
+              />
             </div>
           </div>
         </div>
 
         {/* Tool Content */}
         <div className="max-w-[1400px] mx-auto px-5 md:px-10 py-8">
-          {ToolComponent ? (
+          {hasComponent ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-              <ToolWrapper
-                toolSlug={slug}
-                toolTitle={tool.title}
-                CalculatorComponent={ToolComponent as any}
-                initialReports={serializedReports}
-                reportCount={totalReportCount}
-              />
+              <ToolRenderer slug={slug} toolTitle={tool.title} />
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
