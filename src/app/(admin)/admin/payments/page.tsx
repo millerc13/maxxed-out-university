@@ -36,8 +36,8 @@ const PROVIDER_INFO: Record<string, {
   fanbasis: {
     name: 'Fanbasis',
     description: 'Creator-focused payment platform with built-in subscriptions, discount codes, and customer management.',
-    color: '#FF6B35',
-    logo: 'F',
+    color: '#FF3860',
+    logo: '/images/fanbasis-logo.png',
     configFields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'Your Fanbasis API key', secret: true },
       { key: 'webhookSecret', label: 'Webhook Secret', placeholder: 'Your webhook signing secret', secret: true },
@@ -203,12 +203,20 @@ export default function PaymentsPage() {
                 <div className="p-6 flex items-start justify-between">
                   <div className="flex items-start gap-4">
                     {/* Logo */}
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0"
-                      style={{ background: info.color }}
-                    >
-                      {info.logo}
-                    </div>
+                    {info.logo.startsWith('/') ? (
+                      <img
+                        src={info.logo}
+                        alt={info.name}
+                        className="w-12 h-12 rounded-xl flex-shrink-0 object-contain"
+                      />
+                    ) : (
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg flex-shrink-0"
+                        style={{ background: info.color }}
+                      >
+                        {info.logo}
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center gap-3">
                         <h2 className="font-bold text-gray-900 text-lg">{info.name}</h2>
