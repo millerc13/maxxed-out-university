@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { createMagicLink } from '@/lib/magiclink';
 import { sendMagicLinkEmail } from '@/lib/resend';
+import { enrollInBundle } from '@/lib/enrollment';
 import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
@@ -101,6 +102,15 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       },
       update: {},
     });
+
+    // If this is a bundle course, enroll in all published courses
+    const purchasedCourse = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { isBundle: true },
+    });
+    if (purchasedCourse?.isBundle) {
+      await enrollInBundle(resolvedUserId, courseId, 'stripe', paymentIntent.id);
+    }
 
     // Increment promo code usage counter
     if (promoCodeId) {

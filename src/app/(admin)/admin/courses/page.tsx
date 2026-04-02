@@ -105,6 +105,11 @@ export default async function AdminCoursesPage() {
                                 Featured
                               </span>
                             )}
+                            {course.comingSoon && (
+                              <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded font-medium">
+                                Coming Soon
+                              </span>
+                            )}
                             <span
                               className={`px-2 py-0.5 text-xs rounded font-medium ${
                                 course.published

@@ -2,12 +2,13 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy } from 'lucide-react';
+import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy, Wrench, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
 import { MarkdownContent } from '@/components/ui/markdown-content';
+import { isEffectivelyEnrolled } from '@/lib/enrollment';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -43,19 +44,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
     notFound();
   }
 
-  // Check if user is enrolled
-  const enrollment = session?.user?.id
-    ? await prisma.enrollment.findUnique({
-        where: {
-          userId_courseId: {
-            userId: session.user.id,
-            courseId: course.id,
-          },
-        },
-      })
-    : null;
-
-  const isEnrolled = !!enrollment;
+  // Check if user is enrolled (direct or via bundle)
+  const isEnrolled = session?.user?.id
+    ? await isEffectivelyEnrolled(session.user.id, course.id)
+    : false;
 
   // Check if user is admin
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
@@ -89,6 +81,12 @@ export default async function CoursePage({ params }: CoursePageProps) {
     existing.push(attempt);
     quizAttemptsMap.set(attempt.quizId, existing);
   }
+
+  // Get tools for this course
+  const courseTools = await prisma.tool.findMany({
+    where: { courseId: course.id, published: true },
+    orderBy: { order: 'asc' },
+  });
 
   // Calculate stats
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
@@ -240,12 +238,12 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         {course.price && course.price > 0 ? (
                           <Link
                             href={`/checkout?courseId=${course.id}`}
-                            className="flex items-center justify-center w-full py-4 bg-maxxed-gold text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-yellow-600 transition-colors shadow-md"
+                            className="flex items-center justify-center w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md"
                           >
                             Get Access Now
                           </Link>
                         ) : (
-                          <button className="w-full py-4 bg-maxxed-gold text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-yellow-600 transition-colors shadow-md cursor-default opacity-70">
+                          <button className="w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md cursor-default opacity-70">
                             Contact to Enroll
                           </button>
                         )}
@@ -553,6 +551,41 @@ export default async function CoursePage({ params }: CoursePageProps) {
               </div>
             );
           })()}
+
+          {/* Course Tools */}
+          {courseTools.length > 0 && (isEnrolled || isAdmin) && (
+            <div className="max-w-7xl mx-auto px-5 md:px-10 pb-10">
+              <h2 className="text-2xl font-bold text-text-dark mb-6 flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-[#0000CC]" />
+                Course Tools
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {courseTools.map((tool) => (
+                  <Card key={tool.id} className="shadow-card hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-[#0000CC]/10 flex items-center justify-center flex-shrink-0">
+                          <Wrench className="w-5 h-5 text-[#0000CC]" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-text-dark">{tool.title}</h3>
+                          {tool.description && (
+                            <p className="text-sm text-text-muted line-clamp-2 mt-0.5">{tool.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Link
+                        href={`/tools/${tool.slug}`}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#0000CC] text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-[#0000aa] transition-colors"
+                      >
+                        Open Tool <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <Footer />

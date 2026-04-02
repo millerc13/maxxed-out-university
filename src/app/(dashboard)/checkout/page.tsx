@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CheckoutClient } from '@/components/checkout/CheckoutClient';
 import { stripePublishableKey } from '@/lib/stripe';
+import { isEffectivelyEnrolled } from '@/lib/enrollment';
 
 async function getEnabledProviders() {
   const providers = await prisma.paymentProvider.findMany({
@@ -40,12 +41,10 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     redirect(`/login?callbackUrl=/checkout?courseId=${courseId}`);
   }
 
-  // Logged-in users who are already enrolled go straight to the course
+  // Logged-in users who are already enrolled (directly or via bundle) go straight to the course
   if (session?.user?.id) {
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
-    });
-    if (enrollment) {
+    const enrolled = await isEffectivelyEnrolled(session.user.id, course.id);
+    if (enrolled) {
       redirect(`/courses/${course.slug}`);
     }
   }

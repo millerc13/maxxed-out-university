@@ -436,8 +436,7 @@ export function CheckoutClient({
                 'Redirecting…'
               ) : (
                 <>
-                  <img src="/images/new-fanbasis-white.png" alt="Fanbasis" className="h-5 w-auto" />
-                  Pay with Fanbasis
+                  Pay with <img src="/images/new-fanbasis-white.png" alt="Fanbasis" className="h-5 w-auto" />
                 </>
               )}
             </button>

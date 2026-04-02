@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard, Settings } from 'lucide-react';
+import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard, Settings, Wrench } from 'lucide-react';
 import { AdminViewToggle } from './AdminViewToggle';
 
 const socialLinks = [
@@ -17,6 +17,7 @@ const socialLinks = [
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, authRequired: true },
   { href: '/courses', label: 'Courses', icon: BookOpen, authRequired: false },
+  { href: '/tools', label: 'Tools', icon: Wrench, authRequired: true },
 ];
 
 // TikTok icon component (not in Lucide)

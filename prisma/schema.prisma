@@ -27,6 +27,7 @@ model User {
   progress           LessonProgress[]
   magicLinks         MagicLink[]
   sessions           Session[]
+  savedReports       SavedReport[]
 }
 
 model Account {
@@ -76,6 +77,8 @@ model Course {
   price        Int?
   published    Boolean          @default(false)
   featured     Boolean          @default(false)
+  comingSoon   Boolean          @default(false)
+  isBundle     Boolean          @default(false)
   order        Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -87,6 +90,7 @@ model Course {
   funnels           FunnelDeployment[]
   featuredInFunnels FunnelDeployment[] @relation("FunnelFeaturedCourses")
   promoCodes        PromoCode[]        @relation("PromoCodeCourses")
+  tools             Tool[]
 }
 
 model Module {
@@ -369,4 +373,32 @@ enum QuestionType {
   MULTIPLE_CHOICE
   MULTIPLE_SELECT
   TRUE_FALSE
+}
+
+model SavedReport {
+  id        String   @id @default(cuid())
+  name      String
+  toolSlug  String
+  inputs    Json
+  results   Json
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, toolSlug])
+}
+
+model Tool {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?  @db.Text
+  icon        String?
+  courseId     String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  published   Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

@@ -17,6 +17,7 @@ interface Course {
   thumbnail: string | null;
   published: boolean;
   featured: boolean;
+  comingSoon: boolean;
   price: number | null;
 }
 
@@ -37,6 +38,7 @@ export function CourseForm({ course }: CourseFormProps) {
     thumbnail: course?.thumbnail || '',
     published: course?.published || false,
     featured: course?.featured || false,
+    comingSoon: course?.comingSoon || false,
     price: course?.price ? String(course.price / 100) : '',
   });
 
@@ -227,6 +229,21 @@ export function CourseForm({ course }: CourseFormProps) {
                   />
                   <Label htmlFor="featured" className="cursor-pointer">
                     Featured (highlighted on homepage)
+                  </Label>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="comingSoon"
+                    checked={formData.comingSoon}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, comingSoon: e.target.checked }))
+                    }
+                    className="w-4 h-4 text-maxxed-blue rounded"
+                  />
+                  <Label htmlFor="comingSoon" className="cursor-pointer">
+                    Coming Soon (shown in Coming Soon section)
                   </Label>
                 </div>
               </div>
