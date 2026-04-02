@@ -343,6 +343,17 @@ model PromoCode {
   @@index([code])
 }
 
+model PaymentProvider {
+  id           String   @id @default(cuid())
+  provider     String   @unique // "stripe" or "fanbasis"
+  enabled      Boolean  @default(false)
+  isDefault    Boolean  @default(false)
+  config       Json     @default("{}")  // provider-specific config (keys stored encrypted in env)
+  displayName  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 enum DiscountType {
   PERCENTAGE
   FIXED
