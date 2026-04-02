@@ -64,6 +64,7 @@ skills-lock.json
 
 # Local screenshots and debug images
 *.png
+!public/images/*.png
 
 # Apple Pay certificates (sensitive)
 *.cer

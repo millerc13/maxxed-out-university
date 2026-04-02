@@ -37,7 +37,7 @@ const PROVIDER_INFO: Record<string, {
     name: 'Fanbasis',
     description: 'Creator-focused payment platform with built-in subscriptions, discount codes, and customer management.',
     color: '#FF3860',
-    logo: '/images/fanbasis-logo.png',
+    logo: '/images/new-fanbasis-white.png',
     configFields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'Your Fanbasis API key', secret: true },
       { key: 'webhookSecret', label: 'Webhook Secret', placeholder: 'Your webhook signing secret', secret: true },
