@@ -6,6 +6,13 @@ import Image from 'next/image';
 import { CheckoutClient } from '@/components/checkout/CheckoutClient';
 import { stripePublishableKey } from '@/lib/stripe';
 
+async function getDefaultProvider() {
+  const provider = await prisma.paymentProvider.findFirst({
+    where: { isDefault: true, enabled: true },
+  });
+  return provider?.provider ?? 'stripe';
+}
+
 interface CheckoutPageProps {
   searchParams: Promise<{ courseId?: string }>;
 }
@@ -42,6 +49,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     }
   }
 
+  const defaultProvider = await getDefaultProvider();
+
   return (
     <div style={{ background: '#f4f6fa', minHeight: '100vh' }}>
       {/* Minimal checkout header */}
@@ -72,10 +81,10 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
             thumbnail: course.thumbnail,
           }}
           publishableKey={stripePublishableKey}
-          // Pre-fill for logged-in users; null for guests
           prefillEmail={session?.user?.email ?? null}
           prefillName={session?.user?.name ?? null}
           isAuthenticated={!!session?.user?.id}
+          defaultProvider={defaultProvider}
         />
       </main>
     </div>

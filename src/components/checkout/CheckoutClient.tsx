@@ -25,6 +25,7 @@ interface CheckoutClientProps {
   prefillEmail: string | null;
   prefillName: string | null;
   isAuthenticated: boolean;
+  defaultProvider?: string;
 }
 
 function formatPrice(cents: number) {
@@ -182,6 +183,7 @@ export function CheckoutClient({
   prefillEmail,
   prefillName,
   isAuthenticated,
+  defaultProvider = 'stripe',
 }: CheckoutClientProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -197,9 +199,11 @@ export function CheckoutClient({
 
   const stripePromise = useMemo(() => loadStripe(publishableKey), [publishableKey]);
 
-  // For authenticated users, create intent immediately
+  const isFanbasis = defaultProvider === 'fanbasis';
+
+  // For authenticated users, create intent immediately (Stripe only)
   // For guests, create intent when they click "Continue to Payment"
-  const [showPayment, setShowPayment] = useState(isAuthenticated);
+  const [showPayment, setShowPayment] = useState(isAuthenticated && !isFanbasis);
 
   async function createIntent() {
     setLoading(true);
@@ -228,14 +232,44 @@ export function CheckoutClient({
     }
   }
 
+  async function handleFanbasisCheckout() {
+    setLoading(true);
+    setInitError(null);
+    try {
+      const res = await fetch('/api/checkout/fanbasis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId: course.id,
+          ...(!isAuthenticated && {
+            guestEmail: contact.email,
+            guestName: `${contact.firstName} ${contact.lastName}`.trim(),
+            guestPhone: contact.phone,
+          }),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to initialize checkout');
+      // Redirect to Fanbasis payment page
+      window.location.href = data.paymentLink;
+    } catch (err: any) {
+      setInitError(err.message);
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isFanbasis) {
       createIntent();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isFanbasis]);
 
   function handleContinue() {
     if (!contact.firstName || !contact.lastName || !contact.email) return;
+    if (isFanbasis) {
+      handleFanbasisCheckout();
+      return;
+    }
     setShowPayment(true);
     createIntent();
   }
@@ -322,6 +356,49 @@ export function CheckoutClient({
           />
         )}
 
+        {/* Fanbasis: single checkout button */}
+        {isFanbasis && (
+          <>
+            {!isAuthenticated && !loading && (
+              <button
+                onClick={handleContinue}
+                disabled={!contact.firstName || !contact.lastName || !contact.email || loading}
+                style={{ background: '#1d4ed8' }}
+                className="w-full py-4 text-white font-extrabold text-sm uppercase tracking-[0.15em] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all mb-4"
+              >
+                Continue to Payment →
+              </button>
+            )}
+            {isAuthenticated && !loading && (
+              <button
+                onClick={handleFanbasisCheckout}
+                disabled={loading}
+                style={{ background: '#1d4ed8' }}
+                className="w-full py-4 text-white font-extrabold text-sm uppercase tracking-[0.15em] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all mb-4"
+              >
+                {`Enroll Now — ${formatPrice(course.price)}`}
+              </button>
+            )}
+            {loading && (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '14px' }}>
+                Redirecting to payment…
+              </div>
+            )}
+            {initError && (
+              <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
+                {initError}
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-2 text-[11px]" style={{ color: '#9ca3af' }}>
+              <Lock className="w-3 h-3" />
+              <span>Secure payment · Powered by Fanbasis</span>
+            </div>
+          </>
+        )}
+
+        {/* Stripe flow */}
+        {!isFanbasis && (
+          <>
         {/* Guest: show Continue button before payment */}
         {!isAuthenticated && !showPayment && (
           <button
@@ -373,6 +450,8 @@ export function CheckoutClient({
           >
             <PaymentForm course={course} contact={contact} isAuthenticated={isAuthenticated} />
           </Elements>
+        )}
+          </>
         )}
       </div>
     </div>
