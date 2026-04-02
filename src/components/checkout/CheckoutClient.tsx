@@ -430,7 +430,7 @@ export function CheckoutClient({
               onClick={handleFanbasisCheckout}
               disabled={fanbasisLoading || (!isAuthenticated && (!contact.firstName || !contact.lastName || !contact.email))}
               className="w-full py-4 rounded-lg font-extrabold text-sm uppercase tracking-[0.15em] transition-all duration-200 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-              style={{ background: '#FF3860', color: '#ffffff' }}
+              style={{ background: '#21252b', color: '#ffffff' }}
             >
               {fanbasisLoading ? (
                 'Redirecting…'
