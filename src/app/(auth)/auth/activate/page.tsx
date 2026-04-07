@@ -4,8 +4,9 @@ import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { signIn, getSession } from 'next-auth/react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import Image from 'next/image';
 
 function ActivateInner() {
   const searchParams = useSearchParams();
@@ -50,57 +51,68 @@ function ActivateInner() {
     activate();
   }, [token, router]);
 
+  if (status === 'loading') {
+    return (
+      <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+        <CardHeader className="text-center pt-8">
+          <Loader2 className="w-12 h-12 animate-spin text-maxxed-blue mx-auto mb-4" />
+          <CardTitle className="text-2xl font-extrabold">Activating…</CardTitle>
+          <CardDescription className="text-base mt-2">
+            {message}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (status === 'success') {
+    return (
+      <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+        <CardHeader className="text-center pt-8">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <CardTitle className="text-2xl font-extrabold">You&apos;re in!</CardTitle>
+          <CardDescription className="text-base mt-2">
+            {message}
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center border-t-4 border-maxxed-blue">
-        <Image
-          src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png"
-          alt="Maxxed Out University"
-          width={160}
-          height={63}
-          className="h-10 w-auto mx-auto mb-8"
-          unoptimized
-        />
-
-        {status === 'loading' && (
-          <>
-            <Loader2 className="w-12 h-12 animate-spin text-maxxed-blue mx-auto mb-4" />
-            <p className="text-gray-700 font-medium">{message}</p>
-          </>
-        )}
-
-        {status === 'success' && (
-          <>
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">You&apos;re in!</h2>
-            <p className="text-gray-500">{message}</p>
-          </>
-        )}
-
-        {status === 'error' && (
-          <>
-            <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Link invalid</h2>
-            <p className="text-gray-500 mb-6">{message}</p>
-            <a
-              href="/login"
-              className="inline-block px-6 py-3 bg-maxxed-blue text-white rounded-lg font-semibold text-sm hover:opacity-90"
-            >
-              Go to Login
-            </a>
-          </>
-        )}
-      </div>
-    </div>
+    <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+      <CardHeader className="text-center pt-8">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <XCircle className="w-8 h-8 text-red-600" />
+        </div>
+        <CardTitle className="text-2xl font-extrabold">Link invalid</CardTitle>
+        <CardDescription className="text-base mt-2">
+          {message}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="text-center">
+        <Button
+          onClick={() => router.push('/login')}
+          className="bg-maxxed-blue hover:bg-maxxed-blue-dark"
+        >
+          Go to Login
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function ActivatePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
-      </div>
+      <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+        <CardHeader className="text-center pt-8">
+          <Loader2 className="w-12 h-12 animate-spin text-maxxed-blue mx-auto" />
+          <CardTitle className="text-2xl font-extrabold">Loading…</CardTitle>
+        </CardHeader>
+      </Card>
     }>
       <ActivateInner />
     </Suspense>
