@@ -373,7 +373,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
                             {/* Duration & Action */}
                             <div className="flex items-center gap-4 flex-shrink-0">
-                              <span className="text-sm text-text-muted">{durationMin} min</span>
+                              {durationMin > 0 && (
+                                <span className="text-sm text-text-muted">{durationMin} min</span>
+                              )}
                               {isAccessible && (
                                 <Link
                                   href={`/courses/${course.slug}/lessons/${lesson.slug}`}
