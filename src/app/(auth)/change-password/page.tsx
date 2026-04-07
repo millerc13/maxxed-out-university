@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Lock, Mail, Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -49,11 +49,14 @@ export default function ChangePasswordPage() {
         return;
       }
 
-      // Update session to clear mustChangePassword flag
+      // Update session to clear mustChangePassword flag in the cookie
       await update();
 
       setSuccess(true);
-      setTimeout(() => router.push('/dashboard'), 2000);
+      // Small delay to ensure the updated session cookie is written before redirect
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 2000);
     } catch (err) {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -63,12 +66,12 @@ export default function ChangePasswordPage() {
 
   if (success) {
     return (
-      <Card className="w-full max-w-md shadow-card">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+        <CardHeader className="text-center pt-8">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <CardTitle className="text-2xl">Password Updated!</CardTitle>
+          <CardTitle className="text-2xl font-extrabold">Password Updated!</CardTitle>
           <CardDescription className="text-base mt-2">
             Your password has been changed successfully. Redirecting to your dashboard...
           </CardDescription>
@@ -78,12 +81,12 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <Card className="w-full max-w-md shadow-card">
-      <CardHeader className="text-center">
+    <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+      <CardHeader className="text-center pt-8">
         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Lock className="w-8 h-8 text-maxxed-blue" />
         </div>
-        <CardTitle className="text-2xl">Create Your Password</CardTitle>
+        <CardTitle className="text-2xl font-extrabold">Create Your Password</CardTitle>
         <CardDescription className="text-base mt-2">
           Please create a new password for your account. You&apos;ll use this to sign in from now on.
         </CardDescription>
@@ -98,13 +101,16 @@ export default function ChangePasswordPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={session?.user?.email || ''}
-              disabled
-              className="bg-gray-50"
-            />
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <Input
+                id="email"
+                type="email"
+                value={session?.user?.email || ''}
+                disabled
+                className="pl-10 bg-gray-50"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

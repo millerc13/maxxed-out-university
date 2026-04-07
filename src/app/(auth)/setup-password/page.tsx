@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Lock, Mail, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 function SetupPasswordContent() {
   const { data: session, status, update } = useSession();
@@ -50,12 +50,14 @@ function SetupPasswordContent() {
         return;
       }
 
-      // Password set successfully — refresh JWT so mustChangePassword is cleared
+      // Password set — refresh JWT so mustChangePassword is cleared in the cookie
       await update();
       setSuccess(true);
+
+      // Small delay to ensure the updated session cookie is written before redirect
       setTimeout(() => {
         window.location.href = '/dashboard';
-      }, 1500);
+      }, 2000);
     } catch (err) {
       console.error('Setup password error:', err);
       setError('Something went wrong. Please try again.');
@@ -65,10 +67,10 @@ function SetupPasswordContent() {
 
   if (status === 'loading') {
     return (
-      <Card className="w-full max-w-md shadow-card">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+        <CardHeader className="text-center pt-8">
           <Loader2 className="w-8 h-8 text-maxxed-blue animate-spin mx-auto mb-4" />
-          <CardTitle className="text-2xl">Loading…</CardTitle>
+          <CardTitle className="text-2xl font-extrabold">Loading…</CardTitle>
         </CardHeader>
       </Card>
     );
@@ -76,12 +78,12 @@ function SetupPasswordContent() {
 
   if (success) {
     return (
-      <Card className="w-full max-w-md shadow-card">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+        <CardHeader className="text-center pt-8">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <CardTitle className="text-2xl">You&apos;re all set!</CardTitle>
+          <CardTitle className="text-2xl font-extrabold">You&apos;re all set!</CardTitle>
           <CardDescription className="text-base mt-2">
             Your password has been created. Redirecting to your dashboard...
           </CardDescription>
@@ -91,32 +93,42 @@ function SetupPasswordContent() {
   }
 
   return (
-    <Card className="w-full max-w-md shadow-card">
-      <CardHeader className="text-center">
+    <Card className="w-full max-w-md shadow-card border-t-4 border-t-maxxed-blue overflow-hidden">
+      <CardHeader className="text-center pt-8">
         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Lock className="w-8 h-8 text-maxxed-blue" />
         </div>
-        <CardTitle className="text-2xl">Create Your Password</CardTitle>
+        <CardTitle className="text-2xl font-extrabold">Create Your Password</CardTitle>
         <CardDescription className="text-base mt-2">
           Set up a password to easily access your courses anytime.
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              disabled
-              className="bg-gray-50"
-            />
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                disabled
+                className="pl-10 bg-gray-50"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
@@ -125,7 +137,7 @@ function SetupPasswordContent() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="pr-10"
+                className="pl-10 pr-10"
               />
               <button
                 type="button"
@@ -140,26 +152,24 @@ function SetupPasswordContent() {
 
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">
-              {error}
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <Input
+                id="confirmPassword"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="pl-10"
+                required
+              />
             </div>
-          )}
+          </div>
 
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-maxxed-blue hover:bg-maxxed-blue-dark text-white font-bold uppercase tracking-wider"
+            className="w-full bg-maxxed-blue hover:bg-maxxed-blue-dark"
           >
             {isLoading ? (
               <>
@@ -170,7 +180,6 @@ function SetupPasswordContent() {
               'Create Password & Continue'
             )}
           </Button>
-
         </form>
       </CardContent>
     </Card>
