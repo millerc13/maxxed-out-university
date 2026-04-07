@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,14 +50,26 @@ function SetupPasswordContent() {
         return;
       }
 
-      // Password set — refresh JWT so mustChangePassword is cleared in the cookie
-      await update();
+      // Re-authenticate with the new password to get a fresh JWT
+      // This ensures mustChangePassword: false is in the token immediately
+      const signInResult = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
       setSuccess(true);
 
-      // Small delay to ensure the updated session cookie is written before redirect
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 2000);
+      if (signInResult?.ok) {
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1500);
+      } else {
+        // Fallback: even if re-sign-in fails, password is set — send to login
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      }
     } catch (err) {
       console.error('Setup password error:', err);
       setError('Something went wrong. Please try again.');

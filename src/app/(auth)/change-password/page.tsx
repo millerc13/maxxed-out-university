@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,14 +49,24 @@ export default function ChangePasswordPage() {
         return;
       }
 
-      // Update session to clear mustChangePassword flag in the cookie
-      await update();
+      // Re-authenticate with the new password to get a fresh JWT
+      const signInResult = await signIn('credentials', {
+        email: session?.user?.email,
+        password: newPassword,
+        redirect: false,
+      });
 
       setSuccess(true);
-      // Small delay to ensure the updated session cookie is written before redirect
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 2000);
+
+      if (signInResult?.ok) {
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      }
     } catch (err) {
       setError('Something went wrong. Please try again.');
     } finally {
