@@ -71,3 +71,4 @@ skills-lock.json
 *.certSigningRequest
 certificates/
 CertificateSigningRequest.certSigningRequest
+.env*.local

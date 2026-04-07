@@ -14,14 +14,18 @@ export default auth((req) => {
   // Admin routes
   const isAdminRoute = nextUrl.pathname.startsWith('/admin');
 
-  // Auth routes (login, register, etc.)
-  const authRoutes = ['/login', '/register'];
+  // Auth routes (login, password setup, etc.)
+  const authRoutes = ['/login', '/setup-password', '/change-password', '/forgot-password', '/reset-password'];
   const isAuthRoute = authRoutes.some((route) =>
     nextUrl.pathname.startsWith(route)
   );
 
-  // Redirect logged-in users away from auth pages
-  if (isLoggedIn && isAuthRoute) {
+  // Password setup routes — allowed even when mustChangePassword is true
+  const isPasswordRoute = nextUrl.pathname.startsWith('/setup-password')
+    || nextUrl.pathname.startsWith('/change-password');
+
+  // Redirect logged-in users away from auth pages (except password routes)
+  if (isLoggedIn && isAuthRoute && !isPasswordRoute) {
     return NextResponse.redirect(new URL('/dashboard', nextUrl));
   }
 
@@ -32,9 +36,17 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Enforce password setup — block dashboard/courses until password is set
+  if (isLoggedIn && isProtectedRoute && !isPasswordRoute) {
+    const mustChangePassword = req.auth?.user?.mustChangePassword;
+    if (mustChangePassword) {
+      return NextResponse.redirect(new URL('/setup-password', nextUrl));
+    }
+  }
+
   // Check admin access
   if (isAdminRoute && isLoggedIn) {
-    const userRole = (req.auth as any)?.user?.role;
+    const userRole = req.auth?.user?.role;
     if (userRole !== 'ADMIN' && userRole !== 'INSTRUCTOR') {
       return NextResponse.redirect(new URL('/dashboard', nextUrl));
     }

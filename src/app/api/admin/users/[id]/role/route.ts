@@ -10,7 +10,7 @@ export async function PUT(
   const session = await auth();
 
   // Only ADMIN can change roles
-  if (!session?.user?.id || (session.user as any).role !== 'ADMIN') {
+  if (!session?.user?.id || session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

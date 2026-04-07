@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import Image from 'next/image';
 
@@ -31,8 +31,16 @@ function ActivateInner() {
 
       if (result?.ok && !result?.error) {
         setStatus('success');
-        setMessage('Account activated! Setting up your password…');
-        setTimeout(() => router.push('/setup-password'), 1500);
+
+        // Check if user needs to set password or already has one
+        const session = await getSession();
+        if (session?.user?.mustChangePassword) {
+          setMessage('Account activated! Setting up your password…');
+          setTimeout(() => router.push('/setup-password'), 1500);
+        } else {
+          setMessage('Welcome back! Redirecting to your dashboard…');
+          setTimeout(() => router.push('/dashboard'), 1500);
+        }
       } else {
         setStatus('error');
         setMessage('This link has expired or already been used. Please contact support.');

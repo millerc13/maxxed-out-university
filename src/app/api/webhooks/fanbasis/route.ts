@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateWebhookSignature } from '@/lib/fanbasis';
 import { createMagicLink } from '@/lib/magiclink';
-import { sendMagicLinkEmail } from '@/lib/resend';
+import { sendMagicLinkEmail, sendCourseAddedEmail } from '@/lib/resend';
 
 export const runtime = 'nodejs';
 
@@ -186,14 +186,14 @@ async function enrollFromFanbasis(params: {
 
   console.log(`Fanbasis enrollment: user=${resolvedUserId} course=${params.courseId} txn=${params.transactionId}`);
 
-  // Send magic link for new/guest users
-  if ((params.isGuest || isNewUser) && params.email) {
+  // Send appropriate email based on user status
+  const userName = params.guestName || params.name || 'Student';
+  const cName = params.courseTitle || 'your course';
+  if (isNewUser && params.email) {
     const token = await createMagicLink(resolvedUserId);
-    await sendMagicLinkEmail({
-      to: params.email,
-      name: params.guestName || params.name || 'Student',
-      token,
-      courseName: params.courseTitle || 'your course',
-    });
+    await sendMagicLinkEmail({ to: params.email, name: userName, token, courseName: cName });
+  } else if (!isNewUser && params.email) {
+    const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
+    await sendCourseAddedEmail({ to: params.email, name: userName, courseName: cName, loginUrl });
   }
 }

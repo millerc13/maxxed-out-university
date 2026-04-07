@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, password } = body;
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    if (!userId || !password) {
+    const body = await request.json();
+    const { password } = body;
+
+    const userId = session.user.id;
+
+    if (!password) {
       return NextResponse.json(
-        { error: 'User ID and password are required' },
+        { error: 'Password is required' },
         { status: 400 }
       );
     }

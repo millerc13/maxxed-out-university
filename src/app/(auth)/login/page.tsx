@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, getSession } from 'next-auth/react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,7 +53,7 @@ function LoginForm() {
 
       // Check if user needs to change password
       const session = await getSession();
-      if ((session?.user as any)?.mustChangePassword) {
+      if (session?.user?.mustChangePassword) {
         router.push('/change-password');
       } else {
         router.push('/dashboard');
@@ -130,9 +131,17 @@ function LoginForm() {
           </div>
         </form>
 
-        <p className="text-xs text-text-muted text-center mt-4">
-          Use the email and password from your purchase confirmation.
-        </p>
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-text-muted">
+            Use the email and password from your purchase confirmation.
+          </p>
+          <Link
+            href="/forgot-password"
+            className="text-xs text-maxxed-blue hover:underline whitespace-nowrap ml-2"
+          >
+            Forgot password?
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );

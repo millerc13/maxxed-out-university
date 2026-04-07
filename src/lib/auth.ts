@@ -78,19 +78,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
-        token.mustChangePassword = (user as any).mustChangePassword;
+        token.id = user.id!;
+        token.role = user.role ?? 'STUDENT';
+        token.mustChangePassword = user.mustChangePassword ?? false;
+      }
+      // Re-fetch from DB when session is explicitly updated (e.g. after password setup)
+      if (trigger === 'update') {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { mustChangePassword: true, role: true },
+        });
+        if (dbUser) {
+          token.mustChangePassword = dbUser.mustChangePassword;
+          token.role = dbUser.role;
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        (session.user as any).role = token.role;
-        (session.user as any).mustChangePassword = token.mustChangePassword;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.mustChangePassword = token.mustChangePassword;
       }
       return session;
     },

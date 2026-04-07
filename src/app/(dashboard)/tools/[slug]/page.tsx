@@ -18,7 +18,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
   }
 
   const cookieStore = await cookies();
-  const isAdmin = (session.user as any).role === 'ADMIN';
+  const isAdmin = session.user.role === 'ADMIN';
   const isCustomerView = isAdmin && cookieStore.get('admin_customer_view')?.value === 'true';
   const bypassEnrollment = isAdmin && !isCustomerView;
 

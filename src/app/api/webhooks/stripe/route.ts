@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { createMagicLink } from '@/lib/magiclink';
-import { sendMagicLinkEmail } from '@/lib/resend';
+import { sendMagicLinkEmail, sendCourseAddedEmail } from '@/lib/resend';
 import { enrollInBundle } from '@/lib/enrollment';
 import Stripe from 'stripe';
 
@@ -122,18 +122,18 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
 
     console.log(`Enrollment created: user=${resolvedUserId} course=${courseId} pi=${paymentIntent.id}`);
 
-    // Send magic link email (for new users or guest purchases)
-    console.log(`Email check: isGuest=${isGuest} isNewUser=${isNewUser} userEmail=${userEmail}`);
-    if ((isGuest === 'true' || isNewUser) && userEmail) {
+    // Send appropriate email based on user status
+    const cName = courseTitle || 'your course';
+    if (isNewUser && userEmail) {
+      // New user: send magic link to activate account
       const token = await createMagicLink(resolvedUserId);
-      console.log(`Sending magic link email to ${userEmail}`);
-      const emailResult = await sendMagicLinkEmail({
-        to: userEmail,
-        name: userName,
-        token,
-        courseName: courseTitle || 'your course',
-      });
-      console.log(`Resend result:`, JSON.stringify(emailResult));
+      console.log(`Sending magic link email to ${userEmail} (new user)`);
+      await sendMagicLinkEmail({ to: userEmail, name: userName, token, courseName: cName });
+    } else if (!isNewUser && userEmail) {
+      // Returning user: notify them the course was added
+      console.log(`Sending course-added email to ${userEmail} (returning user)`);
+      const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
+      await sendCourseAddedEmail({ to: userEmail, name: userName, courseName: cName, loginUrl });
     }
   } catch (error) {
     console.error('Failed to handle payment:', error);

@@ -10,7 +10,7 @@ export async function requireAdmin() {
     redirect('/login');
   }
 
-  const role = (session.user as any).role as Role;
+  const role = session.user.role;
 
   if (role !== 'ADMIN') {
     redirect('/dashboard?error=unauthorized');
@@ -26,7 +26,7 @@ export async function requireInstructorOrAdmin() {
     redirect('/login');
   }
 
-  const role = (session.user as any).role as Role;
+  const role = session.user.role;
 
   if (role !== 'ADMIN' && role !== 'INSTRUCTOR') {
     redirect('/dashboard?error=unauthorized');
@@ -36,7 +36,7 @@ export async function requireInstructorOrAdmin() {
 }
 
 export function isAdmin(session: any): boolean {
-  return session?.user && (session.user as any).role === 'ADMIN';
+  return session?.user && session.user.role === 'ADMIN';
 }
 
 export function isInstructor(session: any): boolean {

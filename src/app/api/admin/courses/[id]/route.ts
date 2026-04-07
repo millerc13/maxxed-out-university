@@ -8,7 +8,7 @@ async function requireAdmin() {
   if (!session?.user?.id) {
     return null;
   }
-  const role = (session.user as any).role;
+  const role = session.user.role;
   if (role !== 'ADMIN' && role !== 'INSTRUCTOR') {
     return null;
   }
@@ -144,7 +144,7 @@ export async function DELETE(
   }
 
   // Only ADMIN can delete (not INSTRUCTOR)
-  if ((session.user as any).role !== 'ADMIN') {
+  if (session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Only admins can delete courses' }, { status: 403 });
   }
 

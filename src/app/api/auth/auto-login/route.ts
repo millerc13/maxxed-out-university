@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Add CORS headers for GHL pages
-    response.headers.set('Access-Control-Allow-Origin', '*');
+    const allowedOrigin = getCorsOrigin(request);
+    response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
     response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -107,10 +108,24 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle CORS preflight
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const allowedOrigin = getCorsOrigin(request);
   const response = new NextResponse(null, { status: 200 });
-  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
   response.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
   return response;
+}
+
+function getCorsOrigin(request: NextRequest): string {
+  const origin = request.headers.get('origin') || '';
+  const allowed = (process.env.GHL_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  // If no origins configured, fall back to allow all (backwards compatible)
+  if (allowed.length === 0) return '*';
+
+  return allowed.includes(origin) ? origin : allowed[0];
 }
