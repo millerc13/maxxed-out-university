@@ -69,9 +69,18 @@ export async function GET(request: NextRequest) {
       })) > 0
     : false;
 
+  // Fetch enabled payment providers so funnel can show the right checkout options
+  const enabledProviders = (
+    await prisma.paymentProvider.findMany({
+      where: { enabled: true },
+      select: { provider: true },
+    })
+  ).map((p) => p.provider);
+
   return NextResponse.json({
     course: deployment.course ?? null,
     featuredCourses: deployment.featuredCourses ?? [],
+    enabledProviders: enabledProviders.length > 0 ? enabledProviders : ['stripe'],
     config: {
       headline: deployment.config?.headline ?? null,
       subheadline: deployment.config?.subheadline ?? null,
