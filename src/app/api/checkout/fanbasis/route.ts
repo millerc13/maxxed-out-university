@@ -6,7 +6,7 @@ import { createCheckoutSession } from '@/lib/fanbasis';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { courseId, guestEmail, guestName, guestPhone, promoCode } = body;
+    const { courseId, guestEmail, guestName, guestPhone, promoCode, successUrl: callerSuccessUrl } = body;
 
     if (!courseId) {
       return NextResponse.json({ error: 'courseId is required' }, { status: 400 });
@@ -74,13 +74,15 @@ export async function POST(request: NextRequest) {
 
     // Determine base URL for success/webhook callbacks
     const origin = request.headers.get('origin') || process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
+    // Callers (e.g. funnel proxy) can provide their own success URL
+    const successUrl = callerSuccessUrl || `${origin}/checkout/success?provider=fanbasis&courseId=${course.id}`;
 
     const checkoutSession = await createCheckoutSession({
       title: course.title,
       description: `Maxxed Out University — ${course.title}`,
       amountCents: finalAmount,
       type: 'onetime_non_reusable',
-      successUrl: `${origin}/checkout/success?provider=fanbasis&courseId=${course.id}`,
+      successUrl,
       webhookUrl: `${origin}/api/webhooks/fanbasis`,
       metadata: {
         courseId: course.id,

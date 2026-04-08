@@ -12,6 +12,8 @@ export function getFanbasisConfig() {
 
 async function fanbasisFetch(path: string, options: RequestInit = {}) {
   const { apiKey, baseUrl } = getFanbasisConfig();
+  // Sandbox URL (qa.dev-fan-basis.com) has no /public-api prefix, so paths
+  // are appended directly.  Production already includes /public-api in baseUrl.
   const url = `${baseUrl}${path}`;
 
   const res = await fetch(url, {
