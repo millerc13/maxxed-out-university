@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ExternalLink, Trash2, Copy, Check, RefreshCw, Tag, Globe, Activity, Zap, ChevronRight } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Copy, Check, RefreshCw, Tag, Globe, Activity, Zap, ChevronRight, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -268,20 +268,28 @@ export default function FunnelsPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-1">
+                      <Link
+                        href={`/admin/funnels/${f.id}/analytics`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 text-gray-400 hover:text-[#1E40AF] rounded-lg hover:bg-blue-50 transition-colors duration-150 cursor-pointer"
+                        title="View analytics"
+                      >
+                        <BarChart2 className="w-4 h-4" />
+                      </Link>
                       {f.url && (
                         <a
                           href={f.url}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors duration-150"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
                       <button
                         onClick={(e) => deleteFunnel(e, f.id, f.name)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50"
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors duration-150"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
