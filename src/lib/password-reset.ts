@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 import { prisma } from './prisma';
 
 export async function createPasswordResetToken(email: string): Promise<{ sent: boolean }> {
