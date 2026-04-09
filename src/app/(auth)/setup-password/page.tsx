@@ -50,26 +50,24 @@ function SetupPasswordContent() {
         return;
       }
 
-      // Re-authenticate with the new password to get a fresh JWT
-      // This ensures mustChangePassword: false is in the token immediately
-      const signInResult = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-
       setSuccess(true);
 
-      if (signInResult?.ok) {
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1500);
-      } else {
-        // Fallback: even if re-sign-in fails, password is set — send to login
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1500);
+      // Re-authenticate with new password to refresh the JWT token
+      // so mustChangePassword: false is reflected immediately
+      try {
+        await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        });
+      } catch {
+        // Password is set regardless — proceed to dashboard
       }
+
+      // Always redirect to dashboard after a short delay
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1500);
     } catch (err) {
       console.error('Setup password error:', err);
       setError('Something went wrong. Please try again.');
@@ -100,6 +98,14 @@ function SetupPasswordContent() {
             Your password has been created. Redirecting to your dashboard...
           </CardDescription>
         </CardHeader>
+        <CardContent className="text-center pb-8">
+          <Button
+            onClick={() => { window.location.href = '/dashboard'; }}
+            className="bg-maxxed-blue hover:bg-maxxed-blue-dark"
+          >
+            Continue to Dashboard
+          </Button>
+        </CardContent>
       </Card>
     );
   }
