@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes, createHmac } from 'node:crypto';
+import { randomBytes, createHmac } from 'crypto';
 import { prisma } from '@/lib/prisma';
 
 // Verify webhook signature from GHL (if they provide one)

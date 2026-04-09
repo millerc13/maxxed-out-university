@@ -1,5 +1,10 @@
-import { randomBytes } from 'node:crypto';
 import { prisma } from './prisma';
+
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 export async function createPasswordResetToken(email: string): Promise<{ sent: boolean }> {
   const user = await prisma.user.findUnique({ where: { email } });
@@ -9,7 +14,7 @@ export async function createPasswordResetToken(email: string): Promise<{ sent: b
     return { sent: true };
   }
 
-  const token = randomBytes(32).toString('hex');
+  const token = generateToken();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   await prisma.passwordResetToken.create({

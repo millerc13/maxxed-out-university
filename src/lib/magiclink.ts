@@ -1,8 +1,9 @@
-import { randomBytes } from 'node:crypto';
 import { prisma } from './prisma';
 
 export function generateToken(): string {
-  return randomBytes(32).toString('hex');
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function createMagicLink(userId: string): Promise<string> {
