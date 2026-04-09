@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Lock, Mail, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 function SetupPasswordContent() {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const email = session?.user?.email || '';
 
   const [password, setPassword] = useState('');
@@ -49,9 +49,8 @@ function SetupPasswordContent() {
       if (!response.ok) {
         // If password is already set, just redirect to dashboard
         if (response.status === 400 && data.error?.includes('already set')) {
-          console.log('[setup-password] Password already set, refreshing session and redirecting');
-          await update();
-          window.location.href = '/dashboard';
+          console.log('[setup-password] Password already set, redirecting through refresh-session');
+          window.location.href = '/api/auth/refresh-session';
           return;
         }
         console.error('[setup-password] API error', { status: response.status, error: data.error });
@@ -60,23 +59,13 @@ function SetupPasswordContent() {
         return;
       }
 
-      // Refresh the JWT so mustChangePassword: false is reflected
-      // This triggers the 'update' path in the JWT callback which re-fetches from DB
-      console.log('[setup-password] Password set successfully, refreshing JWT via update()');
-      try {
-        await update();
-        console.log('[setup-password] JWT refresh complete');
-      } catch (updateErr) {
-        console.error('[setup-password] JWT refresh failed', updateErr);
-      }
-
       setSuccess(true);
 
-      // Redirect to dashboard after a short delay
-      console.log('[setup-password] Redirecting to dashboard in 1.5s');
+      // Redirect through server-side refresh endpoint to get a fresh JWT cookie
+      // (client-side update() doesn't reliably refresh the JWT in NextAuth v5 beta)
+      console.log('[setup-password] Password set, redirecting through refresh-session');
       setTimeout(() => {
-        console.log('[setup-password] Executing redirect to /dashboard');
-        window.location.href = '/dashboard';
+        window.location.href = '/api/auth/refresh-session';
       }, 1500);
     } catch (err) {
       console.error('[setup-password] Unexpected error', err);
@@ -110,7 +99,7 @@ function SetupPasswordContent() {
         </CardHeader>
         <CardContent className="text-center pb-8">
           <Button
-            onClick={() => { window.location.href = '/dashboard'; }}
+            onClick={() => { window.location.href = '/api/auth/refresh-session'; }}
             className="bg-maxxed-blue hover:bg-maxxed-blue-dark"
           >
             Continue to Dashboard
