@@ -25,8 +25,7 @@ export async function isEffectivelyEnrolled(userId: string, courseId: string): P
     if (bundleEnrollment) return true;
   }
 
-  // Check if user is enrolled in any bundle (for backwards compat with existing enrollments)
-  return hasActiveBundleEnrollment(userId);
+  return false;
 }
 
 /**
@@ -93,18 +92,15 @@ export async function getEffectiveEnrollments(userId: string): Promise<Set<strin
   const hasBundleEnrollment = bundleCourses.some((bc) => enrolledIds.has(bc.id));
 
   if (hasBundleEnrollment) {
-    // Add bundle child courses + all courses without a bundleId (standalone)
-    const accessibleCourses = await prisma.course.findMany({
+    // Add only the bundle's child courses
+    const childCourses = await prisma.course.findMany({
       where: {
         published: true,
-        OR: [
-          { bundleId: { in: bundleCourses.filter((bc) => enrolledIds.has(bc.id)).map((bc) => bc.id) } },
-          { bundleId: null },
-        ],
+        bundleId: { in: bundleCourses.filter((bc) => enrolledIds.has(bc.id)).map((bc) => bc.id) },
       },
       select: { id: true },
     });
-    for (const c of accessibleCourses) {
+    for (const c of childCourses) {
       enrolledIds.add(c.id);
     }
   }
