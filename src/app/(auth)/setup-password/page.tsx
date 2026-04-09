@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { signIn, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,26 +45,24 @@ function SetupPasswordContent() {
       const data = await response.json();
 
       if (!response.ok) {
+        // If password is already set, just redirect to dashboard
+        if (response.status === 400 && data.error?.includes('already set')) {
+          await update();
+          window.location.href = '/dashboard';
+          return;
+        }
         setError(data.error || 'Failed to set password');
         setIsLoading(false);
         return;
       }
 
+      // Refresh the JWT so mustChangePassword: false is reflected
+      // This triggers the 'update' path in the JWT callback which re-fetches from DB
+      await update();
+
       setSuccess(true);
 
-      // Re-authenticate with new password to refresh the JWT token
-      // so mustChangePassword: false is reflected immediately
-      try {
-        await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
-        });
-      } catch {
-        // Password is set regardless — proceed to dashboard
-      }
-
-      // Always redirect to dashboard after a short delay
+      // Redirect to dashboard after a short delay
       setTimeout(() => {
         window.location.href = '/dashboard';
       }, 1500);
