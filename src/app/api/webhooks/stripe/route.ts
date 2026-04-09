@@ -106,7 +106,7 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
     // If this is a bundle course, enroll in all published courses
     const purchasedCourse = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { isBundle: true },
+      select: { isBundle: true, thumbnail: true },
     });
     if (purchasedCourse?.isBundle) {
       await enrollInBundle(resolvedUserId, courseId, 'stripe', paymentIntent.id);
@@ -128,12 +128,12 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       // New user: send magic link to activate account
       const token = await createMagicLink(resolvedUserId);
       console.log(`Sending magic link email to ${userEmail} (new user)`);
-      await sendMagicLinkEmail({ to: userEmail, name: userName, token, courseName: cName });
+      await sendMagicLinkEmail({ to: userEmail, name: userName, token, courseName: cName, courseThumbnail: purchasedCourse?.thumbnail });
     } else if (!isNewUser && userEmail) {
       // Returning user: notify them the course was added
       console.log(`Sending course-added email to ${userEmail} (returning user)`);
       const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
-      await sendCourseAddedEmail({ to: userEmail, name: userName, courseName: cName, loginUrl });
+      await sendCourseAddedEmail({ to: userEmail, name: userName, courseName: cName, loginUrl, courseThumbnail: purchasedCourse?.thumbnail });
     }
   } catch (error) {
     console.error('Failed to handle payment:', error);

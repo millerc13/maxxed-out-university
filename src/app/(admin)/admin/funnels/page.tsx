@@ -5,6 +5,7 @@ import { Plus, ExternalLink, Trash2, Copy, Check, RefreshCw, Tag, Globe, Activit
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
+import { FunnelsSummary } from '@/components/admin/funnel-analytics/FunnelsSummary';
 
 interface Course {
   id: string;
@@ -116,6 +117,9 @@ export default function FunnelsPage() {
           </button>
         </div>
       </div>
+
+      {/* PostHog Analytics Summary */}
+      {!loading && funnels.length > 0 && <FunnelsSummary />}
 
       {/* Stats - compact inline */}
       {!loading && funnels.length > 0 && (

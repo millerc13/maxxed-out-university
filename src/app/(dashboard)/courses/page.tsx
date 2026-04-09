@@ -6,7 +6,7 @@ import { BookOpen, ArrowRight, Star, Clock, Sparkles, Zap, Crown, Flame, CheckCi
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
-import { getEffectiveEnrollments } from '@/lib/enrollment';
+import { getEffectiveEnrollments, getEnrolledBundleIds } from '@/lib/enrollment';
 
 // Price tier boundaries in cents
 const PRICE_TIERS = {
@@ -38,6 +38,11 @@ export default async function CoursesPage() {
       ? await getEffectiveEnrollments(session.user.id)
       : new Set<string>();
 
+  const enrolledBundleIds =
+    session?.user?.id && !isCustomerView
+      ? await getEnrolledBundleIds(session.user.id)
+      : new Set<string>();
+
   const progress =
     session?.user && !isCustomerView
       ? await prisma.lessonProgress.findMany({
@@ -60,7 +65,8 @@ export default async function CoursesPage() {
   });
 
   const comingSoonCourses = coursesWithStats.filter((c) => c.isComingSoon);
-  const catalogCourses = coursesWithStats.filter((c) => !c.isComingSoon);
+  // Hide bundle child courses when user is enrolled in the parent bundle
+  const catalogCourses = coursesWithStats.filter((c) => !c.isComingSoon && (!c.bundleId || !enrolledBundleIds.has(c.bundleId)));
 
   const eliteTicket = catalogCourses.filter((c) => c.price && c.price > PRICE_TIERS.HIGH.max);
   const highTicket = catalogCourses.filter((c) => c.price && c.price > PRICE_TIERS.MID.max && c.price <= PRICE_TIERS.HIGH.max);

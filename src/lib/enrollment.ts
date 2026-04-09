@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 /**
  * Check if a user is effectively enrolled in a course.
  * A user is "effectively enrolled" if they have a direct enrollment
- * OR if they are enrolled in any bundle course (isBundle=true).
+ * OR if they are enrolled in a bundle that includes this course.
  */
 export async function isEffectivelyEnrolled(userId: string, courseId: string): Promise<boolean> {
   // Check direct enrollment
@@ -12,13 +12,25 @@ export async function isEffectivelyEnrolled(userId: string, courseId: string): P
   });
   if (direct) return true;
 
-  // Check if enrolled in any bundle course
+  // Check if this course belongs to a bundle the user is enrolled in
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { bundleId: true },
+  });
+
+  if (course?.bundleId) {
+    const bundleEnrollment = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId, courseId: course.bundleId } },
+    });
+    if (bundleEnrollment) return true;
+  }
+
+  // Check if user is enrolled in any bundle (for backwards compat with existing enrollments)
   return hasActiveBundleEnrollment(userId);
 }
 
 /**
  * Check if a user has an active bundle enrollment.
- * Cached per-request via the function — call freely.
  */
 export async function hasActiveBundleEnrollment(userId: string): Promise<boolean> {
   const bundleCourses = await prisma.course.findMany({
@@ -39,8 +51,30 @@ export async function hasActiveBundleEnrollment(userId: string): Promise<boolean
 }
 
 /**
+ * Get the IDs of bundle courses the user is enrolled in.
+ */
+export async function getEnrolledBundleIds(userId: string): Promise<Set<string>> {
+  const bundleCourses = await prisma.course.findMany({
+    where: { isBundle: true, published: true },
+    select: { id: true },
+  });
+
+  if (bundleCourses.length === 0) return new Set();
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      userId,
+      courseId: { in: bundleCourses.map((c) => c.id) },
+    },
+    select: { courseId: true },
+  });
+
+  return new Set(enrollments.map((e) => e.courseId));
+}
+
+/**
  * Get the set of course IDs a user is effectively enrolled in.
- * Includes direct enrollments + all published courses if user has a bundle.
+ * Includes direct enrollments + bundle child courses for any enrolled bundles.
  */
 export async function getEffectiveEnrollments(userId: string): Promise<Set<string>> {
   const directEnrollments = await prisma.enrollment.findMany({
@@ -59,12 +93,18 @@ export async function getEffectiveEnrollments(userId: string): Promise<Set<strin
   const hasBundleEnrollment = bundleCourses.some((bc) => enrolledIds.has(bc.id));
 
   if (hasBundleEnrollment) {
-    // Add ALL published courses
-    const allCourses = await prisma.course.findMany({
-      where: { published: true },
+    // Add bundle child courses + all courses without a bundleId (standalone)
+    const accessibleCourses = await prisma.course.findMany({
+      where: {
+        published: true,
+        OR: [
+          { bundleId: { in: bundleCourses.filter((bc) => enrolledIds.has(bc.id)).map((bc) => bc.id) } },
+          { bundleId: null },
+        ],
+      },
       select: { id: true },
     });
-    for (const c of allCourses) {
+    for (const c of accessibleCourses) {
       enrolledIds.add(c.id);
     }
   }
@@ -73,20 +113,22 @@ export async function getEffectiveEnrollments(userId: string): Promise<Set<strin
 }
 
 /**
- * When enrolling in a bundle course, also enroll in all published courses.
+ * When enrolling in a bundle course, also enroll in its child courses.
  */
 export async function enrollInBundle(userId: string, bundleCourseId: string, source: string, transactionId?: string) {
-  const allCourses = await prisma.course.findMany({
-    where: { published: true },
+  const childCourses = await prisma.course.findMany({
+    where: { bundleId: bundleCourseId, published: true },
     select: { id: true },
   });
 
-  for (const course of allCourses) {
+  const courseIds = [bundleCourseId, ...childCourses.map((c) => c.id)];
+
+  for (const courseId of courseIds) {
     await prisma.enrollment.upsert({
-      where: { userId_courseId: { userId, courseId: course.id } },
+      where: { userId_courseId: { userId, courseId } },
       create: {
         userId,
-        courseId: course.id,
+        courseId,
         source,
         transactionId: transactionId || null,
       },

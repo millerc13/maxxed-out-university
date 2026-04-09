@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { hasActiveBundleEnrollment } from '@/lib/enrollment';
+import { hasActiveBundleEnrollment, getEnrolledBundleIds } from '@/lib/enrollment';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle } from 'lucide-react';
@@ -28,6 +28,9 @@ export default async function DashboardPage() {
   const hasBundleAccess = !isCustomerView && session.user.id
     ? await hasActiveBundleEnrollment(session.user.id)
     : false;
+  const enrolledBundleIds = !isCustomerView && session.user.id
+    ? await getEnrolledBundleIds(session.user.id)
+    : new Set<string>();
 
   // Fetch user's enrollments with course details and progress
   const enrollments = isCustomerView ? [] : await prisma.enrollment.findMany({
@@ -96,9 +99,11 @@ export default async function DashboardPage() {
 
   // Calculate progress for courses
   // For admin or bundle users: use all courses; for regular users: use enrollments
-  const coursesToShow = useAllCourses
+  // Hide bundle child courses when user is enrolled in the parent bundle
+  const coursesToShow = (useAllCourses
     ? allCourses.filter(c => c.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0)
-    : enrollments.map(e => e.course);
+    : enrollments.map(e => e.course)
+  ).filter(c => !c.bundleId || !enrolledBundleIds.has(c.bundleId));
 
   const sortedCoursesToShow = sortCourses(coursesToShow);
 

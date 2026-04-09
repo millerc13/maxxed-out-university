@@ -186,14 +186,20 @@ async function enrollFromFanbasis(params: {
 
   console.log(`Fanbasis enrollment: user=${resolvedUserId} course=${params.courseId} txn=${params.transactionId}`);
 
+  // Fetch course thumbnail for email
+  const course = await prisma.course.findUnique({
+    where: { id: params.courseId },
+    select: { thumbnail: true },
+  });
+
   // Send appropriate email based on user status
   const userName = params.guestName || params.name || 'Student';
   const cName = params.courseTitle || 'your course';
   if (isNewUser && params.email) {
     const token = await createMagicLink(resolvedUserId);
-    await sendMagicLinkEmail({ to: params.email, name: userName, token, courseName: cName });
+    await sendMagicLinkEmail({ to: params.email, name: userName, token, courseName: cName, courseThumbnail: course?.thumbnail });
   } else if (!isNewUser && params.email) {
     const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
-    await sendCourseAddedEmail({ to: params.email, name: userName, courseName: cName, loginUrl });
+    await sendCourseAddedEmail({ to: params.email, name: userName, courseName: cName, loginUrl, courseThumbnail: course?.thumbnail });
   }
 }

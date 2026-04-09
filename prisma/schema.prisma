@@ -90,9 +90,12 @@ model Course {
   featured     Boolean          @default(false)
   comingSoon   Boolean          @default(false)
   isBundle     Boolean          @default(false)
+  bundleId     String?
   order        Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+  bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])
+  childCourses      Course[]         @relation("BundleChildren")
   certificates      Certificate[]
   enrollments       Enrollment[]
   modules           Module[]
@@ -102,6 +105,8 @@ model Course {
   featuredInFunnels FunnelDeployment[] @relation("FunnelFeaturedCourses")
   promoCodes        PromoCode[]        @relation("PromoCodeCourses")
   tools             Tool[]
+
+  @@index([bundleId])
 }
 
 model Module {
