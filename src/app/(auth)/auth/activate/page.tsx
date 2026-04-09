@@ -24,25 +24,37 @@ function ActivateInner() {
     }
 
     async function activate() {
+      console.log('[activate] Starting magic link sign-in', { token: token?.slice(0, 8) + '...' });
       const result = await signIn('magiclink', {
         token,
         redirect: false,
         callbackUrl: '/dashboard',
       });
+      console.log('[activate] signIn result', { ok: result?.ok, error: result?.error, status: result?.status });
 
       if (result?.ok && !result?.error) {
         setStatus('success');
 
         // Check if user needs to set password or already has one
         const session = await getSession();
+        console.log('[activate] Session after sign-in', {
+          userId: session?.user?.id,
+          email: session?.user?.email,
+          role: session?.user?.role,
+          mustChangePassword: session?.user?.mustChangePassword,
+        });
+
         if (session?.user?.mustChangePassword) {
           setMessage('Account activated! Setting up your password…');
+          console.log('[activate] Redirecting to /setup-password (mustChangePassword=true)');
           setTimeout(() => router.push('/setup-password'), 1500);
         } else {
           setMessage('Welcome back! Redirecting to your dashboard…');
+          console.log('[activate] Redirecting to /dashboard (mustChangePassword=false)');
           setTimeout(() => router.push('/dashboard'), 1500);
         }
       } else {
+        console.error('[activate] Magic link sign-in failed', { ok: result?.ok, error: result?.error, url: result?.url });
         setStatus('error');
         setMessage('This link has expired or already been used. Please contact support.');
       }

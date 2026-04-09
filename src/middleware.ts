@@ -40,6 +40,11 @@ export default auth((req) => {
   if (isLoggedIn && isProtectedRoute && !isPasswordRoute) {
     const mustChangePassword = req.auth?.user?.mustChangePassword;
     if (mustChangePassword) {
+      console.log('[middleware] Blocking access — mustChangePassword=true', {
+        path: nextUrl.pathname,
+        userId: req.auth?.user?.id,
+        email: req.auth?.user?.email,
+      });
       return NextResponse.redirect(new URL('/setup-password', nextUrl));
     }
   }

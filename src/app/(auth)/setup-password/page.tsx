@@ -34,6 +34,7 @@ function SetupPasswordContent() {
     }
 
     setIsLoading(true);
+    console.log('[setup-password] Starting password setup', { email, hasSession: !!session, userId: session?.user?.id });
 
     try {
       const response = await fetch('/api/auth/setup-password', {
@@ -43,14 +44,17 @@ function SetupPasswordContent() {
       });
 
       const data = await response.json();
+      console.log('[setup-password] API response', { status: response.status, ok: response.ok, data });
 
       if (!response.ok) {
         // If password is already set, just redirect to dashboard
         if (response.status === 400 && data.error?.includes('already set')) {
+          console.log('[setup-password] Password already set, refreshing session and redirecting');
           await update();
           window.location.href = '/dashboard';
           return;
         }
+        console.error('[setup-password] API error', { status: response.status, error: data.error });
         setError(data.error || 'Failed to set password');
         setIsLoading(false);
         return;
@@ -58,16 +62,24 @@ function SetupPasswordContent() {
 
       // Refresh the JWT so mustChangePassword: false is reflected
       // This triggers the 'update' path in the JWT callback which re-fetches from DB
-      await update();
+      console.log('[setup-password] Password set successfully, refreshing JWT via update()');
+      try {
+        await update();
+        console.log('[setup-password] JWT refresh complete');
+      } catch (updateErr) {
+        console.error('[setup-password] JWT refresh failed', updateErr);
+      }
 
       setSuccess(true);
 
       // Redirect to dashboard after a short delay
+      console.log('[setup-password] Redirecting to dashboard in 1.5s');
       setTimeout(() => {
+        console.log('[setup-password] Executing redirect to /dashboard');
         window.location.href = '/dashboard';
       }, 1500);
     } catch (err) {
-      console.error('Setup password error:', err);
+      console.error('[setup-password] Unexpected error', err);
       setError('Something went wrong. Please try again.');
       setIsLoading(false);
     }

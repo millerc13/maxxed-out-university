@@ -6,7 +6,10 @@ import { auth } from '@/lib/auth';
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
+    console.log('[setup-password-api] Session check', { hasSession: !!session, userId: session?.user?.id, email: session?.user?.email, mustChangePassword: session?.user?.mustChangePassword });
+
     if (!session?.user?.id) {
+      console.error('[setup-password-api] No session — returning 401');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -43,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user already has a password (prevent overwriting)
     if (user.passwordHash) {
+      console.log('[setup-password-api] Password already set for user', { userId, email: user.email });
       return NextResponse.json(
         { error: 'Password already set. Use forgot password to reset.' },
         { status: 400 }
@@ -61,12 +65,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('[setup-password-api] Password set successfully', { userId, email: user.email });
     return NextResponse.json({
       success: true,
       message: 'Password set successfully'
     });
   } catch (error) {
-    console.error('Setup password error:', error);
+    console.error('[setup-password-api] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Failed to set password' },
       { status: 500 }

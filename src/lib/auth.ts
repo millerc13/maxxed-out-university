@@ -83,16 +83,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id!;
         token.role = user.role ?? 'STUDENT';
         token.mustChangePassword = user.mustChangePassword ?? false;
+        console.log('[auth-jwt] Token created from user', { userId: token.id, role: token.role, mustChangePassword: token.mustChangePassword, trigger });
       }
       // Re-fetch from DB when session is explicitly updated (e.g. after password setup)
       if (trigger === 'update') {
+        console.log('[auth-jwt] Session update triggered, re-fetching from DB', { userId: token.id });
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
           select: { mustChangePassword: true, role: true },
         });
         if (dbUser) {
+          const oldVal = token.mustChangePassword;
           token.mustChangePassword = dbUser.mustChangePassword;
           token.role = dbUser.role;
+          console.log('[auth-jwt] Token updated from DB', { userId: token.id, mustChangePassword: `${oldVal} → ${dbUser.mustChangePassword}`, role: dbUser.role });
+        } else {
+          console.error('[auth-jwt] User not found in DB during update', { userId: token.id });
         }
       }
       return token;
