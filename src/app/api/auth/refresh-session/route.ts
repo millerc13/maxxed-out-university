@@ -1,13 +1,12 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { encode } from 'next-auth/jwt';
-import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
-  const baseUrl = process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
+export async function GET(request: NextRequest) {
+  const origin = request.nextUrl.origin;
 
   try {
     const session = await auth();
@@ -15,7 +14,7 @@ export async function GET() {
 
     if (!session?.user?.id) {
       console.log('[refresh-session] No session, redirecting to login');
-      return NextResponse.redirect(new URL('/login', baseUrl));
+      return NextResponse.redirect(new URL('/login', origin));
     }
 
     const user = await prisma.user.findUnique({
@@ -25,15 +24,16 @@ export async function GET() {
 
     if (!user) {
       console.error('[refresh-session] User not found in DB', { userId: session.user.id });
-      return NextResponse.redirect(new URL('/login', baseUrl));
+      return NextResponse.redirect(new URL('/login', origin));
     }
 
     // Encode fresh JWT with current DB values
+    const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET!;
     const cookieName = process.env.NODE_ENV === 'production'
       ? '__Secure-authjs.session-token'
       : 'authjs.session-token';
     const token = await encode({
-      secret: process.env.NEXTAUTH_SECRET!,
+      secret,
       salt: cookieName,
       token: {
         id: session.user.id,
@@ -46,15 +46,6 @@ export async function GET() {
       },
     });
 
-    // Set the session cookie
-    const cookieStore = await cookies();
-    cookieStore.set(cookieName, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
-
     console.log('[refresh-session] JWT refreshed successfully', {
       userId: session.user.id,
       email: user.email,
@@ -62,9 +53,19 @@ export async function GET() {
       role: user.role,
     });
 
-    return NextResponse.redirect(new URL('/dashboard', baseUrl));
+    // Set cookie directly on the redirect response — cookies() from next/headers
+    // does NOT propagate onto NextResponse.redirect() (separate response objects)
+    const response = NextResponse.redirect(new URL('/dashboard', origin));
+    response.cookies.set(cookieName, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('[refresh-session] Error:', error);
-    return NextResponse.redirect(new URL('/login', baseUrl));
+    return NextResponse.redirect(new URL('/login', origin));
   }
 }
