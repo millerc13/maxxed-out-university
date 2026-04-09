@@ -2,12 +2,13 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { hasActiveBundleEnrollment, getEnrolledBundleIds } from '@/lib/enrollment';
+import { getEnrolledBundleIds } from '@/lib/enrollment';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle } from 'lucide-react';
+import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle, Lock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatPrice } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -21,13 +22,7 @@ export default async function DashboardPage() {
   const isAdmin = session.user.role === 'ADMIN';
   const isCustomerView = isAdmin && cookieStore.get('admin_customer_view')?.value === 'true';
 
-  // For admin (not in customer view): fetch ALL published courses
-  // For bundle users: also fetch all published courses
-  // For regular users or admin in customer view: fetch only enrolled courses
   const showAllCourses = isAdmin && !isCustomerView;
-  const hasBundleAccess = !isCustomerView && session.user.id
-    ? await hasActiveBundleEnrollment(session.user.id)
-    : false;
   const enrolledBundleIds = !isCustomerView && session.user.id
     ? await getEnrolledBundleIds(session.user.id)
     : new Set<string>();
@@ -49,8 +44,10 @@ export default async function DashboardPage() {
     },
   });
 
-  // Fetch ALL published courses for admin or bundle users
-  const allCourses = (showAllCourses || hasBundleAccess) ? await prisma.course.findMany({
+  const enrolledCourseIds = new Set(enrollments.map(e => e.course.id));
+
+  // Fetch ALL published courses for admin view, or to show unenrolled courses
+  const allCourses = await prisma.course.findMany({
     where: { published: true },
     include: {
       modules: {
@@ -60,7 +57,15 @@ export default async function DashboardPage() {
         orderBy: { order: 'asc' },
       },
     },
-  }) : [];
+  });
+
+  // Unenrolled courses: published, not enrolled, not a bundle child the user already has via bundle, has lessons
+  const unenrolledCourses = allCourses.filter(c =>
+    !enrolledCourseIds.has(c.id) &&
+    !c.isBundle &&
+    (!c.bundleId || !enrolledBundleIds.has(c.bundleId)) &&
+    c.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0
+  );
 
   // Fetch user's lesson progress
   const progress = isCustomerView ? [] : await prisma.lessonProgress.findMany({
@@ -90,20 +95,18 @@ export default async function DashboardPage() {
   };
 
   // Calculate stats
-  const useAllCourses = showAllCourses || hasBundleAccess;
-  const totalCourses = useAllCourses ? allCourses.length : enrollments.length;
   const totalWatchedSeconds = progress.reduce((acc, p) => acc + p.watchedSeconds, 0);
   const totalHours = Math.floor(totalWatchedSeconds / 3600);
   const totalMinutes = Math.floor((totalWatchedSeconds % 3600) / 60);
   const certificates = await prisma.certificate.count({ where: { userId: session.user.id } });
 
-  // Calculate progress for courses
-  // For admin or bundle users: use all courses; for regular users: use enrollments
+  // Enrolled courses to show: admin sees all, regular users see their enrollments
   // Hide bundle child courses when user is enrolled in the parent bundle
-  const coursesToShow = (useAllCourses
+  const coursesToShow = (showAllCourses
     ? allCourses.filter(c => c.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0)
     : enrollments.map(e => e.course)
   ).filter(c => !c.bundleId || !enrolledBundleIds.has(c.bundleId));
+  const totalCourses = coursesToShow.length;
 
   const sortedCoursesToShow = sortCourses(coursesToShow);
 
@@ -229,7 +232,7 @@ export default async function DashboardPage() {
                     <span className="ml-2 text-sm font-semibold text-text-muted bg-gray-100 px-2 py-0.5 rounded-full align-middle">{coursesWithProgress.length}</span>
                   )}
                 </h2>
-                {(showAllCourses || hasBundleAccess) && (
+                {showAllCourses && (
                   <p className="text-sm text-text-muted">Courses you have access to</p>
                 )}
               </div>
@@ -355,6 +358,69 @@ export default async function DashboardPage() {
                       </div>
                     </CardContent>
                   </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Explore More Courses */}
+          {unenrolledCourses.length > 0 && !showAllCourses && (
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-text-dark">Explore More Courses</h2>
+                  <p className="text-sm text-text-muted">Level up your real estate investing knowledge</p>
+                </div>
+                <Link
+                  href="/courses"
+                  className="text-sm text-maxxed-blue hover:underline flex items-center gap-1"
+                >
+                  View all
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sortCourses(unenrolledCourses).map((course) => (
+                  <Link key={course.id} href={`/courses/${course.slug}`}>
+                    <Card className="shadow-card overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all h-full">
+                      <div className="relative aspect-video bg-gray-100">
+                        {course.thumbnail ? (
+                          <Image
+                            src={course.thumbnail}
+                            alt={course.title}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex flex-col items-center justify-center p-5 text-center">
+                            <BookOpen className="w-8 h-8 text-white/30 mb-2" />
+                            <p className="text-white text-xs font-bold leading-tight line-clamp-3">{course.title}</p>
+                          </div>
+                        )}
+                        {course.price && (
+                          <div className="absolute bottom-3 left-3 bg-white text-gray-900 px-2.5 py-1 rounded-lg text-sm font-extrabold shadow-md">
+                            {formatPrice(course.price)}
+                          </div>
+                        )}
+                      </div>
+                      <CardContent className="p-5">
+                        <h3 className="font-bold text-text-dark mb-2 line-clamp-1">
+                          {course.title}
+                        </h3>
+                        <p className="text-sm text-text-muted mb-4 line-clamp-2">
+                          {course.shortDesc || course.description}
+                        </p>
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                          <span className="text-xs text-text-muted">
+                            {course.modules.reduce((acc, m) => acc + m.lessons.length, 0)} lessons
+                          </span>
+                          <span className="text-xs font-bold text-maxxed-blue flex items-center gap-1">
+                            View Course <ArrowRight className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 ))}
               </div>
             </div>
