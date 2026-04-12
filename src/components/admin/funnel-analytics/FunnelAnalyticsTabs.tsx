@@ -27,12 +27,12 @@ export function FunnelAnalyticsTabs({ funnelId }: Props) {
   return (
     <div style={{ fontFamily: "'Fira Sans', system-ui, sans-serif" }}>
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full justify-start bg-[#E9EEF6] rounded-xl p-1.5 h-auto gap-1">
+        <TabsList className="w-full justify-start bg-[#E9EEF6] rounded-xl p-1.5 h-auto gap-1 overflow-x-auto">
           {TABS.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-[#1E40AF] data-[state=active]:shadow-sm text-[#64748B] hover:text-[#1E3A8A]"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg cursor-pointer transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-[#1E40AF] data-[state=active]:shadow-sm text-[#64748B] hover:text-[#1E3A8A] whitespace-nowrap shrink-0"
             >
               <Icon className="w-4 h-4" />
               {label}

@@ -19,8 +19,8 @@ export function CourseEditor({ course }: CourseEditorProps) {
   return (
     <div className="space-y-0">
       {/* ── Header + Tabs (matching funnel editor style) ── */}
-      <div className="-mx-6 -mt-6 mb-6 px-6 pt-5 pb-0 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
-        <div className="flex items-center justify-between mb-5">
+      <div className="-mx-4 sm:-mx-6 -mt-4 sm:-mt-6 mb-6 px-4 sm:px-6 pt-5 pb-0 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/admin/courses')}
@@ -58,7 +58,7 @@ export function CourseEditor({ course }: CourseEditorProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0">
+        <div className="flex gap-0 overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
           {([
             { key: 'content' as const, label: 'Content', icon: Layers },
             { key: 'quizzes' as const, label: 'Quizzes', icon: FileQuestion },
@@ -68,7 +68,7 @@ export function CourseEditor({ course }: CourseEditorProps) {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors relative ${
+              className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap ${
                 activeTab === tab.key
                   ? 'text-maxxed-blue'
                   : 'text-gray-500 hover:text-gray-900'

@@ -23,7 +23,7 @@ export default async function AdminCoursesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
           <p className="text-gray-600 mt-1">
@@ -96,7 +96,7 @@ export default async function AdminCoursesPage() {
                     <div className="flex-1 p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <h3 className="font-bold text-gray-900">
                               {course.title}
                             </h3>
@@ -147,11 +147,11 @@ export default async function AdminCoursesPage() {
                       </div>
 
                       {/* Stats */}
-                      <div className="flex items-center gap-6 mt-3 text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm text-gray-500">
                         <span>{course.modules.length} modules</span>
                         <span>{totalLessons} lessons</span>
                         <span>{course._count.enrollments} enrollments</span>
-                        <span className="text-gray-400">
+                        <span className="text-gray-400 truncate max-w-full">
                           /{course.slug}
                         </span>
                       </div>

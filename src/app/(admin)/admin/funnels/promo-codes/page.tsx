@@ -141,18 +141,18 @@ export default function PromoCodesPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center gap-4 mb-8">
-        <Link href="/admin/funnels" className="text-gray-400 hover:text-gray-600">
+    <div>
+      <div className="flex flex-wrap items-start gap-4 mb-8">
+        <Link href="/admin/funnels" className="text-gray-400 hover:text-gray-600 mt-1">
           <ChevronLeft className="w-5 h-5" />
         </Link>
-        <div className="flex-1">
+        <div className="flex-1 min-w-[200px]">
           <h1 className="text-2xl font-bold text-gray-900">Promo Codes</h1>
           <p className="text-gray-500 mt-1">Create discount codes for use in your funnel checkouts.</p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-blue-800"
+          className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-blue-800 whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           Create Promo Code

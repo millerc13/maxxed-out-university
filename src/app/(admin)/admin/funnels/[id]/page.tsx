@@ -1014,8 +1014,8 @@ export default function FunnelEditorPage() {
   return (
     <div className="space-y-0">
       {/* ── Header + Tabs (sticky bar with background) ── */}
-      <div className="-mx-6 -mt-6 mb-6 px-6 pt-5 pb-0 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
-        <div className="flex items-center justify-between mb-5">
+      <div className="-mx-4 sm:-mx-6 -mt-4 sm:-mt-6 mb-6 px-4 sm:px-6 pt-5 pb-0 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/admin/funnels')}
@@ -1042,8 +1042,8 @@ export default function FunnelEditorPage() {
         </div>
 
         {/* Tabs + Save */}
-        <div className="flex items-end justify-between">
-          <div className="flex gap-0">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex gap-0 overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
             {([
               { key: 'settings', label: 'Settings', icon: Settings },
               { key: 'content', label: 'Content', icon: FileText },
@@ -1052,7 +1052,7 @@ export default function FunnelEditorPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors relative ${
+                className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'text-maxxed-blue'
                     : 'text-gray-500 hover:text-gray-900'
@@ -1072,7 +1072,7 @@ export default function FunnelEditorPage() {
             {saveError && <p className="text-red-500 text-sm font-medium">{saveError}</p>}
             {saved && <p className="text-green-600 text-sm font-medium flex items-center gap-1"><Check className="w-4 h-4" /> Saved</p>}
             {!saveError && !saved && activeTab !== 'preview' && (
-              <p className="text-gray-400 text-sm">Unsaved changes won&apos;t go live</p>
+              <p className="text-gray-400 text-sm hidden md:block">Unsaved changes won&apos;t go live</p>
             )}
             <button
               onClick={save}
@@ -1109,7 +1109,7 @@ export default function FunnelEditorPage() {
                       placeholder="my-funnel"
                       className="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono"
                     />
-                    <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500 font-mono whitespace-nowrap">
+                    <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500 font-mono whitespace-nowrap truncate max-w-[55%]">
                       .join.maxxedout.com
                     </span>
                   </div>
