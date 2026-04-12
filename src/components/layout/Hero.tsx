@@ -31,7 +31,7 @@ function MosaicRow({ reverse = false, offset = 0 }: { reverse?: boolean; offset?
       {images.map((src, index) => (
         <div
           key={index}
-          className="flex-shrink-0 w-[280px] h-[158px] md:w-[280px] md:h-[158px] sm:w-[200px] sm:h-[112px] rounded-lg overflow-hidden bg-black/20"
+          className="flex-shrink-0 w-[180px] h-[101px] sm:w-[200px] sm:h-[112px] md:w-[280px] md:h-[158px] rounded-lg overflow-hidden bg-black/20"
         >
           <Image
             src={src}
@@ -50,7 +50,7 @@ function MosaicRow({ reverse = false, offset = 0 }: { reverse?: boolean; offset?
 
 export function Hero() {
   return (
-    <section className="relative h-[450px] md:h-[450px] sm:h-[280px] overflow-hidden bg-gradient-hero">
+    <section className="relative h-[280px] sm:h-[350px] md:h-[450px] overflow-hidden bg-gradient-hero">
       {/* Mosaic Background */}
       <div
         className="absolute -top-5 -left-12 -right-12 -bottom-5 flex flex-col gap-2.5 opacity-60"
@@ -68,13 +68,13 @@ export function Hero() {
 
       {/* Hero Content */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-[3] text-white px-4">
-        <p className="text-xs md:text-sm tracking-[8px] md:tracking-[8px] sm:tracking-[4px] uppercase mb-2.5 font-medium opacity-90">
+        <p className="text-xs md:text-sm tracking-[4px] md:tracking-[8px] uppercase mb-2.5 font-medium opacity-90">
           Welcome to
         </p>
-        <h1 className="text-3xl sm:text-[28px] md:text-[52px] font-extrabold tracking-[4px] sm:tracking-[4px] md:tracking-[12px] uppercase mb-4">
+        <h1 className="text-[28px] sm:text-3xl md:text-[52px] font-extrabold tracking-[4px] md:tracking-[12px] uppercase mb-4">
           TRAINING CENTER
         </h1>
-        <p className="text-base sm:text-base md:text-xl font-semibold tracking-[2px] md:tracking-[3px]">
+        <p className="text-base md:text-xl font-semibold tracking-[2px] md:tracking-[3px]">
           MAXXED OUT UNIVERSITY
           <span className="block text-sm md:text-base opacity-80 mt-1.5">
             Real Estate Investment Education

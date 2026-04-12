@@ -171,7 +171,7 @@ const SellerCallScript = forwardRef<ToolHandle>(function SellerCallScript(_, ref
             alt="Maxxed Out"
             width={120}
             height={47}
-            className="h-10 w-auto"
+            className="h-10 w-auto hidden sm:block"
           />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Seller Call Script</h1>

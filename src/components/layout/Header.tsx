@@ -189,10 +189,18 @@ export function Header() {
           )}
         </nav>
 
+        {/* Mobile Menu Backdrop */}
+        {mobileMenuOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/20 z-30"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Mobile Navigation */}
         <nav
-          className={`md:hidden absolute top-full left-0 right-0 bg-white flex-col shadow-lg transition-all duration-300 overflow-hidden ${
-            mobileMenuOpen ? 'max-h-96 flex' : 'max-h-0'
+          className={`md:hidden absolute top-full left-0 right-0 bg-white flex-col shadow-lg transition-all duration-300 overflow-hidden z-40 ${
+            mobileMenuOpen ? 'max-h-[80vh] flex' : 'max-h-0'
           }`}
         >
           {navLinks

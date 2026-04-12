@@ -435,7 +435,7 @@ const RentalPropertyAnalyzer = forwardRef<ToolHandle>(function RentalPropertyAna
           alt="Maxxed Out"
           width={120}
           height={47}
-          className="h-10 w-auto"
+          className="h-10 w-auto hidden sm:block"
         />
         <h2 className="text-2xl font-bold text-gray-900">Rental Property Analyzer</h2>
       </div>

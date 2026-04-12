@@ -201,14 +201,14 @@ export const VendorContractorList = forwardRef<ToolHandle>(function VendorContra
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Image
             src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png"
             alt="Maxxed Out"
             width={120}
             height={47}
-            className="h-10 w-auto"
+            className="h-10 w-auto hidden sm:block"
           />
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Vendor & Contractor List</h2>

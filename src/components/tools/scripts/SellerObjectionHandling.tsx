@@ -133,7 +133,7 @@ const SellerObjectionHandling = forwardRef<ToolHandle>(function SellerObjectionH
             alt="Maxxed Out"
             width={120}
             height={47}
-            className="h-10 w-auto"
+            className="h-10 w-auto hidden sm:block"
           />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Seller Objection Handling</h1>

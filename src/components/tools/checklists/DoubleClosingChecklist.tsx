@@ -122,7 +122,7 @@ const DoubleClosingChecklist = forwardRef<ToolHandle>(function DoubleClosingChec
           alt="Maxxed Out"
           width={120}
           height={47}
-          className="h-10 w-auto"
+          className="h-10 w-auto hidden sm:block"
         />
       </div>
       {/* Progress */}
