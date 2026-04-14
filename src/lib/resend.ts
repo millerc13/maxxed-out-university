@@ -25,7 +25,8 @@ export async function sendMagicLinkEmail({
     ? `<tr><td style="padding:0 0 28px;"><img src="${courseThumbnail}" alt="${courseName}" width="520" style="display:block;width:100%;max-width:520px;border-radius:10px;" /></td></tr>`
     : '';
 
-  return resend.emails.send({
+  console.log('[resend] Sending magic link email', { from: FROM, to, subject: `Your ${courseName} access is ready`, activateUrl });
+  const result = await resend.emails.send({
     from: FROM,
     to,
     subject: `Your ${courseName} access is ready`,
@@ -113,6 +114,8 @@ export async function sendMagicLinkEmail({
 </body>
 </html>`,
   });
+  console.log('[resend] Magic link email result', { emailId: result?.data?.id, error: result?.error });
+  return result;
 }
 
 export async function sendCourseAddedEmail({

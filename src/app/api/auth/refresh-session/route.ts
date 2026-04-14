@@ -7,31 +7,33 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
+  console.log('[refresh-session] GET invoked', { origin, userAgent: request.headers.get('user-agent')?.slice(0, 60) });
 
   try {
     const session = await auth();
-    console.log('[refresh-session] Session check', { hasSession: !!session, userId: session?.user?.id });
+    console.log('[refresh-session] Session check', { hasSession: !!session, userId: session?.user?.id, email: session?.user?.email, mustChangePassword: session?.user?.mustChangePassword });
 
     if (!session?.user?.id) {
-      console.log('[refresh-session] No session, redirecting to login');
+      console.warn('[refresh-session] No session — redirecting to /login');
       return NextResponse.redirect(new URL('/login', origin));
     }
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { mustChangePassword: true, role: true, email: true, name: true, image: true },
+      select: { mustChangePassword: true, role: true, email: true, name: true, image: true, passwordHash: true },
     });
 
     if (!user) {
       console.error('[refresh-session] User not found in DB', { userId: session.user.id });
       return NextResponse.redirect(new URL('/login', origin));
     }
+    console.log('[refresh-session] User loaded from DB', { userId: session.user.id, email: user.email, mustChangePassword: user.mustChangePassword, role: user.role, hasPassword: !!user.passwordHash });
 
-    // Encode fresh JWT with current DB values
     const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET!;
-    const cookieName = process.env.NODE_ENV === 'production'
-      ? '__Secure-authjs.session-token'
-      : 'authjs.session-token';
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieName = isProd ? '__Secure-authjs.session-token' : 'authjs.session-token';
+    console.log('[refresh-session] Encoding JWT', { cookieName, isProd, hasSecret: !!secret });
+
     const token = await encode({
       secret,
       salt: cookieName,
@@ -45,27 +47,20 @@ export async function GET(request: NextRequest) {
         sub: session.user.id,
       },
     });
+    console.log('[refresh-session] JWT encoded', { tokenLength: token.length, tokenPrefix: token.slice(0, 20) + '...' });
 
-    console.log('[refresh-session] JWT refreshed successfully', {
-      userId: session.user.id,
-      email: user.email,
-      mustChangePassword: user.mustChangePassword,
-      role: user.role,
-    });
-
-    // Set cookie directly on the redirect response — cookies() from next/headers
-    // does NOT propagate onto NextResponse.redirect() (separate response objects)
     const response = NextResponse.redirect(new URL('/dashboard', origin));
     response.cookies.set(cookieName, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,
       sameSite: 'lax',
       path: '/',
     });
+    console.log('[refresh-session] Cookie set, redirecting to /dashboard', { cookieName, secure: isProd });
 
     return response;
   } catch (error) {
-    console.error('[refresh-session] Error:', error);
+    console.error('[refresh-session] Error', { error: error instanceof Error ? error.message : error, stack: error instanceof Error ? error.stack : undefined });
     return NextResponse.redirect(new URL('/login', origin));
   }
 }
