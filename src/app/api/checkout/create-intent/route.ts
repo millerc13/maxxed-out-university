@@ -7,8 +7,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { courseId, guestEmail, guestName, guestPhone, promoCode } = body;
+    console.log('[create-intent] Request', { courseId, guestEmail, guestName, hasPromo: !!promoCode });
 
     if (!courseId) {
+      console.error('[create-intent] Missing courseId');
       return NextResponse.json({ error: 'courseId is required' }, { status: 400 });
     }
 
@@ -28,12 +30,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!course) {
+      console.error('[create-intent] Course not found or unpublished', { courseId });
       return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
     if (!course.price || course.price <= 0) {
+      console.error('[create-intent] Course has no price', { courseId, price: course.price });
       return NextResponse.json({ error: 'Course is free' }, { status: 400 });
     }
+    console.log('[create-intent] Course loaded', { courseId, title: course.title, price: course.price, isGuest });
 
     if (!isGuest && session?.user?.id) {
       const existing = await prisma.enrollment.findUnique({
@@ -75,6 +80,7 @@ export async function POST(request: NextRequest) {
     const email = isGuest ? guestEmail : (session?.user?.email ?? '');
     const name = isGuest ? (guestName ?? '') : (session?.user?.name ?? '');
 
+    console.log('[create-intent] Creating Stripe PaymentIntent', { amount: finalAmount, originalPrice: course.price, isGuest, email });
     const paymentIntent = await stripe.paymentIntents.create({
       amount: finalAmount,
       currency: 'usd',
@@ -94,6 +100,7 @@ export async function POST(request: NextRequest) {
       receipt_email: email,
       description: `Maxxed Out University — ${course.title}`,
     });
+    console.log('[create-intent] PaymentIntent created', { paymentIntentId: paymentIntent.id, amount: finalAmount });
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
       courseTitle: course.title,
     });
   } catch (error) {
-    console.error('Error creating payment intent:', error);
+    console.error('[create-intent] Error creating payment intent', { error: error instanceof Error ? error.message : error, stack: error instanceof Error ? error.stack : undefined });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
