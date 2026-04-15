@@ -12,8 +12,9 @@ export function getFanbasisConfig() {
 
 async function fanbasisFetch(path: string, options: RequestInit = {}) {
   const { apiKey, baseUrl } = getFanbasisConfig();
-  // Sandbox URL (qa.dev-fan-basis.com) has no /public-api prefix, so paths
-  // are appended directly.  Production already includes /public-api in baseUrl.
+  // Both sandbox AND production require the /public-api prefix in baseUrl.
+  // (Fanbasis docs say sandbox doesn't, but their own BUGS.md confirms it does
+  // — hitting qa.dev-fan-basis.com/checkout-sessions returns 405.)
   const url = `${baseUrl}${path}`;
 
   const res = await fetch(url, {
