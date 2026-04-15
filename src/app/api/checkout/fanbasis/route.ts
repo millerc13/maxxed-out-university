@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createCheckoutSession } from '@/lib/fanbasis';
+import { isEffectivelyEnrolled } from '@/lib/enrollment';
+import { sendAlreadyOwnedEmail } from '@/lib/resend';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,11 +36,43 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isGuest && session?.user?.id) {
-      const existing = await prisma.enrollment.findUnique({
-        where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
+      const enrolled = await isEffectivelyEnrolled(session.user.id, course.id);
+      if (enrolled) {
+        console.log('[fanbasis-checkout] Authenticated user already enrolled', { userId: session.user.id, courseId });
+        return NextResponse.json({ error: 'You already own this course. Log in to access it.' }, { status: 409 });
+      }
+    }
+
+    // Guest checkout — block duplicates by email and send already-owned email.
+    let isExistingUser = false;
+    if (isGuest && guestEmail) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: guestEmail },
+        select: { id: true, name: true },
       });
-      if (existing) {
-        return NextResponse.json({ error: 'Already enrolled' }, { status: 409 });
+      if (existingUser) {
+        isExistingUser = true;
+        const enrolled = await isEffectivelyEnrolled(existingUser.id, course.id);
+        if (enrolled) {
+          console.log('[fanbasis-checkout] Guest email matches existing enrollment — blocking duplicate', { email: guestEmail, userId: existingUser.id, courseId });
+          try {
+            const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
+            const courseFull = await prisma.course.findUnique({ where: { id: courseId }, select: { thumbnail: true } });
+            await sendAlreadyOwnedEmail({
+              to: guestEmail,
+              name: existingUser.name || '',
+              courseName: course.title,
+              loginUrl,
+              courseThumbnail: courseFull?.thumbnail ?? null,
+            });
+          } catch (emailErr) {
+            console.error('[fanbasis-checkout] Failed to send already-owned email', { error: emailErr instanceof Error ? emailErr.message : emailErr });
+          }
+          return NextResponse.json(
+            { error: `You already own ${course.title}. We sent an email to ${guestEmail} with a link to log in.`, alreadyOwned: true },
+            { status: 409 }
+          );
+        }
       }
     }
 
@@ -104,6 +138,7 @@ export async function POST(request: NextRequest) {
       amount: finalAmount,
       originalAmount: course.price,
       courseTitle: course.title,
+      isExistingUser,
     });
   } catch (error) {
     console.error('Error creating Fanbasis checkout:', error);
