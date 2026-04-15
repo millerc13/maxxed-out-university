@@ -12,11 +12,12 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get('x-webhook-signature');
 
   // Signature validation.
-  // Production OR any env that has FANBASIS_WEBHOOK_SECRET set must validate.
-  // Local dev without the secret is allowed (logged) so test webhooks via curl
-  // still work; once the secret is set anywhere it becomes mandatory.
+  // Strict mode ONLY on Vercel prod (`VERCEL_ENV === 'production'`) — dev and preview
+  // deployments accept unsigned webhooks when no secret is configured, which allows
+  // per-session `webhook_url` testing via the Fanbasis sandbox without registering
+  // a webhook subscription first.
   const webhookSecret = process.env.FANBASIS_WEBHOOK_SECRET;
-  const isProd = process.env.NODE_ENV === 'production';
+  const isVercelProd = process.env.VERCEL_ENV === 'production';
   if (webhookSecret) {
     if (!signature) {
       console.error('[fanbasis-webhook] Missing X-Webhook-Signature header');
@@ -26,11 +27,11 @@ export async function POST(request: NextRequest) {
       console.error('[fanbasis-webhook] Signature validation failed');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
-  } else if (isProd) {
+  } else if (isVercelProd) {
     console.error('[fanbasis-webhook] FANBASIS_WEBHOOK_SECRET not set in production');
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
   } else {
-    console.warn('[fanbasis-webhook] No FANBASIS_WEBHOOK_SECRET — accepting unsigned (dev only)');
+    console.warn('[fanbasis-webhook] No FANBASIS_WEBHOOK_SECRET — accepting unsigned (non-prod)');
   }
 
   let payload: Record<string, unknown>;
