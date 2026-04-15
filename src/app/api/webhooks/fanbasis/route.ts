@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { validateWebhookSignature } from '@/lib/fanbasis';
 import { createMagicLink } from '@/lib/magiclink';
 import { sendMagicLinkEmail, sendCourseAddedEmail } from '@/lib/resend';
+import { enrollInBundle } from '@/lib/enrollment';
 
 export const runtime = 'nodejs';
 
@@ -10,13 +11,26 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get('x-webhook-signature');
 
-  // Validate signature if webhook secret is configured
+  // Signature validation.
+  // Production OR any env that has FANBASIS_WEBHOOK_SECRET set must validate.
+  // Local dev without the secret is allowed (logged) so test webhooks via curl
+  // still work; once the secret is set anywhere it becomes mandatory.
   const webhookSecret = process.env.FANBASIS_WEBHOOK_SECRET;
-  if (webhookSecret && signature) {
+  const isProd = process.env.NODE_ENV === 'production';
+  if (webhookSecret) {
+    if (!signature) {
+      console.error('[fanbasis-webhook] Missing X-Webhook-Signature header');
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+    }
     if (!validateWebhookSignature(rawBody, signature, webhookSecret)) {
-      console.error('Fanbasis webhook signature validation failed');
+      console.error('[fanbasis-webhook] Signature validation failed');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
+  } else if (isProd) {
+    console.error('[fanbasis-webhook] FANBASIS_WEBHOOK_SECRET not set in production');
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+  } else {
+    console.warn('[fanbasis-webhook] No FANBASIS_WEBHOOK_SECRET — accepting unsigned (dev only)');
   }
 
   let payload: Record<string, unknown>;
@@ -133,7 +147,9 @@ async function enrollFromFanbasis(params: {
   originalPrice: string;
 }) {
   let resolvedUserId = params.userId;
-  let isNewUser = false;
+  let needsPasswordSetup = false;
+  let userEmail = params.email;
+  let userName = params.guestName || params.name || 'Student';
 
   if (params.isGuest || !resolvedUserId) {
     // Find or create user by email
@@ -147,14 +163,29 @@ async function enrollFromFanbasis(params: {
           mustChangePassword: true,
         },
       });
-      isNewUser = true;
+      needsPasswordSetup = true;
+    } else {
+      // Existing record but never activated — still send magic link so they can set a password
+      needsPasswordSetup = !user.passwordHash;
     }
 
     resolvedUserId = user.id;
+    userName = user.name || params.guestName || params.name || 'Student';
+  } else {
+    // Authenticated checkout — load the user to fetch fresh email/name + passwordHash
+    const user = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
+      select: { email: true, name: true, passwordHash: true },
+    });
+    if (user) {
+      userEmail = user.email;
+      userName = user.name || userName;
+      needsPasswordSetup = !user.passwordHash;
+    }
   }
 
   if (!resolvedUserId) {
-    console.error('Could not resolve userId for Fanbasis payment:', params.transactionId);
+    console.error('[fanbasis-webhook] Could not resolve userId for payment:', params.transactionId);
     return;
   }
 
@@ -176,6 +207,21 @@ async function enrollFromFanbasis(params: {
     update: {},
   });
 
+  // Bundle unlock — if this course is a bundle, also enroll in every child course.
+  const purchasedCourse = await prisma.course.findUnique({
+    where: { id: params.courseId },
+    select: { isBundle: true, thumbnail: true, title: true },
+  });
+
+  if (purchasedCourse?.isBundle) {
+    try {
+      console.log('[fanbasis-webhook] Bundle detected, enrolling in child courses', { bundleId: params.courseId });
+      await enrollInBundle(resolvedUserId, params.courseId, 'fanbasis', params.transactionId);
+    } catch (err) {
+      console.error('[fanbasis-webhook] Bundle enrollment failed', { error: err instanceof Error ? err.message : err });
+    }
+  }
+
   // Increment promo code usage
   if (params.promoCodeId) {
     await prisma.promoCode.update({
@@ -184,22 +230,23 @@ async function enrollFromFanbasis(params: {
     });
   }
 
-  console.log(`Fanbasis enrollment: user=${resolvedUserId} course=${params.courseId} txn=${params.transactionId}`);
-
-  // Fetch course thumbnail for email
-  const course = await prisma.course.findUnique({
-    where: { id: params.courseId },
-    select: { thumbnail: true },
-  });
+  console.log(`[fanbasis-webhook] Enrollment: user=${resolvedUserId} course=${params.courseId} txn=${params.transactionId} needsPasswordSetup=${needsPasswordSetup}`);
 
   // Send appropriate email based on user status
-  const userName = params.guestName || params.name || 'Student';
-  const cName = params.courseTitle || 'your course';
-  if (isNewUser && params.email) {
-    const token = await createMagicLink(resolvedUserId);
-    await sendMagicLinkEmail({ to: params.email, name: userName, token, courseName: cName, courseThumbnail: course?.thumbnail });
-  } else if (!isNewUser && params.email) {
-    const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
-    await sendCourseAddedEmail({ to: params.email, name: userName, courseName: cName, loginUrl, courseThumbnail: course?.thumbnail });
+  const cName = params.courseTitle || purchasedCourse?.title || 'your course';
+  if (!userEmail) {
+    console.warn('[fanbasis-webhook] No email available — skipping notification', { resolvedUserId });
+    return;
+  }
+  try {
+    if (needsPasswordSetup) {
+      const token = await createMagicLink(resolvedUserId);
+      await sendMagicLinkEmail({ to: userEmail, name: userName, token, courseName: cName, courseThumbnail: purchasedCourse?.thumbnail });
+    } else {
+      const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
+      await sendCourseAddedEmail({ to: userEmail, name: userName, courseName: cName, loginUrl, courseThumbnail: purchasedCourse?.thumbnail });
+    }
+  } catch (err) {
+    console.error('[fanbasis-webhook] Email send failed', { error: err instanceof Error ? err.message : err });
   }
 }
