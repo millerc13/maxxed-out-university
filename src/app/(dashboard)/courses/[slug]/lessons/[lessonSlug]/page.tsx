@@ -6,6 +6,7 @@ import { MarkdownContent } from '@/components/ui/markdown-content';
 import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy, Download, FileText, Printer } from 'lucide-react';
 import { PrintButton } from '@/components/ui/print-button';
 import { VideoPlayer } from '@/components/lesson/VideoPlayer';
+import { getModuleAccess, getRequiredQuizForModule } from '@/lib/gating';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
@@ -130,6 +131,17 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   // Calculate module and lesson numbers for display (e.g., "Lesson 1.1")
   const moduleIndex = course.modules.findIndex((m) => m.id === currentModule.id);
+
+  // Bundle gating — must pass prior-module quiz to access this lesson
+  const isModuleUnlocked = getModuleAccess(course, quizAttempts, isAdmin);
+  if (!isModuleUnlocked(moduleIndex)) {
+    const requiredQuizId = getRequiredQuizForModule(course, moduleIndex);
+    if (requiredQuizId) {
+      redirect(`/courses/${slug}/quiz/${requiredQuizId}?locked=1`);
+    } else {
+      redirect(`/courses/${slug}`);
+    }
+  }
   const lessonOrderInModule = currentLesson.order;
   const lessonNumber = `${moduleIndex + 1}.${lessonOrderInModule}`;
 
@@ -380,7 +392,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
                             {module.lessons.map((lesson) => {
                               const lProgress = progressMap.get(lesson.id);
                               const isCurrent = lesson.id === currentLesson.id;
-                              const isLocked = !isAdmin && !isEnrolled && !lesson.isFree;
+                              const moduleUnlocked = isModuleUnlocked(moduleIndex);
+                              const isLocked = (!isAdmin && !isEnrolled && !lesson.isFree) || !moduleUnlocked;
                               const sidebarLessonNum = `${moduleIndex + 1}.${lesson.order}`;
 
                               return (

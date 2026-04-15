@@ -111,5 +111,37 @@ export async function GET(
     }
   }
 
-  return NextResponse.json(quiz);
+  // Include the "next lesson" (first lesson of the module AFTER this quiz's module)
+  // so the results screen can show a "Continue to next lesson" CTA after passing.
+  let nextLesson: { slug: string; title: string; moduleTitle: string } | null = null;
+  if (quiz.courseId) {
+    const course = await prisma.course.findUnique({
+      where: { id: quiz.courseId },
+      select: {
+        modules: {
+          orderBy: { order: 'asc' },
+          select: {
+            title: true,
+            lessons: {
+              orderBy: { order: 'asc' },
+              select: { slug: true, title: true },
+            },
+          },
+        },
+      },
+    });
+    if (course) {
+      const nextModuleIndex = quiz.order + 1;
+      const nextModule = course.modules[nextModuleIndex];
+      if (nextModule && nextModule.lessons[0]) {
+        nextLesson = {
+          slug: nextModule.lessons[0].slug,
+          title: nextModule.lessons[0].title,
+          moduleTitle: nextModule.title,
+        };
+      }
+    }
+  }
+
+  return NextResponse.json({ ...quiz, nextLesson });
 }

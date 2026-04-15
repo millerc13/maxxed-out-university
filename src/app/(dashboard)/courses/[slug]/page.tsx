@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
 import { MarkdownContent } from '@/components/ui/markdown-content';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
+import { getModuleAccess } from '@/lib/gating';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -88,6 +89,14 @@ export default async function CoursePage({ params }: CoursePageProps) {
     orderBy: { order: 'asc' },
   });
 
+  // Get this user's certificate for this course (if awarded)
+  const userCertificate = session?.user?.id
+    ? await prisma.certificate.findUnique({
+        where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
+        select: { certificateId: true },
+      })
+    : null;
+
   // Calculate stats
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedLessons = progress.filter((p) => p.completed).length;
@@ -98,6 +107,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
   );
   const totalHours = Math.floor(totalDuration / 3600);
   const totalMinutes = Math.floor((totalDuration % 3600) / 60);
+
+  // Bundle gating — module is locked until prior-module quiz is passed.
+  // No-op for non-bundle courses and for admins.
+  const moduleAccess = getModuleAccess(course, quizAttempts, isAdmin);
 
   // Find next lesson to continue
   let nextLesson = null;
@@ -293,19 +306,29 @@ export default async function CoursePage({ params }: CoursePageProps) {
               // Admin can access all quizzes regardless of progress
               const quizUnlocked = isAdmin || (isEnrolled && allPriorModulesCompleted && allModuleLessonsCompleted);
 
+              // Bundle gating: module is locked until prior module's quiz is passed
+              const moduleLocked = !moduleAccess(moduleIndex);
+
               return (
                 <div key={module.id} className="space-y-4">
-                  <Card className="shadow-card overflow-hidden">
-                    <div className="bg-gray-50 px-5 py-4 border-b">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-text-dark">
+                  <Card className={`shadow-card overflow-hidden ${moduleLocked ? 'opacity-80' : ''}`}>
+                    <div className={`px-5 py-4 border-b ${moduleLocked ? 'bg-gray-100' : 'bg-gray-50'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-bold text-text-dark flex items-center gap-2">
+                          {moduleLocked && <Lock className="w-4 h-4 text-gray-500" />}
                           Module {moduleIndex + 1}: {module.title}
                         </h3>
-                        <span className="text-sm text-text-muted">
+                        <span className="text-sm text-text-muted flex-shrink-0">
                           {module.lessons.length} lessons
                         </span>
                       </div>
-                      {module.description && (
+                      {moduleLocked && (
+                        <p className="text-xs text-gray-600 mt-1.5 flex items-center gap-1.5">
+                          <Lock className="w-3 h-3" />
+                          Pass the Module {moduleIndex} quiz to unlock
+                        </p>
+                      )}
+                      {module.description && !moduleLocked && (
                         <p className="text-sm text-text-muted mt-1">{module.description}</p>
                       )}
                     </div>
@@ -313,7 +336,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                       {module.lessons.map((lesson, lessonIndex) => {
                         const lessonProgress = progressMap.get(lesson.id);
                         const isCompleted = lessonProgress?.completed;
-                        const isAccessible = isAdmin || isEnrolled || lesson.isFree;
+                        const isAccessible = (isAdmin || isEnrolled || lesson.isFree) && !moduleLocked;
                         const durationMin = Math.ceil((lesson.videoDuration || 0) / 60);
 
                         return (
@@ -531,7 +554,12 @@ export default async function CoursePage({ params }: CoursePageProps) {
                       <div>
                         {finalExamUnlocked ? (
                           <Link
-                            href={`/courses/${course.slug}/quiz/${finalExam.id}`}
+                            href={
+                              hasPassed && userCertificate
+                                ? `/certificates/${userCertificate.certificateId}`
+                                : `/courses/${course.slug}/quiz/${finalExam.id}`
+                            }
+                            target={hasPassed && userCertificate ? '_blank' : undefined}
                             className={`flex items-center gap-2 px-5 py-3 rounded-lg font-bold transition-colors ${
                               hasPassed
                                 ? 'bg-green-100 text-green-700 hover:bg-green-200'

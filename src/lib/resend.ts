@@ -327,6 +327,265 @@ export async function sendAlreadyOwnedEmail({
   return result;
 }
 
+export async function sendModuleQuizPassedEmail({
+  to,
+  name,
+  courseName,
+  moduleName,
+  moduleNumber,
+  totalModules,
+  score,
+  nextLessonUrl,
+}: {
+  to: string;
+  name: string;
+  courseName: string;
+  moduleName: string;
+  moduleNumber: number;
+  totalModules: number;
+  score: number;
+  nextLessonUrl: string | null;
+}) {
+  const firstName = name.split(' ')[0] || 'there';
+  const logoUrl = `${BASE_URL}/downloads/logo.png`;
+  const isLastModule = moduleNumber >= totalModules;
+  const percentComplete = Math.round((moduleNumber / totalModules) * 100);
+
+  // Pick a fresh hype line
+  const hypeLines = [
+    "Momentum looks good on you.",
+    "That's the sound of progress.",
+    "One more module in the books.",
+    "Keep that streak alive.",
+    "You're building real knowledge — block by block.",
+  ];
+  const hype = hypeLines[moduleNumber % hypeLines.length];
+
+  const ctaText = isLastModule ? 'Take the Final Exam' : 'Continue to the Next Module';
+  const fallbackUrl = `${BASE_URL}/dashboard`;
+  const ctaUrl = nextLessonUrl ?? fallbackUrl;
+
+  console.log('[resend] Sending module-passed email', { from: FROM, to, moduleNumber, moduleName, score });
+  const result = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Nice — you crushed Module ${moduleNumber}: ${moduleName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <tr>
+            <td align="center" style="padding:0 0 32px;">
+              <img src="${logoUrl}" alt="Maxxed Out" width="180" style="display:block;width:180px;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:4px solid #2563eb;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td>
+                    <p style="margin:0 0 6px;font-size:11px;font-weight:800;color:#2563eb;letter-spacing:0.2em;text-transform:uppercase;">
+                      Module ${moduleNumber} Complete
+                    </p>
+                    <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#111827;line-height:1.3;">
+                      Nice work, ${firstName} — ${hype}
+                    </h1>
+                    <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
+                      You just passed the quiz for
+                      <strong style="color:#111827;">Module ${moduleNumber}: ${moduleName}</strong>
+                      with a score of <strong style="color:#111827;">${score}%</strong>.
+                      ${isLastModule ? "You're at the final step — the exam awaits." : 'Keep your momentum going and jump into the next module.'}
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Progress -->
+                <tr>
+                  <td style="padding:0 0 28px;">
+                    <div style="background:#f3f4f6;border-radius:10px;padding:14px 16px;">
+                      <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="font-size:12px;color:#6b7280;font-weight:600;">
+                            ${moduleNumber} of ${totalModules} modules complete
+                          </td>
+                          <td align="right" style="font-size:12px;color:#111827;font-weight:800;">
+                            ${percentComplete}%
+                          </td>
+                        </tr>
+                      </table>
+                      <div style="margin-top:10px;height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+                        <div style="width:${percentComplete}%;height:8px;background:linear-gradient(90deg,#2563eb,#60a5fa);border-radius:999px;"></div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- CTA Button -->
+                <tr>
+                  <td align="center" style="padding:0 0 28px;">
+                    <table cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="background:#2563eb;border-radius:10px;">
+                          <a href="${ctaUrl}" style="display:inline-block;padding:16px 44px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.02em;">
+                            ${ctaText}
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="border-top:1px solid #e5e7eb;padding:20px 0 0;">
+                    <p style="margin:0;font-size:13px;color:#9ca3af;line-height:1.5;">
+                      You're working through ${courseName}. Stay consistent — the hardest part is starting, and you're already past it.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 0 0;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">
+                &copy; ${new Date().getFullYear()} Maxxed Out University. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  });
+  console.log('[resend] Module-passed email result', { emailId: result?.data?.id, error: result?.error });
+  return result;
+}
+
+export async function sendCertificateEmail({
+  to,
+  name,
+  courseName,
+  certificateId,
+  courseThumbnail,
+}: {
+  to: string;
+  name: string;
+  courseName: string;
+  certificateId: string;
+  courseThumbnail?: string | null;
+}) {
+  const firstName = name.split(' ')[0] || 'there';
+  const logoUrl = `${BASE_URL}/downloads/logo.png`;
+  const viewUrl = `${BASE_URL}/certificates/${certificateId}`;
+  const pdfUrl = `${BASE_URL}/api/certificates/${certificateId}/pdf`;
+  const thumbnailBlock = courseThumbnail
+    ? `<tr><td style="padding:0 0 28px;"><img src="${courseThumbnail}" alt="${courseName}" width="520" style="display:block;width:100%;max-width:520px;border-radius:10px;" /></td></tr>`
+    : '';
+
+  console.log('[resend] Sending certificate email', { from: FROM, to, certificateId, courseName });
+  const result = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `🏆 Your certificate is ready — ${courseName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <tr>
+            <td align="center" style="padding:0 0 32px;">
+              <img src="${logoUrl}" alt="Maxxed Out" width="180" style="display:block;width:180px;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:4px solid #D4AF37;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:0 0 16px;">
+                    <div style="display:inline-block;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#D4AF37,#B8941F);line-height:56px;font-size:28px;">🏆</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <p style="margin:0 0 6px;font-size:11px;font-weight:800;color:#B8941F;letter-spacing:0.2em;text-transform:uppercase;text-align:center;">Certificate Earned</p>
+                    <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#111827;line-height:1.3;text-align:center;">
+                      Congratulations, ${firstName}!
+                    </h1>
+                    <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;text-align:center;">
+                      You've passed the final exam and earned your Certificate of Completion for
+                      <strong style="color:#111827;">${courseName}</strong>.
+                    </p>
+                  </td>
+                </tr>
+                ${thumbnailBlock}
+                <tr>
+                  <td align="center" style="padding:0 0 16px;">
+                    <table cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="background:#2563eb;border-radius:10px;">
+                          <a href="${viewUrl}" style="display:inline-block;padding:16px 48px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.02em;">
+                            View Certificate
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:0 0 28px;">
+                    <a href="${pdfUrl}" style="font-size:13px;color:#6b7280;text-decoration:underline;">
+                      Download PDF
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border-top:1px solid #e5e7eb;padding:20px 0 0;text-align:center;">
+                    <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;line-height:1.5;">
+                      Certificate ID: <strong style="color:#111827;font-family:monospace;letter-spacing:0.05em;">${certificateId}</strong>
+                    </p>
+                    <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;">
+                      Share your achievement — the link above is public.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 0 0;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;">
+                &copy; ${new Date().getFullYear()} Maxxed Out University. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  });
+  console.log('[resend] Certificate email result', { emailId: result?.data?.id, error: result?.error });
+  return result;
+}
+
 export async function sendPasswordResetEmail({
   to,
   name,

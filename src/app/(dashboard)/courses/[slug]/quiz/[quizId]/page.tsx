@@ -38,6 +38,7 @@ interface Quiz {
   passingScore: number;
   timeLimit: number | null;
   questions: Question[];
+  nextLesson: { slug: string; title: string; moduleTitle: string } | null;
 }
 
 interface QuizPageProps {
@@ -59,6 +60,8 @@ export default function QuizPage({ params }: QuizPageProps) {
     score: number;
     passed: boolean;
     correctAnswers: Record<string, string[]>;
+    certificateAwarded?: boolean;
+    certificateId?: string;
   } | null>(null);
 
   // Load quiz data
@@ -225,6 +228,63 @@ export default function QuizPage({ params }: QuizPageProps) {
               <PrintButton className="text-sm" />
             </div>
 
+            {/* Certificate Banner — only on final exam pass */}
+            {result.certificateAwarded && result.certificateId && (
+              <div
+                className="relative overflow-hidden rounded-2xl mb-6 p-6 sm:p-8 text-white print:hidden"
+                style={{
+                  background: 'linear-gradient(135deg, #0c1829 0%, #1a2942 60%, #0c1829 100%)',
+                  borderTop: '4px solid #D4AF37',
+                  boxShadow: '0 20px 40px -10px rgba(212,175,55,0.25)',
+                }}
+              >
+                {/* Gold radial glow */}
+                <div
+                  className="absolute inset-0 opacity-30 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle at top right, rgba(212,175,55,0.35) 0%, transparent 60%)' }}
+                />
+                <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                  <div
+                    className="flex items-center justify-center w-16 h-16 rounded-full flex-shrink-0"
+                    style={{
+                      background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
+                      boxShadow: '0 8px 20px rgba(212,175,55,0.4)',
+                    }}
+                  >
+                    <Trophy className="w-8 h-8 text-[#0c1829]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] sm:text-[11px] font-black tracking-[0.25em] uppercase text-[#D4AF37] mb-1.5">
+                      Certificate Unlocked
+                    </p>
+                    <h2 className="text-xl sm:text-2xl font-extrabold leading-tight mb-1">
+                      You earned a Certificate of Completion!
+                    </h2>
+                    <p className="text-sm text-white/70 leading-relaxed">
+                      Your credential is ready to view, share, and download. We also sent a copy to your email.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="relative flex flex-col sm:flex-row gap-3 mt-6">
+                  <Link
+                    href={`/certificates/${result.certificateId}`}
+                    target="_blank"
+                    className="flex items-center justify-center gap-2 h-12 px-6 flex-1 bg-[#D4AF37] hover:bg-[#B8941F] text-[#0c1829] font-extrabold text-xs uppercase tracking-[0.15em] rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Trophy className="w-4 h-4" />
+                    View Certificate
+                  </Link>
+                  <a
+                    href={`/api/certificates/${result.certificateId}/pdf`}
+                    className="flex items-center justify-center gap-2 h-12 px-6 sm:flex-none bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-[0.15em] rounded-xl transition-colors cursor-pointer border border-white/20"
+                  >
+                    Download PDF
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Results Header */}
             <Card className="mb-6 print:shadow-none print:border">
               <CardContent className="p-8 text-center">
@@ -311,14 +371,28 @@ export default function QuizPage({ params }: QuizPageProps) {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between mt-8 print:hidden">
-              <Link
-                href={`/courses/${courseSlug}`}
-                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Course
-              </Link>
+            <div className="mt-8 print:hidden">
+              {/* Primary CTA when passed — prominent blue button to next lesson */}
+              {result.passed && quiz.nextLesson && (
+                <Link
+                  href={`/courses/${courseSlug}/lessons/${quiz.nextLesson.slug}`}
+                  className="flex items-center justify-center gap-3 w-full h-14 bg-maxxed-blue hover:bg-maxxed-blue-dark active:bg-maxxed-blue-dark text-white font-extrabold text-sm uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-maxxed-blue/20 hover:shadow-xl cursor-pointer"
+                >
+                  Continue to Next Lesson
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+              )}
+              {result.passed && !quiz.nextLesson && (
+                <Link
+                  href={`/courses/${courseSlug}`}
+                  className="flex items-center justify-center gap-3 w-full h-14 bg-maxxed-blue hover:bg-maxxed-blue-dark text-white font-extrabold text-sm uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-maxxed-blue/20 cursor-pointer"
+                >
+                  You&apos;ve Finished the Course!
+                  <Trophy className="w-5 h-5" />
+                </Link>
+              )}
+
+              {/* Retry CTA when failed */}
               {!result.passed && (
                 <button
                   onClick={() => {
@@ -328,11 +402,23 @@ export default function QuizPage({ params }: QuizPageProps) {
                     setStarted(false);
                     setTimeLeft(null);
                   }}
-                  className="flex items-center gap-2 px-6 py-2 bg-maxxed-blue text-white rounded font-medium hover:bg-maxxed-blue-dark"
+                  className="flex items-center justify-center gap-2 w-full h-14 bg-maxxed-blue hover:bg-maxxed-blue-dark text-white font-extrabold text-sm uppercase tracking-widest rounded-xl transition-colors cursor-pointer"
                 >
                   Try Again
+                  <ArrowRight className="w-5 h-5" />
                 </button>
               )}
+
+              {/* Secondary: back to course */}
+              <div className="flex justify-center mt-4">
+                <Link
+                  href={`/courses/${courseSlug}`}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Course
+                </Link>
+              </div>
             </div>
           </div>
         </main>
@@ -496,24 +582,28 @@ export default function QuizPage({ params }: QuizPageProps) {
           </Card>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setCurrentQuestion((prev) => Math.max(0, prev - 1))}
-              disabled={currentQuestion === 0}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Previous
-            </button>
-
-            <span className="text-sm text-gray-500">
-              {answeredCount} of {quiz.questions.length} answered
-            </span>
+          {/* Mobile: stacked — big primary button on top, prev + count below */}
+          {/* Desktop: one row with Prev on left, count in middle, Next/Submit on right */}
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center justify-between sm:justify-start sm:gap-6">
+              <button
+                onClick={() => setCurrentQuestion((prev) => Math.max(0, prev - 1))}
+                disabled={currentQuestion === 0}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Previous
+              </button>
+              <span className="text-sm text-gray-500 tabular-nums">
+                <span className="font-bold text-gray-900">{answeredCount}</span>
+                <span> / {quiz.questions.length} answered</span>
+              </span>
+            </div>
 
             {currentQuestion < quiz.questions.length - 1 ? (
               <button
                 onClick={() => setCurrentQuestion((prev) => prev + 1)}
-                className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded font-medium hover:bg-maxxed-blue-dark"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 sm:h-auto sm:py-2 sm:px-5 bg-maxxed-blue text-white rounded-lg font-bold text-sm uppercase tracking-wider hover:bg-maxxed-blue-dark transition-colors cursor-pointer shadow-sm"
               >
                 Next
                 <ArrowRight className="w-4 h-4" />
@@ -522,15 +612,18 @@ export default function QuizPage({ params }: QuizPageProps) {
               <button
                 onClick={handleSubmit}
                 disabled={submitting || answeredCount < quiz.questions.length}
-                className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 sm:h-auto sm:py-2 sm:px-6 bg-green-600 text-white rounded-lg font-bold text-sm uppercase tracking-wider hover:bg-green-700 active:bg-green-800 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-sm hover:shadow"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Submitting...
+                    Submitting…
                   </>
                 ) : (
-                  'Submit Quiz'
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Submit Quiz
+                  </>
                 )}
               </button>
             )}

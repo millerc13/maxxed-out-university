@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // pdfkit reads its built-in AFM fonts via relative filesystem paths —
+  // bundling it into the server build breaks those paths.
+  serverExternalPackages: ['pdfkit'],
   images: {
     qualities: [75, 80, 85],
     remotePatterns: [
