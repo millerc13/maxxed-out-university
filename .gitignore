@@ -71,6 +71,6 @@ skills-lock.json
 # Apple Pay certificates (sensitive)
 *.cer
 *.certSigningRequest
-certificates/
+/certificates/
 CertificateSigningRequest.certSigningRequest
 .env*.local

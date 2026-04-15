@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getEnrolledBundleIds } from '@/lib/enrollment';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle, Lock } from 'lucide-react';
+import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle, Lock, GraduationCap, FileQuestion } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
@@ -94,12 +94,6 @@ export default async function DashboardPage() {
     });
   };
 
-  // Calculate stats
-  const totalWatchedSeconds = progress.reduce((acc, p) => acc + p.watchedSeconds, 0);
-  const totalHours = Math.floor(totalWatchedSeconds / 3600);
-  const totalMinutes = Math.floor((totalWatchedSeconds % 3600) / 60);
-  const certificates = await prisma.certificate.count({ where: { userId: session.user.id } });
-
   // Enrolled courses to show: admin sees all, regular users see their enrollments
   // Hide bundle child courses when user is enrolled in the parent bundle
   const coursesToShow = (showAllCourses
@@ -107,6 +101,40 @@ export default async function DashboardPage() {
     : enrollments.map(e => e.course)
   ).filter(c => !c.bundleId || !enrolledBundleIds.has(c.bundleId));
   const totalCourses = coursesToShow.length;
+
+  // Calculate stats
+  // Note: watchedSeconds is NOT real playback tracking — it's set to lesson.videoDuration
+  // when a user clicks "Mark as Complete" (see api/progress/complete/route.ts). So this
+  // metric is really "total duration of lessons the user has marked complete".
+  const totalWatchedSeconds = progress.reduce((acc, p) => acc + p.watchedSeconds, 0);
+  const totalHours = Math.floor(totalWatchedSeconds / 3600);
+  const totalMinutes = Math.floor((totalWatchedSeconds % 3600) / 60);
+  const certificates = await prisma.certificate.count({ where: { userId: session.user.id } });
+
+  // Lessons completed / total across the user's enrolled (visible) courses
+  const visibleCourseIds = new Set(coursesToShow.map(c => c.id));
+  const totalLessonsInScope = enrollments
+    .filter(e => visibleCourseIds.has(e.course.id))
+    .reduce((acc, e) => acc + e.course.modules.reduce((macc, m) => macc + m.lessons.length, 0), 0);
+  const lessonsCompletedCount = progress.filter(p => p.completed).length;
+
+  // Quizzes passed (unique quizzes with at least one passing attempt) across enrolled courses
+  const enrolledCourseIdList = enrollments.map(e => e.course.id);
+  const [totalQuizzesInScope, quizzesPassedCount] = isCustomerView || enrolledCourseIdList.length === 0
+    ? [0, 0]
+    : await Promise.all([
+        prisma.quiz.count({
+          where: { courseId: { in: enrolledCourseIdList }, published: true },
+        }),
+        prisma.quizAttempt.groupBy({
+          by: ['quizId'],
+          where: {
+            userId: session.user.id,
+            passed: true,
+            quiz: { courseId: { in: enrolledCourseIdList }, published: true },
+          },
+        }).then(rows => rows.length),
+      ]);
 
   const sortedCoursesToShow = sortCourses(coursesToShow);
 
@@ -166,61 +194,105 @@ export default async function DashboardPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <Card className="shadow-card border-0 overflow-hidden">
-              <div className="flex items-stretch">
-                <div className="w-1.5 bg-maxxed-blue flex-shrink-0" />
-                <div className="flex-1 p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Enrolled Courses</span>
-                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-maxxed-blue" />
-                    </div>
-                  </div>
-                  <div className="text-4xl font-extrabold text-text-dark">{totalCourses}</div>
-                  <p className="text-xs text-text-muted mt-1">
-                    {totalCourses === 0 ? 'Start learning today' : totalCourses === 1 ? 'Keep it up!' : 'Great progress!'}
-                  </p>
-                </div>
-              </div>
-            </Card>
+          {(() => {
+            const lessonsPct = totalLessonsInScope > 0 ? Math.round((lessonsCompletedCount / totalLessonsInScope) * 100) : 0;
+            const quizzesPct = totalQuizzesInScope > 0 ? Math.round((quizzesPassedCount / totalQuizzesInScope) * 100) : 0;
 
-            <Card className="shadow-card border-0 overflow-hidden">
-              <div className="flex items-stretch">
-                <div className="w-1.5 bg-maxxed-gold flex-shrink-0" />
-                <div className="flex-1 p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Time Watched</span>
-                    <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-maxxed-gold" />
-                    </div>
-                  </div>
-                  <div className="text-4xl font-extrabold text-text-dark">
-                    {totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`}
-                  </div>
-                  <p className="text-xs text-text-muted mt-1">
-                    {totalWatchedSeconds === 0 ? 'Start watching!' : 'Keep going!'}
-                  </p>
-                </div>
-              </div>
-            </Card>
+            const stats: Array<{
+              label: string;
+              value: React.ReactNode;
+              sublabel: string;
+              icon: typeof BookOpen;
+              accent: string;
+              accentBg: string;
+              accentText: string;
+              progress?: number;
+            }> = [
+              {
+                label: 'Enrolled Courses',
+                value: totalCourses,
+                sublabel: totalCourses === 0 ? 'Start learning today' : totalCourses === 1 ? 'Keep it up' : 'Great progress',
+                icon: BookOpen,
+                accent: 'bg-maxxed-blue',
+                accentBg: 'bg-blue-50',
+                accentText: 'text-maxxed-blue',
+              },
+              {
+                label: 'Lessons Completed',
+                value: <><span>{lessonsCompletedCount}</span><span className="text-xl font-bold text-text-muted"> / {totalLessonsInScope}</span></>,
+                sublabel: totalLessonsInScope === 0 ? 'No lessons yet' : `${lessonsPct}% complete`,
+                icon: GraduationCap,
+                accent: 'bg-purple-500',
+                accentBg: 'bg-purple-50',
+                accentText: 'text-purple-600',
+                progress: lessonsPct,
+              },
+              {
+                label: 'Quizzes Passed',
+                value: <><span>{quizzesPassedCount}</span><span className="text-xl font-bold text-text-muted"> / {totalQuizzesInScope}</span></>,
+                sublabel: totalQuizzesInScope === 0 ? 'No quizzes yet' : `${quizzesPct}% passed`,
+                icon: FileQuestion,
+                accent: 'bg-orange-500',
+                accentBg: 'bg-orange-50',
+                accentText: 'text-orange-600',
+                progress: quizzesPct,
+              },
+              {
+                label: 'Study Time',
+                value: totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`,
+                sublabel: totalWatchedSeconds === 0 ? 'Complete lessons to log time' : 'From completed lessons',
+                icon: Clock,
+                accent: 'bg-maxxed-gold',
+                accentBg: 'bg-yellow-50',
+                accentText: 'text-maxxed-gold',
+              },
+              {
+                label: 'Certificates',
+                value: certificates,
+                sublabel: certificates === 0 ? 'Complete a course to earn' : certificates === 1 ? 'Well earned' : 'Wall of fame',
+                icon: Trophy,
+                accent: 'bg-green-500',
+                accentBg: 'bg-green-50',
+                accentText: 'text-green-600',
+              },
+            ];
 
-            <Card className="shadow-card border-0 overflow-hidden">
-              <div className="flex items-stretch">
-                <div className="w-1.5 bg-green-500 flex-shrink-0" />
-                <div className="flex-1 p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Certificates</span>
-                    <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
-                      <Trophy className="w-5 h-5 text-green-500" />
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-10">
+                {stats.map((s) => (
+                  <Card key={s.label} className="shadow-card border-0 overflow-hidden">
+                    <div className="flex items-stretch h-full">
+                      <div className={`w-1.5 ${s.accent} flex-shrink-0`} />
+                      <div className="flex-1 p-4 sm:p-5 flex flex-col">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <span className="text-[10px] sm:text-xs font-semibold text-text-muted uppercase tracking-wider leading-tight">
+                            {s.label}
+                          </span>
+                          <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg ${s.accentBg} flex items-center justify-center flex-shrink-0`}>
+                            <s.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${s.accentText}`} />
+                          </div>
+                        </div>
+                        <div className="text-3xl sm:text-4xl font-extrabold text-text-dark leading-none tabular-nums">
+                          {s.value}
+                        </div>
+                        {s.progress !== undefined && (
+                          <div className="h-1 bg-gray-100 rounded-full overflow-hidden mt-3">
+                            <div
+                              className={`h-full ${s.accent} rounded-full transition-all`}
+                              style={{ width: `${s.progress}%` }}
+                            />
+                          </div>
+                        )}
+                        <p className="text-[11px] sm:text-xs text-text-muted mt-auto pt-2 leading-tight">
+                          {s.sublabel}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-4xl font-extrabold text-text-dark">{certificates}</div>
-                  <p className="text-xs text-text-muted mt-1">Complete courses to earn</p>
-                </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
-          </div>
+            );
+          })()}
 
           {/* My Courses Section */}
           <div className="mb-10">

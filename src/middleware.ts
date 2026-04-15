@@ -6,7 +6,8 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
 
   // Protected routes
-  const protectedRoutes = ['/dashboard', '/courses', '/learn', '/progress', '/certificates', '/admin'];
+  // Note: /certificates/[id] is intentionally PUBLIC so learners can share their credential.
+  const protectedRoutes = ['/dashboard', '/courses', '/learn', '/progress', '/admin'];
   const isProtectedRoute = protectedRoutes.some((route) =>
     nextUrl.pathname.startsWith(route)
   );
