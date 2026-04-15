@@ -6,14 +6,14 @@
  *     npx tsx scripts/register-fanbasis-webhook.ts <webhook_url>
  *
  * Examples:
- *   # Sandbox (dev deployment)
+ *   # Sandbox (development deployment)
  *   FANBASIS_API_KEY=$FANBASIS_SANDBOX_TEST_KEY \
  *   FANBASIS_BASE_URL=https://qa.dev-fan-basis.com \
  *     npx tsx scripts/register-fanbasis-webhook.ts \
- *     https://dev.university.maxxedout.com/api/webhooks/fanbasis
+ *     https://development.university.maxxedout.com/api/webhooks/fanbasis
  *
  *   # Production
- *   FANBASIS_API_KEY=$FANBASIS_LIVE_KEY \
+ *   FANBASIS_API_KEY=$FANBASIS_REAL_KEY \
  *   FANBASIS_BASE_URL=https://www.fanbasis.com/public-api \
  *     npx tsx scripts/register-fanbasis-webhook.ts \
  *     https://university.maxxedout.com/api/webhooks/fanbasis
