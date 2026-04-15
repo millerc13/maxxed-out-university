@@ -81,7 +81,7 @@ export function ExportableToolShell({
   return (
     <div>
       {/* Export Bar */}
-      <div className="flex items-center justify-end gap-2 mb-6">
+      <div className="flex items-center justify-start gap-2 mb-6">
         {exportFormats.map((fmt) => {
           const meta = FORMAT_META[fmt];
           const Icon = meta.icon;
