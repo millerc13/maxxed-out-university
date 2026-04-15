@@ -48,14 +48,10 @@ function SectionHeader({ icon, title, label }: { icon: React.ReactNode; title: s
 
 /* Reference docs that stay as downloads (not interactive tools) */
 const DOWNLOAD_FILES = [
-  { name: '12-Month Action Plan', file: '12-month-action-plan.docx' },
-  { name: 'Cash Buyer List', file: 'cash-buyer-list.docx' },
   { name: 'Creative Finance Cheat Sheet', file: 'creative-finance-cheat-sheet.docx' },
   { name: 'Fix & Flip Timeline', file: 'fix-flip-timeline.docx' },
   { name: 'Private Money Pitch Deck', file: 'private-money-pitch-deck.docx' },
   { name: 'Real Estate Glossary', file: 'real-estate-glossary.docx' },
-  { name: 'Team Contact Sheet', file: 'team-contact-sheet.docx' },
-  { name: 'Tenant Screening Criteria', file: 'tenant-screening-criteria.docx' },
 ];
 
 export default async function ToolsPage() {
