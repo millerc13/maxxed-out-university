@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
+import { isEffectivelyEnrolled } from '@/lib/enrollment';
+import { sendAlreadyOwnedEmail } from '@/lib/resend';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,11 +43,42 @@ export async function POST(request: NextRequest) {
     console.log('[create-intent] Course loaded', { courseId, title: course.title, price: course.price, isGuest });
 
     if (!isGuest && session?.user?.id) {
-      const existing = await prisma.enrollment.findUnique({
-        where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
+      const enrolled = await isEffectivelyEnrolled(session.user.id, course.id);
+      if (enrolled) {
+        console.log('[create-intent] Authenticated user already enrolled', { userId: session.user.id, courseId });
+        return NextResponse.json({ error: 'You already own this course. Log in to access it.' }, { status: 409 });
+      }
+    }
+
+    // Guest checkout — check if the email matches an existing user who already owns the course.
+    // If so, block the charge and send them an email with a login link instead of charging again.
+    if (isGuest && guestEmail) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: guestEmail },
+        select: { id: true, name: true },
       });
-      if (existing) {
-        return NextResponse.json({ error: 'Already enrolled' }, { status: 409 });
+      if (existingUser) {
+        const enrolled = await isEffectivelyEnrolled(existingUser.id, course.id);
+        if (enrolled) {
+          console.log('[create-intent] Guest email matches existing enrollment — blocking duplicate purchase', { email: guestEmail, userId: existingUser.id, courseId });
+          try {
+            const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
+            const courseFull = await prisma.course.findUnique({ where: { id: courseId }, select: { thumbnail: true } });
+            await sendAlreadyOwnedEmail({
+              to: guestEmail,
+              name: existingUser.name || '',
+              courseName: course.title,
+              loginUrl,
+              courseThumbnail: courseFull?.thumbnail ?? null,
+            });
+          } catch (emailErr) {
+            console.error('[create-intent] Failed to send already-owned email', { error: emailErr instanceof Error ? emailErr.message : emailErr });
+          }
+          return NextResponse.json(
+            { error: `You already own ${course.title}. We sent an email to ${guestEmail} with a link to log in.`, alreadyOwned: true },
+            { status: 409 }
+          );
+        }
       }
     }
 
