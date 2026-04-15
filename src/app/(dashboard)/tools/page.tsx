@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getEffectiveEnrollments } from '@/lib/enrollment';
 import { Header, Footer } from '@/components/layout';
-import { Wrench, ArrowRight, Lock, Calculator, TrendingUp, BarChart3, DollarSign, Building2, PieChart, FileSpreadsheet, Download, ClipboardCheck, FileText, Phone, ListChecks, ScrollText, BookOpen } from 'lucide-react';
+import { Wrench, ArrowRight, Lock, Calculator, TrendingUp, BarChart3, DollarSign, Building2, PieChart, FileSpreadsheet, ClipboardCheck, FileText, Phone, ListChecks, ScrollText, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 
@@ -45,14 +45,6 @@ function SectionHeader({ icon, title, label }: { icon: React.ReactNode; title: s
     </div>
   );
 }
-
-/* Reference docs that stay as downloads (not interactive tools) */
-const DOWNLOAD_FILES = [
-  { name: 'Creative Finance Cheat Sheet', file: 'creative-finance-cheat-sheet.docx' },
-  { name: 'Fix & Flip Timeline', file: 'fix-flip-timeline.docx' },
-  { name: 'Private Money Pitch Deck', file: 'private-money-pitch-deck.docx' },
-  { name: 'Real Estate Glossary', file: 'real-estate-glossary.docx' },
-];
 
 export default async function ToolsPage() {
   const session = await auth();
@@ -222,32 +214,6 @@ export default async function ToolsPage() {
               ))}
 
               {/* Downloads Section */}
-              <div className="bg-white rounded-2xl shadow-sm p-5 sm:p-8">
-                <SectionHeader
-                  icon={<Download className="w-5 h-5 sm:w-6 sm:h-6 text-[#0000CC]" />}
-                  title="Reference Downloads"
-                  label={`${DOWNLOAD_FILES.length} files`}
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-                  {DOWNLOAD_FILES.map((dl) => (
-                    <a
-                      key={dl.file}
-                      href={`/downloads/${dl.file}`}
-                      download
-                      className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 sm:p-3.5 hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-all group cursor-pointer"
-                    >
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-blue-500" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] sm:text-sm font-semibold text-gray-900 truncate leading-tight">{dl.name}</p>
-                        <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 uppercase tracking-wider">.docx</p>
-                      </div>
-                      <Download className="w-4 h-4 text-gray-300 group-hover:text-[#0000CC] transition-colors flex-shrink-0" />
-                    </a>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
         </div>

@@ -113,6 +113,28 @@ export const TOOL_REGISTRY: Record<string, ToolRegistryEntry> = {
     exportFormats: ['pdf'],
   },
 
+  // ── References ──
+  'real-estate-glossary': {
+    component: () => import('./references/RealEstateGlossary'),
+    type: 'template',
+    exportFormats: ['pdf'],
+  },
+  'creative-finance-cheat-sheet': {
+    component: () => import('./references/CreativeFinanceCheatSheet'),
+    type: 'template',
+    exportFormats: ['pdf'],
+  },
+  'fix-flip-timeline': {
+    component: () => import('./references/FixFlipTimeline'),
+    type: 'template',
+    exportFormats: ['pdf'],
+  },
+  'private-money-pitch-deck': {
+    component: () => import('./references/PrivateMoneyPitchDeck'),
+    type: 'template',
+    exportFormats: ['pdf'],
+  },
+
   // ── Checklists ──
   'tenant-screening-criteria': {
     component: () => import('./checklists/TenantScreeningCriteria'),
