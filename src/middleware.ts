@@ -21,9 +21,11 @@ export default auth((req) => {
     nextUrl.pathname.startsWith(route)
   );
 
-  // Password setup routes — allowed even when mustChangePassword is true
+  // Password setup / recovery routes — allowed even when logged in or when mustChangePassword is true
   const isPasswordRoute = nextUrl.pathname.startsWith('/setup-password')
-    || nextUrl.pathname.startsWith('/change-password');
+    || nextUrl.pathname.startsWith('/change-password')
+    || nextUrl.pathname.startsWith('/forgot-password')
+    || nextUrl.pathname.startsWith('/reset-password');
 
   // Redirect logged-in users away from auth pages (except password routes)
   if (isLoggedIn && isAuthRoute && !isPasswordRoute) {
