@@ -50,14 +50,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Guest checkout — check if the email matches an existing user who already owns the course.
-    // If so, block the charge and send them an email with a login link instead of charging again.
+    // Guest checkout — look up by email to (a) block duplicates and (b) tell the client
+    // whether this is an existing customer so the success page can show the right message.
+    let isExistingUser = false;
     if (isGuest && guestEmail) {
       const existingUser = await prisma.user.findUnique({
         where: { email: guestEmail },
         select: { id: true, name: true },
       });
       if (existingUser) {
+        isExistingUser = true;
         const enrolled = await isEffectivelyEnrolled(existingUser.id, course.id);
         if (enrolled) {
           console.log('[create-intent] Guest email matches existing enrollment — blocking duplicate purchase', { email: guestEmail, userId: existingUser.id, courseId });
@@ -141,6 +143,7 @@ export async function POST(request: NextRequest) {
       amount: finalAmount,
       originalAmount: course.price,
       courseTitle: course.title,
+      isExistingUser,
     });
   } catch (error) {
     console.error('[create-intent] Error creating payment intent', { error: error instanceof Error ? error.message : error, stack: error instanceof Error ? error.stack : undefined });

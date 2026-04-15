@@ -65,7 +65,7 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
     let resolvedUserId = userId;
     let userEmail = '';
     let userName = guestName || 'Student';
-    let isNewUser = false;
+    let needsPasswordSetup = false;
 
     if (isGuest === 'true' && guestEmail) {
       userEmail = guestEmail;
@@ -81,9 +81,12 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
             mustChangePassword: true,
           },
         });
-        isNewUser = true;
+        needsPasswordSetup = true;
         console.log('[stripe-webhook] New user created', { userId: user.id, email: user.email });
       } else {
+        // Existing user record but no password yet — still needs the magic-link flow
+        // to finish account setup, not a "course added" email that assumes they can log in.
+        needsPasswordSetup = !user.passwordHash;
         console.log('[stripe-webhook] Existing user found', { userId: user.id, email: user.email, mustChangePassword: user.mustChangePassword });
       }
 
@@ -142,22 +145,23 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       });
     }
 
-    console.log('[stripe-webhook] Enrollment created', { userId: resolvedUserId, courseId, paymentIntentId: paymentIntent.id, isNewUser });
+    console.log('[stripe-webhook] Enrollment created', { userId: resolvedUserId, courseId, paymentIntentId: paymentIntent.id, needsPasswordSetup });
 
     const cName = courseTitle || 'your course';
-    if (isNewUser && userEmail) {
-      console.log('[stripe-webhook] Creating magic link for new user', { userId: resolvedUserId, email: userEmail });
+    if (needsPasswordSetup && userEmail) {
+      // User has no password yet — send magic link so they can activate + set password.
+      console.log('[stripe-webhook] Creating magic link — user needs password setup', { userId: resolvedUserId, email: userEmail });
       try {
         const token = await createMagicLink(resolvedUserId);
         console.log('[stripe-webhook] Magic link created', { userId: resolvedUserId, tokenPrefix: token.slice(0, 8) + '...' });
-        console.log('[stripe-webhook] Sending magic link email', { to: userEmail, courseName: cName });
         const emailResult = await sendMagicLinkEmail({ to: userEmail, name: userName, token, courseName: cName, courseThumbnail: purchasedCourse?.thumbnail });
         console.log('[stripe-webhook] Magic link email sent', { emailId: emailResult?.data?.id, error: emailResult?.error });
       } catch (err) {
         console.error('[stripe-webhook] Magic link / email failed', { error: err instanceof Error ? err.message : err, stack: err instanceof Error ? err.stack : undefined });
         throw err;
       }
-    } else if (!isNewUser && userEmail) {
+    } else if (userEmail) {
+      // Returning user with password already set — course-added email with login link.
       console.log('[stripe-webhook] Sending course-added email to returning user', { to: userEmail, courseName: cName });
       try {
         const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
@@ -168,7 +172,7 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
         throw err;
       }
     } else {
-      console.warn('[stripe-webhook] No email sent — userEmail empty', { isNewUser, resolvedUserId });
+      console.warn('[stripe-webhook] No email sent — userEmail empty', { needsPasswordSetup, resolvedUserId });
     }
   } catch (error) {
     console.error('[stripe-webhook] Failed to handle payment', {
