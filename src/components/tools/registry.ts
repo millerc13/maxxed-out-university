@@ -65,37 +65,37 @@ export const TOOL_REGISTRY: Record<string, ToolRegistryEntry> = {
   'assignment-contract-template': {
     component: () => import('./templates/AssignmentContract'),
     type: 'template',
-    exportFormats: ['docx'],
+    exportFormats: ['pdf'],
   },
   'deal-summary-template': {
     component: () => import('./templates/DealSummary'),
     type: 'template',
-    exportFormats: ['docx'],
+    exportFormats: ['pdf'],
   },
   'house-rules-addendum': {
     component: () => import('./templates/HouseRulesAddendum'),
     type: 'template',
-    exportFormats: ['docx'],
+    exportFormats: ['pdf'],
   },
   'maintenance-request-form': {
     component: () => import('./templates/MaintenanceRequest'),
     type: 'template',
-    exportFormats: ['docx'],
+    exportFormats: ['pdf'],
   },
   'rental-application': {
     component: () => import('./templates/RentalApplication'),
     type: 'template',
-    exportFormats: ['docx'],
+    exportFormats: ['pdf'],
   },
   'residential-lease-agreement': {
     component: () => import('./templates/ResidentialLease'),
     type: 'template',
-    exportFormats: ['docx'],
+    exportFormats: ['pdf'],
   },
   'vendor-contractor-list': {
     component: () => import('./templates/VendorContractorList'),
     type: 'template',
-    exportFormats: ['docx'],
+    exportFormats: ['pdf'],
   },
   'team-contact-sheet': {
     component: () => import('./templates/TeamContactSheet'),
