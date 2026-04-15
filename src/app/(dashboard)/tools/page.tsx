@@ -178,20 +178,20 @@ export default async function ToolsPage() {
                           }`}
                         >
                           <div className="p-4 sm:p-5 flex flex-col flex-1">
-                            <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
+                            <div className="flex items-start gap-3 mb-2 sm:mb-3">
                               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#0000CC]/10 flex items-center justify-center flex-shrink-0">
                                 <Icon className="w-5 h-5 sm:w-[22px] sm:h-[22px] text-[#0000CC]" />
                               </div>
+                              <h3 className="flex-1 min-w-0 text-base sm:text-[17px] font-bold text-gray-900 leading-snug self-center">
+                                {tool.title}
+                              </h3>
                               {!isUnlocked && (
-                                <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full uppercase tracking-wider flex-shrink-0">
+                                <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full uppercase tracking-wider flex-shrink-0 self-start">
                                   <Lock className="w-3 h-3" />
                                   Locked
                                 </div>
                               )}
                             </div>
-                            <h3 className="text-base sm:text-[17px] font-bold text-gray-900 leading-snug mb-1">
-                              {tool.title}
-                            </h3>
                             {tool.description && (
                               <p className="text-[13px] sm:text-sm text-gray-500 line-clamp-2 leading-relaxed mb-4 flex-1">
                                 {tool.description}
