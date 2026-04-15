@@ -8,7 +8,7 @@
  * Examples:
  *   # Sandbox (development deployment)
  *   FANBASIS_API_KEY=$FANBASIS_SANDBOX_TEST_KEY \
- *   FANBASIS_BASE_URL=https://qa.dev-fan-basis.com \
+ *   FANBASIS_BASE_URL=https://qa.dev-fan-basis.com/public-api \
  *     npx tsx scripts/register-fanbasis-webhook.ts \
  *     https://development.university.maxxedout.com/api/webhooks/fanbasis
  *
