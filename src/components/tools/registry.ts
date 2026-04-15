@@ -97,8 +97,28 @@ export const TOOL_REGISTRY: Record<string, ToolRegistryEntry> = {
     type: 'template',
     exportFormats: ['docx'],
   },
+  'team-contact-sheet': {
+    component: () => import('./templates/TeamContactSheet'),
+    type: 'template',
+    exportFormats: ['pdf'],
+  },
+  'cash-buyer-list': {
+    component: () => import('./templates/CashBuyerList'),
+    type: 'template',
+    exportFormats: ['pdf'],
+  },
+  'twelve-month-action-plan': {
+    component: () => import('./templates/TwelveMonthActionPlan'),
+    type: 'template',
+    exportFormats: ['pdf'],
+  },
 
   // ── Checklists ──
+  'tenant-screening-criteria': {
+    component: () => import('./checklists/TenantScreeningCriteria'),
+    type: 'checklist',
+    exportFormats: ['pdf'],
+  },
   'brrrr-refinance-checklist': {
     component: () => import('./checklists/BrrrrRefinanceChecklist'),
     type: 'checklist',
