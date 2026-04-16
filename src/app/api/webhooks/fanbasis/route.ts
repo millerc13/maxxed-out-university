@@ -38,98 +38,168 @@ export async function POST(request: NextRequest) {
   try {
     payload = JSON.parse(rawBody);
   } catch {
+    console.error('[fanbasis-webhook] Invalid JSON body');
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const eventType = (payload.event_type as string) || '';
+  // Fanbasis sends payloads in two observed shapes:
+  //   (a) Documented: { event_type, payment_id, buyer, item, api_metadata }
+  //   (b) Actual (sandbox as of 2026-04): no event_type, buyer.first_name/last_name,
+  //       product.api_metadata as a stringified JSON that TRUNCATES at ~240 chars.
+  // We infer the event when event_type is missing and parse either shape.
+  const documentedEventType = (payload.event_type as string) || '';
+  const inferredEventType = documentedEventType || inferEventType(payload);
+  console.log('[fanbasis-webhook] Received', {
+    documentedEventType,
+    inferredEventType,
+    hasBuyer: !!payload.buyer,
+    hasProduct: !!payload.product,
+    hasItem: !!payload.item,
+    payloadId: payload.id || payload.payment_id,
+  });
 
-  // Log the webhook
   try {
     await prisma.webhookLog.create({
       data: {
         source: 'fanbasis',
-        event: eventType,
+        event: inferredEventType,
         payload: payload as object,
         status: 'received',
       },
     });
-  } catch {
-    // Don't fail the webhook if logging fails
+  } catch (err) {
+    console.error('[fanbasis-webhook] Failed to log webhook', { error: err instanceof Error ? err.message : err });
   }
 
   try {
-    switch (eventType) {
+    switch (inferredEventType) {
       case 'payment.succeeded':
-        await handlePaymentSucceeded(payload);
-        break;
       case 'product.purchased':
-        await handleProductPurchased(payload);
+        await handlePurchase(payload);
         break;
       case 'payment.failed':
       case 'payment.expired':
       case 'payment.canceled':
-        console.log(`Fanbasis ${eventType}:`, JSON.stringify(payload));
+        console.log(`[fanbasis-webhook] ${inferredEventType}`, JSON.stringify(payload));
         break;
       case 'subscription.created':
       case 'subscription.renewed':
       case 'subscription.completed':
       case 'subscription.canceled':
-        console.log(`Fanbasis ${eventType}:`, JSON.stringify(payload));
+        console.log(`[fanbasis-webhook] ${inferredEventType} (logged, not processed)`);
         break;
       default:
-        console.log(`Fanbasis unknown event: ${eventType}`);
+        console.warn(`[fanbasis-webhook] Unknown event — unable to infer from shape`, { payloadKeys: Object.keys(payload) });
     }
   } catch (error) {
-    console.error(`Fanbasis webhook error (${eventType}):`, error);
+    console.error(`[fanbasis-webhook] Handler threw (${inferredEventType})`, {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
 }
 
-async function handlePaymentSucceeded(payload: Record<string, unknown>) {
-  const buyer = payload.buyer as { id: number; name: string; email: string } | undefined;
-  const item = payload.item as { id: number; title: string; type: string } | undefined;
-  const metadata = (payload.api_metadata as { data?: Record<string, string> })?.data;
-
-  if (!buyer?.email || !metadata?.courseId) {
-    console.error('Fanbasis payment.succeeded missing buyer email or courseId metadata');
-    return;
-  }
-
-  await enrollFromFanbasis({
-    email: buyer.email,
-    name: buyer.name,
-    courseId: metadata.courseId,
-    courseTitle: metadata.courseTitle || item?.title || '',
-    transactionId: payload.payment_id as string,
-    userId: metadata.userId || '',
-    isGuest: metadata.isGuest === 'true',
-    guestName: metadata.guestName || '',
-    promoCodeId: metadata.promoCodeId || '',
-    originalPrice: metadata.originalPrice || '',
-  });
+/**
+ * Infer event type from payload shape when Fanbasis omits `event_type`.
+ * A payload with buyer + product + (id|payment_id) + numeric timestamp is a purchase.
+ */
+function inferEventType(payload: Record<string, unknown>): string {
+  const hasBuyer = !!payload.buyer;
+  const hasProduct = !!payload.product || !!payload.item;
+  const hasPaymentId = !!payload.id || !!payload.payment_id;
+  if (hasBuyer && hasProduct && hasPaymentId) return 'payment.succeeded';
+  return '';
 }
 
-async function handleProductPurchased(payload: Record<string, unknown>) {
-  const buyer = payload.buyer as { id: number; name: string; email: string } | undefined;
-  const item = payload.item as { id: number; title: string; type: string } | undefined;
-  const metadata = (payload.api_metadata as { data?: Record<string, string> })?.data;
+/**
+ * Normalize Fanbasis's two payload shapes into a uniform object for the enrollment flow.
+ */
+function extractPurchaseDetails(payload: Record<string, unknown>) {
+  const buyer = payload.buyer as {
+    id?: number; name?: string; email?: string; first_name?: string; last_name?: string
+  } | undefined;
 
-  if (!buyer?.email || !metadata?.courseId) {
-    console.error('Fanbasis product.purchased missing buyer email or courseId metadata');
+  // Try both shapes for the product/item
+  const product = (payload.product || payload.item) as {
+    id?: number; title?: string; type?: string; api_metadata?: string | { data?: Record<string, string> }
+  } | undefined;
+
+  // Payment id can live at top level as `id` or `payment_id`
+  const paymentId = String(payload.payment_id || payload.id || '');
+
+  // Metadata: (a) object at top-level api_metadata.data (docs), or
+  // (b) JSON string in product.api_metadata (actual sandbox behavior).
+  let metadata: Record<string, string> = {};
+  const topLevelMeta = (payload.api_metadata as { data?: Record<string, string> } | undefined)?.data;
+  if (topLevelMeta && typeof topLevelMeta === 'object') {
+    metadata = topLevelMeta;
+  } else if (product?.api_metadata) {
+    if (typeof product.api_metadata === 'string') {
+      try {
+        metadata = JSON.parse(product.api_metadata);
+      } catch (err) {
+        console.error('[fanbasis-webhook] product.api_metadata JSON parse failed — likely truncated by Fanbasis', {
+          raw: product.api_metadata,
+          error: err instanceof Error ? err.message : err,
+        });
+        // Best-effort salvage: pull courseId from partial string via regex.
+        const m = (product.api_metadata as string).match(/"courseId"\s*:\s*"([^"]+)"/);
+        if (m) metadata = { courseId: m[1] };
+      }
+    } else if (typeof product.api_metadata === 'object' && product.api_metadata !== null) {
+      const asObj = product.api_metadata as { data?: Record<string, string> };
+      metadata = asObj.data || (product.api_metadata as unknown as Record<string, string>);
+    }
+  }
+
+  const buyerName = buyer?.name
+    || [buyer?.first_name, buyer?.last_name].filter(Boolean).join(' ')
+    || '';
+  const buyerEmail = buyer?.email || '';
+  const productTitle = product?.title || '';
+
+  return { buyer, buyerName, buyerEmail, product, productTitle, paymentId, metadata };
+}
+
+async function handlePurchase(payload: Record<string, unknown>) {
+  const { buyerName, buyerEmail, productTitle, paymentId, metadata } = extractPurchaseDetails(payload);
+
+  console.log('[fanbasis-webhook] Extracted purchase details', {
+    buyerEmail,
+    buyerName,
+    productTitle,
+    paymentId,
+    metadataKeys: Object.keys(metadata),
+    courseId: metadata.courseId,
+    userId: metadata.userId,
+  });
+
+  if (!buyerEmail || !metadata.courseId) {
+    console.error('[fanbasis-webhook] Missing buyer.email or metadata.courseId — cannot enroll', {
+      buyerEmail,
+      metadata,
+      payloadKeys: Object.keys(payload),
+    });
     return;
   }
 
+  // isGuest isn't reliably in the truncated metadata. Infer: if userId is
+  // empty, treat as guest; if userId is a cuid, treat as authenticated.
+  const userId = metadata.userId || '';
+  const isGuest = !userId;
+
   await enrollFromFanbasis({
-    email: buyer.email,
-    name: buyer.name,
+    email: buyerEmail,
+    name: buyerName,
     courseId: metadata.courseId,
-    courseTitle: metadata.courseTitle || item?.title || '',
-    transactionId: payload.payment_id as string,
-    userId: metadata.userId || '',
-    isGuest: metadata.isGuest === 'true',
-    guestName: metadata.guestName || '',
+    courseTitle: productTitle,
+    transactionId: paymentId,
+    userId,
+    isGuest,
+    guestName: buyerName,
     promoCodeId: metadata.promoCodeId || '',
     originalPrice: metadata.originalPrice || '',
   });
@@ -147,6 +217,12 @@ async function enrollFromFanbasis(params: {
   promoCodeId: string;
   originalPrice: string;
 }) {
+  console.log('[fanbasis-webhook] enrollFromFanbasis start', {
+    email: params.email,
+    courseId: params.courseId,
+    transactionId: params.transactionId,
+    isGuest: params.isGuest,
+  });
   let resolvedUserId = params.userId;
   let needsPasswordSetup = false;
   let userEmail = params.email;
