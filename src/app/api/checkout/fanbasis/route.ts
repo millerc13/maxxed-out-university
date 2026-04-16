@@ -118,15 +118,14 @@ export async function POST(request: NextRequest) {
       type: 'onetime_non_reusable',
       successUrl,
       webhookUrl: `${origin}/api/webhooks/fanbasis`,
+      // Fanbasis stores api_metadata as a stringified JSON in a short varchar
+      // column — anything past ~240 chars gets silently truncated, which made
+      // JSON.parse fail in the webhook. Keep this to just what we can't
+      // reconstruct from the webhook payload itself (buyer email/name and
+      // product title are in the payload already).
       metadata: {
         courseId: course.id,
-        courseSlug: course.slug,
-        courseTitle: course.title,
         userId: isGuest ? '' : (session?.user?.id ?? ''),
-        guestEmail: isGuest ? email : '',
-        guestName: isGuest ? name : '',
-        guestPhone: isGuest ? (guestPhone ?? '') : '',
-        isGuest: isGuest ? 'true' : 'false',
         promoCodeId: resolvedPromoCodeId ?? '',
         originalPrice: course.price.toString(),
       },
