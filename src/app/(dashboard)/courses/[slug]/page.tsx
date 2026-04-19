@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy, Wrench, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
 import { MarkdownContent } from '@/components/ui/markdown-content';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
@@ -43,6 +43,12 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
   if (!course) {
     notFound();
+  }
+
+  // External partner programs don't have an on-platform detail view —
+  // redirect straight to the partner's site.
+  if ((course as any).externalUrl) {
+    redirect((course as any).externalUrl);
   }
 
   // Check if user is enrolled (direct or via bundle)

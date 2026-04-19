@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getEnrolledBundleIds } from '@/lib/enrollment';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle, Lock, GraduationCap, FileQuestion } from 'lucide-react';
+import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle, Lock, GraduationCap, FileQuestion, ExternalLink, Handshake } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
@@ -59,12 +59,13 @@ export default async function DashboardPage() {
     },
   });
 
-  // Unenrolled courses: published, not enrolled, not a bundle child the user already has via bundle, has lessons
+  // Unenrolled courses: published, not enrolled, not a bundle child the user already has via bundle,
+  // and either has lessons OR is an external/partner program.
   const unenrolledCourses = allCourses.filter(c =>
     !enrolledCourseIds.has(c.id) &&
     !c.isBundle &&
     (!c.bundleId || !enrolledBundleIds.has(c.bundleId)) &&
-    c.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0
+    (c.externalUrl || c.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0)
   );
 
   // Fetch user's lesson progress
@@ -452,8 +453,10 @@ export default async function DashboardPage() {
                 </Link>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sortCourses(unenrolledCourses).map((course) => (
-                  <Link key={course.id} href={`/courses/${course.slug}`}>
+                {sortCourses(unenrolledCourses).map((course) => {
+                  const isExternal = !!course.externalUrl;
+                  const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
+                  const cardInner = (
                     <Card className="shadow-card overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all h-full">
                       <div className="relative aspect-video bg-gray-100">
                         {course.thumbnail ? (
@@ -465,15 +468,23 @@ export default async function DashboardPage() {
                           />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex flex-col items-center justify-center p-5 text-center">
-                            <BookOpen className="w-8 h-8 text-white/30 mb-2" />
+                            {isExternal ? (
+                              <Handshake className="w-8 h-8 text-white/30 mb-2" />
+                            ) : (
+                              <BookOpen className="w-8 h-8 text-white/30 mb-2" />
+                            )}
                             <p className="text-white text-xs font-bold leading-tight line-clamp-3">{course.title}</p>
                           </div>
                         )}
-                        {course.price && (
+                        {isExternal ? (
+                          <div className="absolute bottom-3 left-3 bg-maxxed-blue text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-md uppercase tracking-wider flex items-center gap-1">
+                            <Handshake className="w-3 h-3" /> Apply Only
+                          </div>
+                        ) : course.price ? (
                           <div className="absolute bottom-3 left-3 bg-white text-gray-900 px-2.5 py-1 rounded-lg text-sm font-extrabold shadow-md">
                             {formatPrice(course.price)}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                       <CardContent className="p-5">
                         <h3 className="font-bold text-text-dark mb-2 line-clamp-1">
@@ -484,16 +495,29 @@ export default async function DashboardPage() {
                         </p>
                         <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                           <span className="text-xs text-text-muted">
-                            {course.modules.reduce((acc, m) => acc + m.lessons.length, 0)} lessons
+                            {isExternal ? 'Application required' : `${totalLessons} lessons`}
                           </span>
                           <span className="text-xs font-bold text-maxxed-blue flex items-center gap-1">
-                            View Course <ArrowRight className="w-3.5 h-3.5" />
+                            {isExternal ? (
+                              <>Apply Now <ExternalLink className="w-3.5 h-3.5" /></>
+                            ) : (
+                              <>View Course <ArrowRight className="w-3.5 h-3.5" /></>
+                            )}
                           </span>
                         </div>
                       </CardContent>
                     </Card>
-                  </Link>
-                ))}
+                  );
+                  return isExternal ? (
+                    <a key={course.id} href={course.externalUrl!} target="_blank" rel="noopener noreferrer" className="block h-full no-underline">
+                      {cardInner}
+                    </a>
+                  ) : (
+                    <Link key={course.id} href={`/courses/${course.slug}`} className="block h-full no-underline">
+                      {cardInner}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           )}

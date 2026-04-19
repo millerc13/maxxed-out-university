@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
-import { BookOpen, ArrowRight, Star, Clock, Sparkles, Zap, Crown, Flame, CheckCircle, Play } from 'lucide-react';
+import { BookOpen, ArrowRight, Star, Clock, Sparkles, Zap, Crown, Flame, CheckCircle, Play, Handshake, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
@@ -68,11 +68,19 @@ export default async function CoursesPage() {
   // Hide bundle child courses when user is enrolled in the parent bundle
   const catalogCourses = coursesWithStats.filter((c) => !c.isComingSoon && (!c.bundleId || !enrolledBundleIds.has(c.bundleId)));
 
-  const eliteTicket = catalogCourses.filter((c) => c.price && c.price > PRICE_TIERS.HIGH.max);
-  const highTicket = catalogCourses.filter((c) => c.price && c.price > PRICE_TIERS.MID.max && c.price <= PRICE_TIERS.HIGH.max);
-  const midTicket = catalogCourses.filter((c) => c.price && c.price > PRICE_TIERS.LOW.max && c.price <= PRICE_TIERS.MID.max);
-  const lowTicket = catalogCourses.filter((c) => c.price && c.price <= PRICE_TIERS.LOW.max);
-  const freeCourses = catalogCourses.filter((c) => !c.price);
+  // External / application-only partner programs (no price, redirect off-site)
+  const partnerPrograms = catalogCourses.filter((c) => (c as any).externalUrl);
+  // Exclude partner programs from the regular price tiers
+  const priceTierCourses = catalogCourses.filter((c) => !(c as any).externalUrl);
+
+  const eliteTicket = priceTierCourses.filter((c) => c.price && c.price > PRICE_TIERS.HIGH.max);
+  // Bundle courses (multi-module flagships) get their own "Full Courses" section
+  const fullCourses = priceTierCourses.filter((c) => c.isBundle && c.price);
+  // Partnership programs: high-ticket 1-on-1 / DFY (non-bundle), excluding bundles
+  const highTicket = priceTierCourses.filter((c) => !c.isBundle && c.price && c.price > PRICE_TIERS.MID.max && c.price <= PRICE_TIERS.HIGH.max);
+  const midTicket = priceTierCourses.filter((c) => !c.isBundle && c.price && c.price > PRICE_TIERS.LOW.max && c.price <= PRICE_TIERS.MID.max);
+  const lowTicket = priceTierCourses.filter((c) => !c.isBundle && c.price && c.price <= PRICE_TIERS.LOW.max);
+  const freeCourses = priceTierCourses.filter((c) => !c.isBundle && !c.price);
 
   return (
     <>
@@ -82,7 +90,7 @@ export default async function CoursesPage() {
         {/* ══════════════════════════════════════════════════════
             ELITE + HIGH TICKET
             ══════════════════════════════════════════════════════ */}
-        {(eliteTicket.length > 0 || highTicket.length > 0) && (
+        {(eliteTicket.length > 0 || highTicket.length > 0 || partnerPrograms.length > 0 || fullCourses.length > 0) && (
           <div className="bg-white border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-5 md:px-10 py-14">
 
@@ -98,12 +106,24 @@ export default async function CoursesPage() {
                 </section>
               )}
 
-              {/* HIGH TICKET */}
-              {highTicket.length > 0 && (
-                <section>
-                  <SectionHeader icon={<Star className="w-5 h-5 text-[#0000CC]" />} title="Full Courses & 1-on-1 Training" label="Featured" />
+              {/* PARTNERSHIP PROGRAMS (high-ticket 1-on-1 / DFY + application-only external) */}
+              {(highTicket.length > 0 || partnerPrograms.length > 0) && (
+                <section className={fullCourses.length > 0 ? 'mb-14' : ''}>
+                  <SectionHeader icon={<Handshake className="w-5 h-5 text-[#0000CC]" />} title="Partnership Programs" label="Featured" />
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {highTicket.map((course) => (
+                    {[...partnerPrograms, ...highTicket].map((course) => (
+                      <FeaturedCard key={course.id} course={course} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* FULL COURSES — flagship bundle courses (e.g. Real Estate Empire Blueprint) */}
+              {fullCourses.length > 0 && (
+                <section>
+                  <SectionHeader icon={<Star className="w-5 h-5 text-amber-500" />} title="Full Courses" label="Complete Programs" />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {fullCourses.map((course) => (
                       <FeaturedCard key={course.id} course={course} />
                     ))}
                   </div>
@@ -310,11 +330,10 @@ function EliteCard({ course }: { course: any }) {
 
 // ── FEATURED CARD (light bg) ──────────────────────────────────
 function FeaturedCard({ course }: { course: any }) {
-  return (
-    <Link
-      href={`/courses/${course.slug}`}
-      className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-    >
+  const isExternal = !!course.externalUrl;
+  const cardClass = "group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300";
+  const inner = (
+    <>
       <div className="relative aspect-video overflow-hidden">
         {course.thumbnail ? (
           <Image
@@ -326,12 +345,20 @@ function FeaturedCard({ course }: { course: any }) {
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex items-center justify-center">
-            <BookOpen className="w-10 h-10 text-white/20" />
+            {isExternal ? (
+              <Handshake className="w-10 h-10 text-white/20" />
+            ) : (
+              <BookOpen className="w-10 h-10 text-white/20" />
+            )}
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
         <div className="absolute bottom-3 left-4">
-          {course.isEnrolled ? (
+          {isExternal ? (
+            <span className="bg-[#0000CC] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
+              <Handshake className="w-3.5 h-3.5" /> Apply Only
+            </span>
+          ) : course.isEnrolled ? (
             <span className="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
               <CheckCircle className="w-3.5 h-3.5" /> Enrolled
             </span>
@@ -347,11 +374,17 @@ function FeaturedCard({ course }: { course: any }) {
           {course.title}
         </h3>
         <p className="text-sm text-gray-400 line-clamp-2 mt-1.5 flex-1">
-          {(course as any).shortDesc || course.description?.split('\n')[0]}
+          {course.shortDesc || course.description?.split('\n')[0]}
         </p>
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-          <span className="text-xs text-gray-400">{course.totalLessons} lessons</span>
-          {course.isEnrolled ? (
+          <span className="text-xs text-gray-400">
+            {isExternal ? 'Application required' : `${course.totalLessons} lessons`}
+          </span>
+          {isExternal ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0000CC]/10 text-[#0000CC] text-xs font-bold rounded-lg group-hover:bg-[#0000CC] group-hover:text-white transition-all">
+              Apply Now <ExternalLink className="w-3.5 h-3.5" />
+            </span>
+          ) : course.isEnrolled ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-600 text-xs font-bold rounded-lg">
               <Play className="w-3.5 h-3.5" /> Continue
             </span>
@@ -362,6 +395,16 @@ function FeaturedCard({ course }: { course: any }) {
           )}
         </div>
       </div>
+    </>
+  );
+
+  return isExternal ? (
+    <a href={course.externalUrl} target="_blank" rel="noopener noreferrer" className={cardClass}>
+      {inner}
+    </a>
+  ) : (
+    <Link href={`/courses/${course.slug}`} className={cardClass}>
+      {inner}
     </Link>
   );
 }

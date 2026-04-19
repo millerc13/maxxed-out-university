@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, Check } from 'lucide-react';
+import { ChevronRight, Check, ExternalLink } from 'lucide-react';
 import { formatPrice, getPriceTier } from '@/lib/utils';
 
 interface CourseCardProps {
@@ -16,6 +16,8 @@ interface CourseCardProps {
   slug: string;
   comingSoon?: boolean;
   price?: number | null;
+  externalUrl?: string;
+  shortDesc?: string | null;
 }
 
 export function CourseCard({
@@ -28,11 +30,13 @@ export function CourseCard({
   slug,
   comingSoon = false,
   price,
+  externalUrl,
+  shortDesc,
 }: CourseCardProps) {
   const [showLearning, setShowLearning] = useState(false);
 
   const cardContent = (
-    <div className={`bg-white rounded-xl overflow-hidden shadow-card transition-all duration-300 ${
+    <div className={`bg-white rounded-xl overflow-hidden shadow-card transition-all duration-300 h-full flex flex-col ${
       comingSoon
         ? 'cursor-not-allowed'
         : 'hover:-translate-y-1.5 hover:shadow-card-hover'
@@ -65,8 +69,14 @@ export function CourseCard({
           </div>
         )}
 
-        {/* Price Badge */}
-        {!comingSoon && price !== undefined && (() => {
+        {/* Price Badge / Apply badge */}
+        {!comingSoon && externalUrl ? (
+          <div className="absolute top-3 right-3">
+            <span className="bg-maxxed-blue text-white px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
+              Apply
+            </span>
+          </div>
+        ) : !comingSoon && price !== undefined ? (() => {
           const tier = getPriceTier(price);
           return (
             <div className="absolute top-3 right-3">
@@ -75,7 +85,7 @@ export function CourseCard({
               </span>
             </div>
           );
-        })()}
+        })() : null}
 
         {/* Coming Soon Tag - only show badge, no overlay */}
         {comingSoon && (
@@ -88,13 +98,18 @@ export function CourseCard({
       </div>
 
       {/* Content */}
-      <div className={`p-6 text-center ${comingSoon ? 'opacity-60' : ''}`}>
+      <div className={`p-6 text-center flex flex-col flex-1 ${comingSoon ? 'opacity-60' : ''}`}>
         <h4 className="text-lg font-bold text-text-dark mb-2 leading-tight">
           {title}
         </h4>
-        <p className="text-[11px] text-text-muted uppercase tracking-[2px] mb-5">
+        <p className="text-[11px] text-text-muted uppercase tracking-[2px] mb-3">
           {author}
         </p>
+        {shortDesc && (
+          <p className="text-sm text-text-body line-clamp-2 mb-5 leading-relaxed">
+            {shortDesc}
+          </p>
+        )}
 
         {/* What You'll Learn Toggle - Hide for coming soon */}
         {!comingSoon && learningPoints.length > 0 && (
@@ -138,27 +153,42 @@ export function CourseCard({
           </>
         )}
 
-        {/* CTA Button */}
-        {comingSoon ? (
-          <span className="inline-block px-8 py-3 border-2 border-gray-300 text-gray-400 text-xs font-bold uppercase tracking-wider rounded cursor-not-allowed">
-            Coming Soon
-          </span>
-        ) : (
-          <span className="inline-block px-8 py-3 border-2 border-maxxed-blue text-maxxed-blue text-xs font-bold uppercase tracking-wider no-underline rounded transition-all duration-300 hover:bg-maxxed-blue hover:text-white">
-            View Course
-          </span>
-        )}
+        {/* CTA Button — pinned to bottom of card */}
+        <div className="mt-auto pt-2">
+          {comingSoon ? (
+            <span className="inline-block px-8 py-3 border-2 border-gray-300 text-gray-400 text-xs font-bold uppercase tracking-wider rounded cursor-not-allowed">
+              Coming Soon
+            </span>
+          ) : externalUrl ? (
+            <span className="inline-flex items-center gap-2 px-8 py-3 border-2 border-maxxed-blue bg-maxxed-blue text-white text-xs font-bold uppercase tracking-wider rounded transition-all duration-300 hover:bg-maxxed-blue-dark hover:border-maxxed-blue-dark">
+              Apply Now <ExternalLink className="w-3.5 h-3.5" />
+            </span>
+          ) : (
+            <span className="inline-block px-8 py-3 border-2 border-maxxed-blue text-maxxed-blue text-xs font-bold uppercase tracking-wider no-underline rounded transition-all duration-300 hover:bg-maxxed-blue hover:text-white">
+              View Course
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
 
-  // If coming soon, don't wrap in Link
+  // Coming soon — not clickable
   if (comingSoon) {
-    return cardContent;
+    return <div className="h-full">{cardContent}</div>;
+  }
+
+  // External partner program — open in new tab
+  if (externalUrl) {
+    return (
+      <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="block no-underline h-full">
+        {cardContent}
+      </a>
+    );
   }
 
   return (
-    <Link href={`/courses/${slug}`} className="block no-underline">
+    <Link href={`/courses/${slug}`} className="block no-underline h-full">
       {cardContent}
     </Link>
   );
