@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/ui/markdown-content';
-import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy, Download, FileText, Printer } from 'lucide-react';
+import { Play, CheckCircle, ChevronLeft, ChevronRight, Lock, List, FileQuestion, Trophy, Download, FileText, Printer, Wrench, ArrowRight } from 'lucide-react';
 import { PrintButton } from '@/components/ui/print-button';
 import { VideoPlayer } from '@/components/lesson/VideoPlayer';
 import { getModuleAccess, getRequiredQuizForModule } from '@/lib/gating';
@@ -295,34 +295,44 @@ export default async function LessonPage({ params }: LessonPageProps) {
                       </div>
                     )}
 
-                    {/* Downloadable Resources */}
+                    {/* Tools & Resources */}
                     {currentLesson.resources && currentLesson.resources.length > 0 && (
                       <div className="mt-8 pt-6 border-t">
                         <h3 className="text-lg font-bold text-text-dark mb-4 flex items-center gap-2">
-                          <Download className="w-5 h-5" />
-                          Downloadable Resources
+                          <Wrench className="w-5 h-5" />
+                          Tools & Resources
                         </h3>
                         <div className="space-y-3">
-                          {currentLesson.resources.map((resource) => (
-                            <a
-                              key={resource.id}
-                              href={resource.fileUrl}
-                              download
-                              className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
-                            >
-                              <div className="p-2 bg-maxxed-blue/10 rounded-lg group-hover:bg-maxxed-blue/20 transition-colors">
-                                <FileText className="w-6 h-6 text-maxxed-blue" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-medium text-text-dark">{resource.title}</p>
-                                <p className="text-sm text-text-muted">
-                                  {resource.fileType.toUpperCase()}
-                                  {resource.fileSize && ` • ${Math.round(resource.fileSize / 1024)} KB`}
-                                </p>
-                              </div>
-                              <Download className="w-5 h-5 text-maxxed-blue opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </a>
-                          ))}
+                          {currentLesson.resources.map((resource) => {
+                            const isTool = resource.fileType === 'tool';
+                            return (
+                              <Link
+                                key={resource.id}
+                                href={resource.fileUrl}
+                                className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
+                              >
+                                <div className="p-2 bg-maxxed-blue/10 rounded-lg group-hover:bg-maxxed-blue/20 transition-colors">
+                                  {isTool ? (
+                                    <Wrench className="w-6 h-6 text-maxxed-blue" />
+                                  ) : (
+                                    <FileText className="w-6 h-6 text-maxxed-blue" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-text-dark">{resource.title}</p>
+                                  <p className="text-sm text-text-muted">
+                                    {isTool ? 'Interactive tool' : resource.fileType.toUpperCase()}
+                                    {!isTool && resource.fileSize ? ` • ${Math.round(resource.fileSize / 1024)} KB` : ''}
+                                  </p>
+                                </div>
+                                {isTool ? (
+                                  <ArrowRight className="w-5 h-5 text-maxxed-blue opacity-0 group-hover:opacity-100 transition-opacity" />
+                                ) : (
+                                  <Download className="w-5 h-5 text-maxxed-blue opacity-0 group-hover:opacity-100 transition-opacity" />
+                                )}
+                              </Link>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
