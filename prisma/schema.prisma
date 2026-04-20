@@ -91,6 +91,7 @@ model Course {
   comingSoon   Boolean          @default(false)
   isBundle     Boolean          @default(false)
   bundleId     String?
+  externalUrl  String?
   order        Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt

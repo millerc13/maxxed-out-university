@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import { CourseCard } from './CourseCard';
-import { Star, Sparkles, BookOpen, Zap, Clock } from 'lucide-react';
+import { Star, Sparkles, BookOpen, Zap, Clock, Handshake } from 'lucide-react';
 
 // Price tier boundaries in cents — matches /courses page exactly
 const PRICE_TIERS = {
   LOW: { max: 9700, label: 'Quick Start Guides & Tools', description: 'Bite-sized training to get you moving fast' },
   MID: { min: 9701, max: 150000, label: 'Core Training', description: 'Deep-dive courses to build your skills' },
-  HIGH: { min: 150001, max: 2500000, label: 'Full Courses & 1-on-1 Training', description: 'Comprehensive programs for serious investors' },
+  HIGH: { min: 150001, max: 2500000, label: 'Partnership Programs', description: 'Work with Todd to build your business' },
   ELITE: { min: 2500001, label: 'Elite Access', description: 'Direct mentorship and partnerships' },
 };
 
@@ -28,12 +28,18 @@ export async function CoursesSection() {
   );
   const comingSoonCourses = courses.filter((course) => course.comingSoon);
 
+  // External partner programs: no lessons required; shown as "Apply Now" tile
+  const partnerPrograms = courses.filter((c) => !c.comingSoon && (c as any).externalUrl);
+
   // Group by price tier — same as /courses page
   const eliteTicket = activeCourses.filter((c) => c.price && c.price > PRICE_TIERS.HIGH.max);
-  const highTicket = activeCourses.filter((c) => c.price && c.price > PRICE_TIERS.MID.max && c.price <= PRICE_TIERS.HIGH.max);
-  const midTicket = activeCourses.filter((c) => c.price && c.price > PRICE_TIERS.LOW.max && c.price <= PRICE_TIERS.MID.max);
-  const lowTicket = activeCourses.filter((c) => c.price && c.price <= PRICE_TIERS.LOW.max);
-  const freeCourses = activeCourses.filter((c) => !c.price);
+  // Bundle courses (multi-module flagships) get their own "Full Courses" section
+  const fullCourses = activeCourses.filter((c) => c.isBundle && c.price);
+  // Partnership programs: high-ticket 1-on-1 / DFY (non-bundle), excluding bundles
+  const highTicket = activeCourses.filter((c) => !c.isBundle && c.price && c.price > PRICE_TIERS.MID.max && c.price <= PRICE_TIERS.HIGH.max);
+  const midTicket = activeCourses.filter((c) => !c.isBundle && c.price && c.price > PRICE_TIERS.LOW.max && c.price <= PRICE_TIERS.MID.max);
+  const lowTicket = activeCourses.filter((c) => !c.isBundle && c.price && c.price <= PRICE_TIERS.LOW.max);
+  const freeCourses = activeCourses.filter((c) => !c.isBundle && !c.price);
 
   return (
     <section className="py-16 px-5 md:px-10 max-w-[1300px] mx-auto">
@@ -76,14 +82,24 @@ export async function CoursesSection() {
         />
       )}
 
-      {/* Full Courses & 1-on-1 Training */}
-      {highTicket.length > 0 && (
+      {/* Partnership Programs — high-ticket paid courses + application-only external */}
+      {(highTicket.length > 0 || partnerPrograms.length > 0) && (
         <TierSection
           title={PRICE_TIERS.HIGH.label}
           description={PRICE_TIERS.HIGH.description}
-          icon={<Star className="w-6 h-6 text-amber-500" />}
-          courses={highTicket}
+          icon={<Handshake className="w-6 h-6 text-[#0000CC]" />}
+          courses={[...partnerPrograms, ...highTicket]}
           featured
+        />
+      )}
+
+      {/* Full Courses — flagship bundle courses (e.g. Real Estate Empire Blueprint) */}
+      {fullCourses.length > 0 && (
+        <TierSection
+          title="Full Courses"
+          description="Complete multi-module programs"
+          icon={<Star className="w-6 h-6 text-amber-500" />}
+          courses={fullCourses}
         />
       )}
 
@@ -164,6 +180,8 @@ function TierSection({
               badge="COURSE"
               learningPoints={[]}
               price={course.price}
+              externalUrl={course.externalUrl ?? undefined}
+              shortDesc={course.shortDesc}
             />
           ))}
         </div>
