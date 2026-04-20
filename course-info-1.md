@@ -168,7 +168,7 @@ From “I can’t find deals” → “I can create deals out of thin air.”
 (For Serious Players Who Want Access—Limited Spots)**
 Price Range: $15,000 – $50,000
 
-12. 12-Month Private Mentorship with Todd – $25,000
+12. 6-Month Private Mentorship with Todd – $25,000
 
 Includes:
     •    Private Voxer access
