@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CheckoutClient } from '@/components/checkout/CheckoutClient';
+import { FunnelCheckout } from '@/components/checkout/FunnelCheckout';
 import { stripePublishableKey } from '@/lib/stripe';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
 
@@ -13,6 +13,18 @@ async function getEnabledProviders() {
     select: { provider: true },
   });
   return providers.map(p => p.provider);
+}
+
+async function hasActivePromoForCourse(courseId: string): Promise<boolean> {
+  const now = new Date();
+  const count = await prisma.promoCode.count({
+    where: {
+      active: true,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      AND: [{ OR: [{ applyToAll: true }, { courses: { some: { id: courseId } } }] }],
+    },
+  });
+  return count > 0;
 }
 
 interface CheckoutPageProps {
@@ -36,12 +48,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     notFound();
   }
 
-  // Require authentication for internal checkout
-  if (!session?.user?.id) {
-    redirect(`/login?callbackUrl=/checkout?courseId=${courseId}`);
-  }
-
-  // Logged-in users who are already enrolled (directly or via bundle) go straight to the course
+  // Logged-in users who already own this course (directly or via bundle) go straight to it.
+  // Anonymous users are allowed through — they'll purchase as guests.
   if (session?.user?.id) {
     const enrolled = await isEffectivelyEnrolled(session.user.id, course.id);
     if (enrolled) {
@@ -49,13 +57,15 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     }
   }
 
-  const enabledProviders = await getEnabledProviders();
+  const [enabledProviders, promoEnabled] = await Promise.all([
+    getEnabledProviders(),
+    hasActivePromoForCourse(course.id),
+  ]);
 
   return (
     <div style={{ background: '#f4f6fa', minHeight: '100vh' }}>
-      {/* Minimal checkout header */}
       <header className="bg-white border-t-4 border-maxxed-blue shadow-sm px-6 md:px-10 py-4 flex items-center justify-between">
-        <Link href="/courses" className="flex items-center gap-2.5 text-2xl font-extrabold text-text-dark no-underline">
+        <Link href="/" className="flex items-center gap-2.5 text-2xl font-extrabold text-text-dark no-underline">
           <Image
             src="https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277f2296891550f591fedc.png"
             alt="Maxxed Out"
@@ -72,19 +82,18 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       </header>
 
       <main className="flex items-start justify-center py-6 px-4 min-h-[calc(100vh-120px)]">
-        <CheckoutClient
-          course={{
-            id: course.id,
-            title: course.title,
-            price: course.price,
-            slug: course.slug,
-            thumbnail: course.thumbnail,
-          }}
+        <FunnelCheckout
           publishableKey={stripePublishableKey}
+          courseId={course.id}
+          courseTitle={course.title}
+          coursePrice={course.price}
+          courseSlug={course.slug}
+          courseThumbnail={course.thumbnail}
+          promoEnabled={promoEnabled}
+          enabledProviders={enabledProviders}
+          isAuthenticated={!!session?.user?.id}
           prefillEmail={session?.user?.email ?? null}
           prefillName={session?.user?.name ?? null}
-          isAuthenticated={!!session?.user?.id}
-          enabledProviders={enabledProviders}
         />
       </main>
     </div>
