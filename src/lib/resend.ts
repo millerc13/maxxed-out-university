@@ -5,6 +5,39 @@ export const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = 'Maxxed Out University <learn@maxxedout.com>';
 const BASE_URL = (process.env.NEXTAUTH_URL || 'https://university.maxxedout.com').replace(/\/$/, '');
 
+/**
+ * Wraps `resend.emails.send` with an env guard.
+ *
+ * Sends for real ONLY when `VERCEL_ENV === 'production'` — preview /
+ * development / local deploys log what would have been sent and return
+ * a stub success object so callers' result.data.id reads don't crash.
+ *
+ * Override with `RESEND_FORCE_SEND=true` if you actually need a real
+ * send from a non-prod env (rare — usually you don't).
+ */
+type ResendSendArgs = Parameters<typeof resend.emails.send>[0];
+type ResendSendResult = Awaited<ReturnType<typeof resend.emails.send>>;
+
+async function safeSend(args: ResendSendArgs): Promise<ResendSendResult> {
+  const isProd = process.env.VERCEL_ENV === 'production';
+  const forceSend = process.env.RESEND_FORCE_SEND === 'true';
+
+  if (!isProd && !forceSend) {
+    console.log('[resend] Skipping send — non-prod env', {
+      vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
+      to: (args as { to?: string | string[] }).to,
+      subject: (args as { subject?: string }).subject,
+      from: (args as { from?: string }).from,
+    });
+    return {
+      data: { id: 'skipped-non-prod' },
+      error: null,
+    } as ResendSendResult;
+  }
+
+  return resend.emails.send(args);
+}
+
 export async function sendMagicLinkEmail({
   to,
   name,
@@ -55,7 +88,7 @@ export async function sendMagicLinkEmail({
     : '';
 
   console.log('[resend] Sending magic link email', { from: FROM, to, subject: `Your ${courseName} access is ready`, activateUrl });
-  const result = await resend.emails.send({
+  const result = await safeSend({
     from: FROM,
     to,
     subject: `Your ${courseName} access is ready`,
@@ -200,7 +233,7 @@ export async function sendCourseAddedEmail({
       </td></tr>`
     : '';
 
-  return resend.emails.send({
+  return safeSend({
     from: FROM,
     to,
     subject: `You've been enrolled in ${courseName}`,
@@ -314,7 +347,7 @@ export async function sendAlreadyOwnedEmail({
     : '';
 
   console.log('[resend] Sending already-owned email', { from: FROM, to, subject: `You already own ${courseName}` });
-  const result = await resend.emails.send({
+  const result = await safeSend({
     from: FROM,
     to,
     subject: `You already own ${courseName}`,
@@ -435,7 +468,7 @@ export async function sendModuleQuizPassedEmail({
   const ctaUrl = nextLessonUrl ?? fallbackUrl;
 
   console.log('[resend] Sending module-passed email', { from: FROM, to, moduleNumber, moduleName, score });
-  const result = await resend.emails.send({
+  const result = await safeSend({
     from: FROM,
     to,
     subject: `Nice — you crushed Module ${moduleNumber}: ${moduleName}`,
@@ -562,7 +595,7 @@ export async function sendCertificateEmail({
     : '';
 
   console.log('[resend] Sending certificate email', { from: FROM, to, certificateId, courseName });
-  const result = await resend.emails.send({
+  const result = await safeSend({
     from: FROM,
     to,
     subject: `🏆 Your certificate is ready — ${courseName}`,
@@ -668,7 +701,7 @@ export async function sendPasswordResetEmail({
   const firstName = name.split(' ')[0] || 'there';
   const logoUrl = `${BASE_URL}/downloads/logo.png`;
 
-  return resend.emails.send({
+  return safeSend({
     from: FROM,
     to,
     subject: 'Reset your password',
