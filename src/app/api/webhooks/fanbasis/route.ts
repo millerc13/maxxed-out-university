@@ -7,9 +7,54 @@ import { enrollInBundle } from '@/lib/enrollment';
 
 export const runtime = 'nodejs';
 
+/** Best-effort WebhookLog row so rejected webhooks leave a DB trace. */
+async function logRejection(reason: string, rawBody: string, headersSnapshot: Record<string, string>) {
+  try {
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(rawBody); } catch { /* leave null */ }
+    await prisma.webhookLog.create({
+      data: {
+        source: 'fanbasis',
+        event: `rejected:${reason}`,
+        payload: {
+          reason,
+          bodyLength: rawBody.length,
+          bodyPreview: rawBody.slice(0, 500),
+          parsed,
+          headers: headersSnapshot,
+        } as object,
+        status: 'rejected',
+        errorMessage: reason,
+      },
+    });
+  } catch (err) {
+    console.error('[fanbasis-webhook] Failed to persist rejection log', { error: err instanceof Error ? err.message : err });
+  }
+}
+
 export async function POST(request: NextRequest) {
+  const reqId = `fb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const rawBody = await request.text();
   const signature = request.headers.get('x-webhook-signature');
+
+  // Header snapshot — not every header, just the ones that help us debug delivery.
+  const headersSnapshot = {
+    'content-type': request.headers.get('content-type') || '',
+    'content-length': request.headers.get('content-length') || '',
+    'x-webhook-signature': signature ? `${signature.slice(0, 12)}…(${signature.length})` : '(none)',
+    'user-agent': request.headers.get('user-agent') || '',
+    'x-forwarded-for': request.headers.get('x-forwarded-for') || '',
+  };
+
+  console.log('[fanbasis-webhook] Inbound', {
+    reqId,
+    vercelEnv: process.env.VERCEL_ENV,
+    hasSecret: !!process.env.FANBASIS_WEBHOOK_SECRET,
+    hasSignatureHeader: !!signature,
+    bodyLength: rawBody.length,
+    bodyPreview: rawBody.slice(0, 200),
+    ...headersSnapshot,
+  });
 
   // Signature validation.
   // Strict mode ONLY on Vercel prod (`VERCEL_ENV === 'production'`) — dev and preview
@@ -20,26 +65,31 @@ export async function POST(request: NextRequest) {
   const isVercelProd = process.env.VERCEL_ENV === 'production';
   if (webhookSecret) {
     if (!signature) {
-      console.error('[fanbasis-webhook] Missing X-Webhook-Signature header');
-      return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+      console.error('[fanbasis-webhook] Missing X-Webhook-Signature header', { reqId });
+      await logRejection('missing_signature_header', rawBody, headersSnapshot);
+      return NextResponse.json({ error: 'Missing signature', reqId }, { status: 401 });
     }
     if (!validateWebhookSignature(rawBody, signature, webhookSecret)) {
-      console.error('[fanbasis-webhook] Signature validation failed');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      console.error('[fanbasis-webhook] Signature validation failed', { reqId });
+      await logRejection('signature_mismatch', rawBody, headersSnapshot);
+      return NextResponse.json({ error: 'Invalid signature', reqId }, { status: 401 });
     }
+    console.log('[fanbasis-webhook] Signature OK', { reqId });
   } else if (isVercelProd) {
-    console.error('[fanbasis-webhook] FANBASIS_WEBHOOK_SECRET not set in production');
-    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+    console.error('[fanbasis-webhook] FANBASIS_WEBHOOK_SECRET not set in production', { reqId });
+    await logRejection('secret_not_configured_in_production', rawBody, headersSnapshot);
+    return NextResponse.json({ error: 'Webhook not configured', reqId }, { status: 500 });
   } else {
-    console.warn('[fanbasis-webhook] No FANBASIS_WEBHOOK_SECRET — accepting unsigned (non-prod)');
+    console.warn('[fanbasis-webhook] No FANBASIS_WEBHOOK_SECRET — accepting unsigned (non-prod)', { reqId });
   }
 
   let payload: Record<string, unknown>;
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    console.error('[fanbasis-webhook] Invalid JSON body');
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    console.error('[fanbasis-webhook] Invalid JSON body', { reqId });
+    await logRejection('invalid_json', rawBody, headersSnapshot);
+    return NextResponse.json({ error: 'Invalid JSON', reqId }, { status: 400 });
   }
 
   // Fanbasis sends payloads in two observed shapes:
@@ -49,10 +99,12 @@ export async function POST(request: NextRequest) {
   // We infer the event when event_type is missing and parse either shape.
   const documentedEventType = (payload.event_type as string) || '';
   const inferredEventType = documentedEventType || inferEventType(payload);
-  console.log('[fanbasis-webhook] Received', {
+  const buyer = (payload.buyer as { email?: string } | undefined)?.email || '?';
+  console.log('[fanbasis-webhook] Parsed', {
+    reqId,
     documentedEventType,
     inferredEventType,
-    hasBuyer: !!payload.buyer,
+    buyer,
     hasProduct: !!payload.product,
     hasItem: !!payload.item,
     payloadId: payload.id || payload.payment_id,
@@ -63,12 +115,12 @@ export async function POST(request: NextRequest) {
       data: {
         source: 'fanbasis',
         event: inferredEventType,
-        payload: payload as object,
+        payload: { reqId, ...(payload as object) } as object,
         status: 'received',
       },
     });
   } catch (err) {
-    console.error('[fanbasis-webhook] Failed to log webhook', { error: err instanceof Error ? err.message : err });
+    console.error('[fanbasis-webhook] Failed to log webhook', { reqId, error: err instanceof Error ? err.message : err });
   }
 
   try {
@@ -80,26 +132,28 @@ export async function POST(request: NextRequest) {
       case 'payment.failed':
       case 'payment.expired':
       case 'payment.canceled':
-        console.log(`[fanbasis-webhook] ${inferredEventType}`, JSON.stringify(payload));
+        console.log(`[fanbasis-webhook] ${inferredEventType}`, { reqId, payload: JSON.stringify(payload) });
         break;
       case 'subscription.created':
       case 'subscription.renewed':
       case 'subscription.completed':
       case 'subscription.canceled':
-        console.log(`[fanbasis-webhook] ${inferredEventType} (logged, not processed)`);
+        console.log(`[fanbasis-webhook] ${inferredEventType} (logged, not processed)`, { reqId });
         break;
       default:
-        console.warn(`[fanbasis-webhook] Unknown event — unable to infer from shape`, { payloadKeys: Object.keys(payload) });
+        console.warn(`[fanbasis-webhook] Unknown event — unable to infer from shape`, { reqId, payloadKeys: Object.keys(payload) });
     }
   } catch (error) {
     console.error(`[fanbasis-webhook] Handler threw (${inferredEventType})`, {
+      reqId,
       error: error instanceof Error ? error.message : error,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Processing failed', reqId }, { status: 500 });
   }
 
-  return NextResponse.json({ received: true });
+  console.log('[fanbasis-webhook] Done', { reqId, inferredEventType, buyer });
+  return NextResponse.json({ received: true, reqId });
 }
 
 /**

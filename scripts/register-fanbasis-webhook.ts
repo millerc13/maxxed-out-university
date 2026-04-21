@@ -91,7 +91,8 @@ async function main() {
 
   // The signing secret should be in createBody.data — surface it loudly.
   const data = createBody.data ?? {};
-  const secret = data.secret || data.webhook_secret || data.signing_secret;
+  // Fanbasis returns the field as `secret_key` (observed 2026-04-20) — also accept other plausible names.
+  const secret = data.secret_key || data.secret || data.webhook_secret || data.signing_secret;
   if (secret) {
     console.log('\n' + '='.repeat(72));
     console.log('FANBASIS_WEBHOOK_SECRET (save this NOW — Fanbasis will not show it again):');
