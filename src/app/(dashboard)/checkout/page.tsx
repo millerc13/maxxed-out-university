@@ -28,11 +28,11 @@ async function hasActivePromoForCourse(courseId: string): Promise<boolean> {
 }
 
 interface CheckoutPageProps {
-  searchParams: Promise<{ courseId?: string }>;
+  searchParams: Promise<{ courseId?: string; email?: string; name?: string; phone?: string }>;
 }
 
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
-  const { courseId } = await searchParams;
+  const { courseId, email: emailParam, name: nameParam, phone: phoneParam } = await searchParams;
   const session = await auth();
 
   if (!courseId) {
@@ -92,8 +92,9 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           promoEnabled={promoEnabled}
           enabledProviders={enabledProviders}
           isAuthenticated={!!session?.user?.id}
-          prefillEmail={session?.user?.email ?? null}
-          prefillName={session?.user?.name ?? null}
+          prefillEmail={session?.user?.email ?? emailParam ?? null}
+          prefillName={session?.user?.name ?? nameParam ?? null}
+          prefillPhone={phoneParam ?? null}
         />
       </main>
     </div>

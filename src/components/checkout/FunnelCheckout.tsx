@@ -23,6 +23,7 @@ interface FunnelCheckoutProps {
   isAuthenticated?: boolean;
   prefillEmail?: string | null;
   prefillName?: string | null;
+  prefillPhone?: string | null;
 }
 
 interface ContactInfo {
@@ -178,6 +179,7 @@ export function FunnelCheckout({
   isAuthenticated = false,
   prefillEmail = null,
   prefillName = null,
+  prefillPhone = null,
 }: FunnelCheckoutProps) {
   const showStripe = enabledProviders.includes('stripe');
   const showFanbasis = enabledProviders.includes('fanbasis');
@@ -195,7 +197,7 @@ export function FunnelCheckout({
     firstName: firstPrefill,
     lastName: lastPrefill,
     email: prefillEmail ?? '',
-    phone: '',
+    phone: prefillPhone ?? '',
   });
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
