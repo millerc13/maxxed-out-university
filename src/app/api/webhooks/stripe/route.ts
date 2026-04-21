@@ -151,13 +151,34 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
     console.log('[stripe-webhook] Enrollment created', { userId: resolvedUserId, courseId, paymentIntentId: paymentIntent.id, needsPasswordSetup });
 
     const cName = courseTitle || 'your course';
+
+    // High-ticket programs include the Real Estate Empire Blueprint bundle
+    // for free + an onboarding call. Surface both in the welcome email.
+    const HIGH_TICKET_COURSE_IDS = new Set(['ht_done_with_you', 'ht_mentorship_12mo']);
+    const isHighTicket = HIGH_TICKET_COURSE_IDS.has(courseId);
+    const bonusBox = isHighTicket
+      ? {
+          title: 'Real Estate Empire Blueprint — full course library',
+          body: "You also have full access to the entire Blueprint curriculum (Wholesaling, Fix &amp; Flip, BRRRR, Property Management, Deal Analysis, and more). Start exploring the moment you set up your account.",
+        }
+      : null;
+    const teamReachOutNote = isHighTicket;
+
     if (needsPasswordSetup && userEmail) {
       // User has no password yet — send magic link so they can activate + set password.
       console.log('[stripe-webhook] Creating magic link — user needs password setup', { userId: resolvedUserId, email: userEmail });
       try {
         const token = await createMagicLink(resolvedUserId);
         console.log('[stripe-webhook] Magic link created', { userId: resolvedUserId, tokenPrefix: token.slice(0, 8) + '...' });
-        const emailResult = await sendMagicLinkEmail({ to: userEmail, name: userName, token, courseName: cName, courseThumbnail: purchasedCourse?.thumbnail });
+        const emailResult = await sendMagicLinkEmail({
+          to: userEmail,
+          name: userName,
+          token,
+          courseName: cName,
+          courseThumbnail: purchasedCourse?.thumbnail,
+          bonusBox,
+          teamReachOutNote,
+        });
         console.log('[stripe-webhook] Magic link email sent', { emailId: emailResult?.data?.id, error: emailResult?.error });
       } catch (err) {
         console.error('[stripe-webhook] Magic link / email failed', { error: err instanceof Error ? err.message : err, stack: err instanceof Error ? err.stack : undefined });
@@ -168,7 +189,15 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       console.log('[stripe-webhook] Sending course-added email to returning user', { to: userEmail, courseName: cName });
       try {
         const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
-        const emailResult = await sendCourseAddedEmail({ to: userEmail, name: userName, courseName: cName, loginUrl, courseThumbnail: purchasedCourse?.thumbnail });
+        const emailResult = await sendCourseAddedEmail({
+          to: userEmail,
+          name: userName,
+          courseName: cName,
+          loginUrl,
+          courseThumbnail: purchasedCourse?.thumbnail,
+          bonusBox,
+          teamReachOutNote,
+        });
         console.log('[stripe-webhook] Course-added email sent', { emailId: emailResult?.data?.id, error: emailResult?.error });
       } catch (err) {
         console.error('[stripe-webhook] Course-added email failed', { error: err instanceof Error ? err.message : err });

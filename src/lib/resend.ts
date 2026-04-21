@@ -11,18 +11,47 @@ export async function sendMagicLinkEmail({
   token,
   courseName,
   courseThumbnail,
+  bonusBox,
+  teamReachOutNote,
 }: {
   to: string;
   name: string;
   token: string;
   courseName: string;
   courseThumbnail?: string | null;
+  /** Optional callout shown above the CTA — used to mention bonus content like included Blueprint access for DWY/Mentorship buyers. */
+  bonusBox?: { title: string; body: string } | null;
+  /** When true, adds a note explaining a team member will reach out separately for onboarding. */
+  teamReachOutNote?: boolean;
 }) {
   const activateUrl = `${BASE_URL}/auth/activate?token=${token}`;
   const logoUrl = `${BASE_URL}/downloads/logo.png`;
   const firstName = name.split(' ')[0] || 'there';
   const thumbnailBlock = courseThumbnail
     ? `<tr><td style="padding:0 0 28px;"><img src="${courseThumbnail}" alt="${courseName}" width="520" style="display:block;width:100%;max-width:520px;border-radius:10px;" /></td></tr>`
+    : '';
+  const bonusBoxBlock = bonusBox
+    ? `<tr><td style="padding:0 0 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;">
+          <tr><td style="padding:18px 22px;">
+            <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#b45309;">Included with your purchase</p>
+            <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#111827;">${bonusBox.title}</p>
+            <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.55;">${bonusBox.body}</p>
+          </td></tr>
+        </table>
+      </td></tr>`
+    : '';
+  const teamNoteBlock = teamReachOutNote
+    ? `<tr><td style="padding:0 0 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;">
+          <tr><td style="padding:14px 18px;">
+            <p style="margin:0;font-size:13px;color:#1e3a8a;line-height:1.55;">
+              <strong style="color:#1e3a8a;">Watch for a separate email.</strong>
+              A member of Todd's team will reach out within one business day to schedule your onboarding call and walk you through your custom plan.
+            </p>
+          </td></tr>
+        </table>
+      </td></tr>`
     : '';
 
   console.log('[resend] Sending magic link email', { from: FROM, to, subject: `Your ${courseName} access is ready`, activateUrl });
@@ -60,13 +89,20 @@ export async function sendMagicLinkEmail({
                       Your course is ready, ${firstName}!
                     </h1>
                     <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
-                      You've been enrolled in <strong style="color:#111827;">${courseName}</strong>. Click below to set up your account and start learning.
+                      You've been enrolled in <strong style="color:#111827;">${courseName}</strong>.
+                      ${bonusBox ? `Click below to set up your account and start exploring.` : `Click below to set up your account and start learning.`}
                     </p>
                   </td>
                 </tr>
 
                 <!-- Course Thumbnail -->
                 ${thumbnailBlock}
+
+                <!-- Bonus content callout -->
+                ${bonusBoxBlock}
+
+                <!-- Team reach-out note -->
+                ${teamNoteBlock}
 
                 <!-- CTA Button -->
                 <tr>
@@ -124,17 +160,44 @@ export async function sendCourseAddedEmail({
   courseName,
   loginUrl,
   courseThumbnail,
+  bonusBox,
+  teamReachOutNote,
 }: {
   to: string;
   name: string;
   courseName: string;
   loginUrl: string;
   courseThumbnail?: string | null;
+  bonusBox?: { title: string; body: string } | null;
+  teamReachOutNote?: boolean;
 }) {
   const firstName = name.split(' ')[0] || 'there';
   const logoUrl = `${BASE_URL}/downloads/logo.png`;
   const thumbnailBlock = courseThumbnail
     ? `<tr><td style="padding:0 0 28px;"><img src="${courseThumbnail}" alt="${courseName}" width="520" style="display:block;width:100%;max-width:520px;border-radius:10px;" /></td></tr>`
+    : '';
+  const bonusBoxBlock = bonusBox
+    ? `<tr><td style="padding:0 0 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;">
+          <tr><td style="padding:18px 22px;">
+            <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#b45309;">Included with your purchase</p>
+            <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#111827;">${bonusBox.title}</p>
+            <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.55;">${bonusBox.body}</p>
+          </td></tr>
+        </table>
+      </td></tr>`
+    : '';
+  const teamNoteBlock = teamReachOutNote
+    ? `<tr><td style="padding:0 0 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;">
+          <tr><td style="padding:14px 18px;">
+            <p style="margin:0;font-size:13px;color:#1e3a8a;line-height:1.55;">
+              <strong style="color:#1e3a8a;">Watch for a separate email.</strong>
+              A member of Todd's team will reach out within one business day to schedule your onboarding call and walk you through your custom plan.
+            </p>
+          </td></tr>
+        </table>
+      </td></tr>`
     : '';
 
   return resend.emails.send({
@@ -178,6 +241,12 @@ export async function sendCourseAddedEmail({
 
                 <!-- Course Thumbnail -->
                 ${thumbnailBlock}
+
+                <!-- Bonus content callout -->
+                ${bonusBoxBlock}
+
+                <!-- Team reach-out note -->
+                ${teamNoteBlock}
 
                 <!-- CTA Button -->
                 <tr>
