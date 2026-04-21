@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { validateWebhookSignature } from '@/lib/fanbasis';
 import { createMagicLink } from '@/lib/magiclink';
 import { sendMagicLinkEmail, sendCourseAddedEmail } from '@/lib/resend';
-import { enrollInBundle } from '@/lib/enrollment';
+import { enrollInBundle, enrollIncludedBundles } from '@/lib/enrollment';
 import { notifyMastermindEnrolled } from '@/lib/mastermind-callback';
 
 export const runtime = 'nodejs';
@@ -376,6 +376,9 @@ async function enrollFromFanbasis(params: {
       console.error('[fanbasis-webhook] Bundle enrollment failed', { error: err instanceof Error ? err.message : err });
     }
   }
+
+  // Included bundles — DWY/Mentorship buyers also get the Blueprint bundle.
+  await enrollIncludedBundles(resolvedUserId, params.courseId, 'fanbasis', params.transactionId);
 
   // Increment promo code usage
   if (params.promoCodeId) {

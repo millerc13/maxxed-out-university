@@ -3,7 +3,7 @@ import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/prisma';
 import { createMagicLink } from '@/lib/magiclink';
 import { sendMagicLinkEmail, sendCourseAddedEmail } from '@/lib/resend';
-import { enrollInBundle } from '@/lib/enrollment';
+import { enrollInBundle, enrollIncludedBundles } from '@/lib/enrollment';
 import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
@@ -136,6 +136,9 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       await enrollInBundle(resolvedUserId, courseId, 'stripe', paymentIntent.id);
       console.log('[stripe-webhook] Bundle enrollment complete');
     }
+
+    // Included bundles — DWY/Mentorship buyers also get the Blueprint bundle.
+    await enrollIncludedBundles(resolvedUserId, courseId, 'stripe', paymentIntent.id);
 
     if (promoCodeId) {
       console.log('[stripe-webhook] Incrementing promo code usage', { promoCodeId });
