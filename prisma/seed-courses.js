@@ -667,9 +667,10 @@ Perfect for: Experienced investors ready to master creative financing and advanc
   // ELITE OFFERS ($15,000 - $50,000)
   // ============================================
   {
-    title: '12-Month Private Mentorship with Todd',
-    slug: 'private-mentorship-12-month',
-    description: `The ultimate access: work directly with Todd for an entire year with private Voxer access, monthly 1-on-1 calls, and real-time deal guidance. Get the same playbook Todd used to build a 9-figure portfolio.
+    title: '6 Month Mentorship with Todd',
+    slug: '6-month-mentorship',
+    thumbnail: 'https://assets.cdn.filesafe.space/ZTzlr9OKa82mgQ8vn680/media/69e698966da81710db0b7af2.png',
+    description: `The ultimate access: work directly with Todd for six months with private Voxer access, monthly 1-on-1 calls, and real-time deal guidance. Get the same playbook Todd used to build a 9-figure portfolio.
 
 Includes:
 • Private Voxer access to Todd
@@ -681,7 +682,7 @@ Includes:
 • VIP tickets to all events
 
 Perfect for: Serious investors who want direct mentorship and the fast track to success.`,
-    shortDesc: 'Direct 1-on-1 mentorship with Todd for 12 months plus full platform access.',
+    shortDesc: 'Direct 1-on-1 mentorship with Todd for 6 months plus full platform access.',
     price: 2500000, // $25,000
     tier: 'elite',
     order: 12,
@@ -692,7 +693,7 @@ Perfect for: Serious investors who want direct mentorship and the fast track to 
         lessons: [
           { title: 'Welcome to Private Mentorship', order: 1 },
           { title: 'Setting Up Voxer', order: 2 },
-          { title: 'Your 12-Month Roadmap', order: 3 },
+          { title: 'Your 6-Month Roadmap', order: 3 },
           { title: 'Scheduling Your Calls', order: 4 },
         ]
       },

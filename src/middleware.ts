@@ -7,8 +7,12 @@ export default auth((req) => {
 
   // Protected routes
   // Note: /certificates/[id] is intentionally PUBLIC so learners can share their credential.
-  const protectedRoutes = ['/dashboard', '/courses', '/learn', '/progress', '/admin'];
-  const isProtectedRoute = protectedRoutes.some((route) =>
+  // /courses listing + /courses/[slug] detail are PUBLIC so anons can browse and purchase;
+  // /courses/[slug]/lessons/* and /courses/[slug]/quiz/* stay protected (actual content).
+  // /checkout is PUBLIC so anons can buy as guests.
+  const protectedRoutes = ['/dashboard', '/learn', '/progress', '/admin'];
+  const isCourseContentPath = /^\/courses\/[^/]+\/(lessons|quiz)\//.test(nextUrl.pathname);
+  const isProtectedRoute = isCourseContentPath || protectedRoutes.some((route) =>
     nextUrl.pathname.startsWith(route)
   );
 
