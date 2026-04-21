@@ -396,13 +396,43 @@ async function enrollFromFanbasis(params: {
     console.warn('[fanbasis-webhook] No email available — skipping notification', { resolvedUserId });
     return;
   }
+
+  // High-ticket programs include the Real Estate Empire Blueprint bundle
+  // for free + an onboarding call with Todd's team. Surface both in the
+  // welcome email so the buyer knows what to do (and not do) next.
+  const HIGH_TICKET_COURSE_IDS = new Set(['ht_done_with_you', 'ht_mentorship_12mo']);
+  const isHighTicket = HIGH_TICKET_COURSE_IDS.has(params.courseId);
+  const bonusBox = isHighTicket
+    ? {
+        title: 'Real Estate Empire Blueprint — full course library',
+        body: "You also have full access to the entire Blueprint curriculum (Wholesaling, Fix &amp; Flip, BRRRR, Property Management, Deal Analysis, and more). Start exploring the moment you set up your account.",
+      }
+    : null;
+  const teamReachOutNote = isHighTicket;
+
   try {
     if (needsPasswordSetup) {
       const token = await createMagicLink(resolvedUserId);
-      await sendMagicLinkEmail({ to: userEmail, name: userName, token, courseName: cName, courseThumbnail: purchasedCourse?.thumbnail });
+      await sendMagicLinkEmail({
+        to: userEmail,
+        name: userName,
+        token,
+        courseName: cName,
+        courseThumbnail: purchasedCourse?.thumbnail,
+        bonusBox,
+        teamReachOutNote,
+      });
     } else {
       const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
-      await sendCourseAddedEmail({ to: userEmail, name: userName, courseName: cName, loginUrl, courseThumbnail: purchasedCourse?.thumbnail });
+      await sendCourseAddedEmail({
+        to: userEmail,
+        name: userName,
+        courseName: cName,
+        loginUrl,
+        courseThumbnail: purchasedCourse?.thumbnail,
+        bonusBox,
+        teamReachOutNote,
+      });
     }
   } catch (err) {
     console.error('[fanbasis-webhook] Email send failed', { error: err instanceof Error ? err.message : err });
