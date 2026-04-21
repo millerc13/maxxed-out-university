@@ -65,8 +65,15 @@ export default async function CoursesPage() {
   });
 
   const comingSoonCourses = coursesWithStats.filter((c) => c.isComingSoon);
-  // Hide bundle child courses when user is enrolled in the parent bundle
-  const catalogCourses = coursesWithStats.filter((c) => !c.isComingSoon && (!c.bundleId || !enrolledBundleIds.has(c.bundleId)));
+  // /courses is a "browse / shop" page — hide anything the user already owns
+  // so they don't see "Buy Now" CTAs for courses they paid for. Their owned
+  // courses live on the /dashboard. Also hide bundle children when they own
+  // the parent bundle.
+  const catalogCourses = coursesWithStats.filter((c) =>
+    !c.isComingSoon &&
+    !c.isEnrolled &&
+    (!c.bundleId || !enrolledBundleIds.has(c.bundleId))
+  );
 
   // External / application-only partner programs (no price, redirect off-site)
   const partnerPrograms = catalogCourses.filter((c) => (c as any).externalUrl);
