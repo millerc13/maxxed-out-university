@@ -35,7 +35,11 @@ export default async function DashboardPage() {
         include: {
           modules: {
             include: {
-              lessons: true,
+              // Order-by is required here — without it Postgres returns
+              // lessons in an arbitrary order, and the "next uncompleted
+              // lesson" CTA ends up pointing to a random lesson instead of
+              // the first (e.g. 1.3 instead of 1.1 for a brand new user).
+              lessons: { orderBy: { order: 'asc' } },
             },
             orderBy: { order: 'asc' },
           },
