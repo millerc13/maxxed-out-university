@@ -67,9 +67,29 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
     let userName = guestName || 'Student';
     let needsPasswordSetup = false;
 
-    if (isGuest === 'true' && guestEmail) {
+    // If userId was passed from an authed checkout but the user no longer
+    // exists (deleted since the PaymentIntent was created), treat this as
+    // a guest flow so we fall back to find-or-create by email instead of
+    // failing the enrollment's foreign key.
+    let authedUserMissing = false;
+    if (userId && isGuest !== 'true') {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true, passwordHash: true } });
+      if (user) {
+        resolvedUserId = userId;
+        userEmail = user.email;
+        userName = user.name || 'Student';
+        needsPasswordSetup = !user.passwordHash;
+        console.log('[stripe-webhook] Authenticated checkout, loaded user', { userId });
+      } else {
+        console.warn('[stripe-webhook] userId in metadata no longer exists — falling back to email lookup', { staleUserId: userId, guestEmail });
+        authedUserMissing = true;
+        resolvedUserId = '';
+      }
+    }
+
+    if ((isGuest === 'true' || authedUserMissing) && guestEmail) {
       userEmail = guestEmail;
-      console.log('[stripe-webhook] Guest checkout — finding or creating user', { email: guestEmail });
+      console.log('[stripe-webhook] Email-based checkout — finding or creating user', { email: guestEmail, reason: authedUserMissing ? 'stale-userId-fallback' : 'guest' });
       let user = await prisma.user.findUnique({ where: { email: guestEmail } });
 
       if (!user) {
@@ -82,21 +102,12 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
           },
         });
         needsPasswordSetup = true;
-        console.log('[stripe-webhook] New user created', { userId: user.id, email: user.email });
       } else {
-        // Existing user record but no password yet — still needs the magic-link flow
-        // to finish account setup, not a "course added" email that assumes they can log in.
         needsPasswordSetup = !user.passwordHash;
-        console.log('[stripe-webhook] Existing user found', { userId: user.id, email: user.email, mustChangePassword: user.mustChangePassword });
       }
 
       resolvedUserId = user.id;
       userName = user.name || guestName || 'Student';
-    } else if (userId) {
-      console.log('[stripe-webhook] Authenticated checkout, loading user', { userId });
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
-      userEmail = user?.email ?? '';
-      userName = user?.name ?? 'Student';
     }
 
     if (!resolvedUserId) {

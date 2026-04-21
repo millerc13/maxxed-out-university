@@ -306,10 +306,36 @@ async function enrollFromFanbasis(params: {
   let userEmail = params.email;
   let userName = params.guestName || params.name || 'Student';
 
-  if (params.isGuest || !resolvedUserId) {
-    // Find or create user by email
-    let user = await prisma.user.findUnique({ where: { email: params.email } });
+  // Resolve the buyer: if metadata has a userId, try to load that user.
+  // If the user no longer exists (deleted since the checkout session was
+  // created — Fanbasis caches the metadata), fall back to find-or-create
+  // by email so the enrollment doesn't foreign-key-fail on a stale cuid.
+  let matchedUser: { id: string; email: string; name: string | null; passwordHash: string | null } | null = null;
 
+  if (!params.isGuest && resolvedUserId) {
+    matchedUser = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
+      select: { id: true, email: true, name: true, passwordHash: true },
+    });
+    if (!matchedUser) {
+      console.warn('[fanbasis-webhook] userId in metadata no longer exists — falling back to email lookup', {
+        staleUserId: resolvedUserId,
+        email: params.email,
+      });
+      resolvedUserId = '';
+    }
+  }
+
+  if (!matchedUser) {
+    // Find-or-create by email (guest path OR stale-userId fallback)
+    if (!params.email) {
+      console.error('[fanbasis-webhook] Cannot resolve user: no email and no valid userId', { transactionId: params.transactionId });
+      return;
+    }
+    let user = await prisma.user.findUnique({
+      where: { email: params.email },
+      select: { id: true, email: true, name: true, passwordHash: true },
+    });
     if (!user) {
       user = await prisma.user.create({
         data: {
@@ -317,27 +343,20 @@ async function enrollFromFanbasis(params: {
           name: params.guestName || params.name || null,
           mustChangePassword: true,
         },
+        select: { id: true, email: true, name: true, passwordHash: true },
       });
       needsPasswordSetup = true;
     } else {
-      // Existing record but never activated — still send magic link so they can set a password
       needsPasswordSetup = !user.passwordHash;
     }
-
-    resolvedUserId = user.id;
-    userName = user.name || params.guestName || params.name || 'Student';
+    matchedUser = user;
   } else {
-    // Authenticated checkout — load the user to fetch fresh email/name + passwordHash
-    const user = await prisma.user.findUnique({
-      where: { id: resolvedUserId },
-      select: { email: true, name: true, passwordHash: true },
-    });
-    if (user) {
-      userEmail = user.email;
-      userName = user.name || userName;
-      needsPasswordSetup = !user.passwordHash;
-    }
+    needsPasswordSetup = !matchedUser.passwordHash;
   }
+
+  resolvedUserId = matchedUser.id;
+  userEmail = matchedUser.email || userEmail;
+  userName = matchedUser.name || params.guestName || params.name || userName || 'Student';
 
   if (!resolvedUserId) {
     console.error('[fanbasis-webhook] Could not resolve userId for payment:', params.transactionId);
