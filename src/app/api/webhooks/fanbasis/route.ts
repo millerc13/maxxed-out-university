@@ -92,22 +92,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON', reqId }, { status: 400 });
   }
 
-  // Fanbasis sends payloads in two observed shapes:
-  //   (a) Documented: { event_type, payment_id, buyer, item, api_metadata }
-  //   (b) Actual (sandbox as of 2026-04): no event_type, buyer.first_name/last_name,
-  //       product.api_metadata as a stringified JSON that TRUNCATES at ~240 chars.
-  // We infer the event when event_type is missing and parse either shape.
-  const documentedEventType = (payload.event_type as string) || '';
-  const inferredEventType = documentedEventType || inferEventType(payload);
-  const buyer = (payload.buyer as { email?: string } | undefined)?.email || '?';
+  // Fanbasis ships two payload shapes (see sourceOf / inferEventType below for details).
+  const inferredEventType = inferEventType(payload);
+  const src = sourceOf(payload);
+  const buyer = (src.buyer as { email?: string } | undefined)?.email || '?';
   console.log('[fanbasis-webhook] Parsed', {
     reqId,
-    documentedEventType,
     inferredEventType,
+    envelope: payload.data ? 'live (data-wrapped)' : 'sandbox (flat)',
     buyer,
-    hasProduct: !!payload.product,
-    hasItem: !!payload.item,
-    payloadId: payload.id || payload.payment_id,
+    hasProduct: !!src.product || !!src.item,
+    payloadId: src.payment_id || payload.id || payload.payment_id,
+    topLevelType: payload.type || payload.event_type || null,
   });
 
   try {
@@ -157,37 +153,65 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Infer event type from payload shape when Fanbasis omits `event_type`.
- * A payload with buyer + product + (id|payment_id) + numeric timestamp is a purchase.
+ * Return the object that holds buyer / item / api_metadata / payment_id.
+ *
+ * Fanbasis has shipped TWO wire formats we've seen in production:
+ *   - Sandbox (pre-2026-04-20): flat — { buyer, product|item, payment_id|id, api_metadata, ... }
+ *   - Live (2026-04-20+):  envelope — { id: <event-uuid>, type, data: { buyer, item, payment_id, api_metadata, event_type, ... } }
+ *
+ * Treat `payload.data` as the canonical source when it's present and looks
+ * like a payment payload; otherwise fall back to payload itself.
+ */
+function sourceOf(payload: Record<string, unknown>): Record<string, unknown> {
+  const data = payload.data;
+  if (data && typeof data === 'object' && ('buyer' in data || 'item' in data || 'payment_id' in data)) {
+    return data as Record<string, unknown>;
+  }
+  return payload;
+}
+
+/**
+ * Infer event type from payload. Checks top-level `type`/`event_type` first
+ * (both shapes), then nested `data.event_type` (live), then shape-based inference.
  */
 function inferEventType(payload: Record<string, unknown>): string {
-  const hasBuyer = !!payload.buyer;
-  const hasProduct = !!payload.product || !!payload.item;
-  const hasPaymentId = !!payload.id || !!payload.payment_id;
+  const topType = (payload.type as string) || (payload.event_type as string) || '';
+  if (topType) return topType;
+  const src = sourceOf(payload);
+  const nestedType = (src.event_type as string) || '';
+  if (nestedType) return nestedType;
+
+  const hasBuyer = !!src.buyer;
+  const hasProduct = !!src.product || !!src.item;
+  const hasPaymentId = !!src.payment_id || !!payload.id || !!payload.payment_id;
   if (hasBuyer && hasProduct && hasPaymentId) return 'payment.succeeded';
   return '';
 }
 
 /**
- * Normalize Fanbasis's two payload shapes into a uniform object for the enrollment flow.
+ * Normalize both Fanbasis payload shapes into a uniform purchase object.
  */
 function extractPurchaseDetails(payload: Record<string, unknown>) {
-  const buyer = payload.buyer as {
+  const src = sourceOf(payload);
+
+  const buyer = src.buyer as {
     id?: number; name?: string; email?: string; first_name?: string; last_name?: string
   } | undefined;
 
-  // Try both shapes for the product/item
-  const product = (payload.product || payload.item) as {
+  const product = (src.product || src.item) as {
     id?: number; title?: string; type?: string; api_metadata?: string | { data?: Record<string, string> }
   } | undefined;
 
-  // Payment id can live at top level as `id` or `payment_id`
-  const paymentId = String(payload.payment_id || payload.id || '');
+  // Payment id: prefer `payment_id` from the source, fall back to top-level `id`
+  // (sandbox uses int `id`; live envelope's top-level `id` is the event UUID, not the payment id).
+  const paymentId = String(src.payment_id || payload.payment_id || payload.id || '');
 
-  // Metadata: (a) object at top-level api_metadata.data (docs), or
-  // (b) JSON string in product.api_metadata (actual sandbox behavior).
+  // Metadata — three possible locations:
+  //   1. src.api_metadata.data (live — object nested under data wrapper)
+  //   2. product.api_metadata stringified (sandbox — often truncated ~240 chars)
+  //   3. product.api_metadata as object with .data (docs shape)
   let metadata: Record<string, string> = {};
-  const topLevelMeta = (payload.api_metadata as { data?: Record<string, string> } | undefined)?.data;
+  const topLevelMeta = (src.api_metadata as { data?: Record<string, string> } | undefined)?.data;
   if (topLevelMeta && typeof topLevelMeta === 'object') {
     metadata = topLevelMeta;
   } else if (product?.api_metadata) {
@@ -199,7 +223,6 @@ function extractPurchaseDetails(payload: Record<string, unknown>) {
           raw: product.api_metadata,
           error: err instanceof Error ? err.message : err,
         });
-        // Best-effort salvage: pull courseId from partial string via regex.
         const m = (product.api_metadata as string).match(/"courseId"\s*:\s*"([^"]+)"/);
         if (m) metadata = { courseId: m[1] };
       }
