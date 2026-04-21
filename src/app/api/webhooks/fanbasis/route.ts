@@ -4,6 +4,7 @@ import { validateWebhookSignature } from '@/lib/fanbasis';
 import { createMagicLink } from '@/lib/magiclink';
 import { sendMagicLinkEmail, sendCourseAddedEmail } from '@/lib/resend';
 import { enrollInBundle } from '@/lib/enrollment';
+import { notifyMastermindEnrolled } from '@/lib/mastermind-callback';
 
 export const runtime = 'nodejs';
 
@@ -403,4 +404,12 @@ async function enrollFromFanbasis(params: {
   } catch (err) {
     console.error('[fanbasis-webhook] Email send failed', { error: err instanceof Error ? err.message : err });
   }
+
+  // Fire-and-forget notification to mastermind-stripe-dashboard so any open
+  // Stage Offer pointing at this email+course flips to 'enrolled'.
+  await notifyMastermindEnrolled({
+    email: userEmail,
+    courseId: params.courseId,
+    transactionId: params.transactionId,
+  });
 }
