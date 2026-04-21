@@ -406,3 +406,31 @@ model Tool {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+
+// Short-link redirect for prefilled checkouts. Mastermind /stage-offers
+// mints these via POST /api/checkout-links so the SMS/email payload is a
+// short https://university.maxxedout.com/c/<token> URL instead of a 150-char
+// URL with all the prefill query params exposed.
+model CheckoutLink {
+  id              String    @id @default(cuid())
+  token           String    @unique
+  courseId        String
+  email           String
+  name            String?
+  phone           String?
+  promoCode       String?
+  expiresAt       DateTime?
+  clickedAt       DateTime?       // first time anyone visited the short URL
+  clickCount      Int       @default(0)
+  paidAt          DateTime?       // set by webhook when this link's email + course completes payment
+  transactionId   String?
+  sentOfferId     String?         // mastermind dashboard_sent_offers.id (cross-system reference)
+  createdByEmail  String?         // who triggered the send from mastermind
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([token])
+  @@index([email, courseId])
+  @@index([sentOfferId])
+}
