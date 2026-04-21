@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header } from '@/components/layout';
 import Link from 'next/link';
-import { CheckCircle, BookOpen, Mail, ArrowRight } from 'lucide-react';
+import { CheckCircle, BookOpen, Mail, ArrowRight, PhoneCall, Calendar } from 'lucide-react';
 
 interface SuccessPageProps {
   searchParams: Promise<{
@@ -18,6 +18,14 @@ interface SuccessPageProps {
     product_price?: string;
   }>;
 }
+
+// Courses where the buyer's next step is a 1:1 onboarding call, not
+// self-serve course access. The success screen shows team-will-reach-out
+// copy for these instead of the standard "check your email" / "go to course".
+const HIGH_TICKET_SLUGS = new Set([
+  'done-with-you-real-estate-business',
+  '6-month-mentorship',
+]);
 
 function formatAmount(priceStr: string | undefined): string | null {
   if (!priceStr) return null;
@@ -54,6 +62,7 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
   const firstName = (name ?? '').trim().split(/\s+/)[0] || null;
   const productName = resolvedProductName;
   const amount = formatAmount(product_price);
+  const isHighTicket = courseSlug ? HIGH_TICKET_SLUGS.has(courseSlug) : false;
 
   const Card = ({ children }: { children: React.ReactNode }) => (
     <div
@@ -64,6 +73,82 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
     </div>
   );
 
+  // ── High-ticket purchase (DWY / Mentorship) ───────────────────────────────
+  // No "log in and start the course" — onboarding happens via a call.
+  if (isHighTicket) {
+    return (
+      <>
+        <Header />
+        <main className="min-h-[calc(100vh-96px)] flex items-start justify-center px-4 py-10 sm:py-16" style={{ background: '#f4f6fa' }}>
+          <Card>
+            <div className="p-8 sm:p-12 text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-11 h-11 text-green-600" strokeWidth={2.5} />
+              </div>
+
+              <p className="font-bold text-[10px] tracking-[0.2em] uppercase mb-2" style={{ color: '#D4AF37' }}>
+                Maxxed Out University
+              </p>
+              <h1 className="font-black text-2xl sm:text-3xl mb-3" style={{ color: '#0c1829' }}>
+                {firstName ? `Thank you, ${firstName}!` : 'Thank you!'}
+              </h1>
+
+              {productName && (
+                <div className="inline-flex items-baseline gap-2 mb-6 px-4 py-2 rounded-lg" style={{ background: 'rgba(0,0,255,0.04)' }}>
+                  <span className="text-sm font-semibold text-gray-700">{productName}</span>
+                  {amount && (
+                    <span className="text-sm font-black" style={{ color: '#0000FF' }}>{amount}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-center gap-2 font-semibold mb-3" style={{ color: '#0000FF' }}>
+                <PhoneCall className="w-5 h-5" />
+                <span>Someone from our team will reach out soon</span>
+              </div>
+
+              <p className="text-gray-500 leading-relaxed mb-2 max-w-sm mx-auto">
+                Your payment is confirmed and a member of Todd&apos;s team will reach out within
+                one business day to schedule your onboarding call and get you set up.
+              </p>
+              {email && (
+                <p className="text-gray-400 text-sm mb-8">
+                  Confirmation sent to{' '}
+                  <span className="font-semibold text-gray-600">{email}</span>
+                </p>
+              )}
+              {!email && <div className="mb-6" />}
+
+              <div className="flex items-center justify-center gap-2 text-[12px] uppercase tracking-[0.15em] font-bold text-gray-400 mb-2">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>What to expect</span>
+              </div>
+              <ul className="text-left text-sm text-gray-600 space-y-1.5 max-w-sm mx-auto mb-8">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#0000FF' }} />
+                  <span>Receipt + welcome email within minutes</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#0000FF' }} />
+                  <span>Personal outreach from our team within one business day</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#0000FF' }} />
+                  <span>Onboarding call scheduled to map out your first 30 days</span>
+                </li>
+              </ul>
+
+              <p className="text-[11px] text-gray-400">
+                Questions in the meantime? Reply to your confirmation email and we&apos;ll get back fast.
+              </p>
+            </div>
+          </Card>
+        </main>
+      </>
+    );
+  }
+
+  // ── Standard self-serve purchase (Blueprint, individual courses) ──────────
   if (!isAuthenticated) {
     return (
       <>
