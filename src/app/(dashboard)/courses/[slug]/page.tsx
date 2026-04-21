@@ -114,6 +114,12 @@ export default async function CoursePage({ params }: CoursePageProps) {
   const totalHours = Math.floor(totalDuration / 3600);
   const totalMinutes = Math.floor((totalDuration % 3600) / 60);
 
+  // High-ticket programs (DWY / Mentorship) are 1:1 coaching, not self-serve
+  // course content. The on-platform course page shows a "team will reach out"
+  // message in place of the modules list.
+  const HIGH_TICKET_SLUGS = new Set(['done-with-you-real-estate-business', '6-month-mentorship']);
+  const isHighTicketCoaching = HIGH_TICKET_SLUGS.has(course.slug);
+
   // Bundle gating — module is locked until prior-module quiz is passed.
   // No-op for non-bundle courses and for admins.
   const moduleAccess = getModuleAccess(course, quizAttempts, isAdmin);
@@ -151,29 +157,44 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
                 {/* Stats row */}
                 <div className="flex flex-wrap gap-5 text-sm mb-8">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-blue-300" />
-                    <span>{totalLessons} lessons</span>
-                  </div>
-                  {totalDuration > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-blue-300" />
-                      <span>{totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`} of content</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-maxxed-gold" />
-                    <span>Certificate included</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    <span>Lifetime access</span>
-                  </div>
-                  {isEnrolled && (
-                    <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full">
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                      <span className="font-semibold">{progressPercent}% complete</span>
-                    </div>
+                  {isHighTicketCoaching ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-maxxed-gold" />
+                        <span>1:1 with Todd&apos;s team</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        <span>Blueprint library included</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-blue-300" />
+                        <span>{totalLessons} lessons</span>
+                      </div>
+                      {totalDuration > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-blue-300" />
+                          <span>{totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`} of content</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-maxxed-gold" />
+                        <span>Certificate included</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        <span>Lifetime access</span>
+                      </div>
+                      {isEnrolled && (
+                        <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full">
+                          <CheckCircle className="w-4 h-4 text-green-400" />
+                          <span className="font-semibold">{progressPercent}% complete</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -220,7 +241,25 @@ export default async function CoursePage({ params }: CoursePageProps) {
                     )}
                   </div>
                   <CardContent className="p-5">
-                    {isEnrolled ? (
+                    {isEnrolled && isHighTicketCoaching ? (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <span className="font-bold text-text-dark">You&apos;re enrolled</span>
+                        </div>
+                        <p className="text-sm text-text-muted mb-4 leading-relaxed">
+                          Todd&apos;s team will contact you to schedule your onboarding call.
+                          Browse the Blueprint library while you wait.
+                        </p>
+                        <Link
+                          href="/courses/real-estate-empire-blueprint"
+                          className="flex items-center justify-center gap-2 w-full py-3 bg-maxxed-blue text-white font-bold text-sm uppercase tracking-wider rounded hover:bg-maxxed-blue-dark transition-colors"
+                        >
+                          <BookOpen className="w-5 h-5" />
+                          Open Blueprint
+                        </Link>
+                      </div>
+                    ) : isEnrolled ? (
                       <>
                         {/* Progress Bar */}
                         <div className="mb-4">
@@ -290,7 +329,56 @@ export default async function CoursePage({ params }: CoursePageProps) {
           </div>
         )}
 
-        {/* Course Content */}
+        {/* High-ticket programs (DWY / Mentorship): no on-platform content —
+            buyer's experience is 1:1 calls with Todd's team. Show a clear
+            "we'll reach out" message in place of the modules list. */}
+        {isHighTicketCoaching && (
+          <div className="max-w-3xl mx-auto px-5 md:px-10 py-12">
+            <Card className="shadow-card overflow-hidden border-2 border-maxxed-blue/20">
+              <CardContent className="p-8 md:p-12 text-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-maxxed-blue/10 flex items-center justify-center">
+                  <Trophy className="w-10 h-10 text-maxxed-blue" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-text-dark mb-3">
+                  Todd and his team will be in contact soon
+                </h2>
+                <p className="text-text-body text-lg leading-relaxed mb-6 max-w-xl mx-auto">
+                  This program is delivered 1:1 over the phone — there&apos;s no on-platform course content.
+                  A member of Todd&apos;s team will reach out within one business day to schedule your
+                  onboarding call and walk you through your custom plan.
+                </p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 max-w-xl mx-auto mb-8 text-left">
+                  <p className="text-xs font-bold uppercase tracking-widest text-yellow-700 mb-1">
+                    While you wait
+                  </p>
+                  <p className="text-sm text-text-body leading-relaxed">
+                    Your purchase includes full access to the <strong>Real Estate Empire Blueprint</strong> course
+                    library — all of the Wholesaling, Fix &amp; Flip, BRRRR, Property Management, Deal Analysis,
+                    and Scaling courses. Browse them anytime from your dashboard.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Link
+                    href="/courses/real-estate-empire-blueprint"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-maxxed-blue text-white font-bold text-sm rounded-lg hover:bg-maxxed-blue-dark transition-colors"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Open Blueprint Library
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center justify-center px-6 py-3 border border-gray-200 text-gray-700 font-medium text-sm rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Go to Dashboard
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Course Content — standard self-serve course curriculum */}
+        {!isHighTicketCoaching && (
         <div className="max-w-7xl mx-auto px-5 md:px-10 py-10">
           <h2 className="text-2xl font-bold text-text-dark mb-6">Course Content</h2>
 
@@ -623,6 +711,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
             </div>
           )}
         </div>
+        )}
       </main>
       <Footer />
     </>
