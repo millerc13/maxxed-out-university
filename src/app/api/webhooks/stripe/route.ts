@@ -87,16 +87,22 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       }
     }
 
-    if ((isGuest === 'true' || authedUserMissing) && guestEmail) {
-      userEmail = guestEmail;
-      console.log('[stripe-webhook] Email-based checkout — finding or creating user', { email: guestEmail, reason: authedUserMissing ? 'stale-userId-fallback' : 'guest' });
-      let user = await prisma.user.findUnique({ where: { email: guestEmail } });
+    // Authed checkouts store guestEmail: '' in metadata, so when a stale userId
+    // forces the fallback, there's no guestEmail to find-or-create against.
+    // paymentIntent.receipt_email has the actual buyer's email — use it as the
+    // last-resort recovery address.
+    const fallbackEmail = guestEmail || (authedUserMissing ? (paymentIntent.receipt_email || '') : '');
+
+    if ((isGuest === 'true' || authedUserMissing) && fallbackEmail) {
+      userEmail = fallbackEmail;
+      console.log('[stripe-webhook] Email-based checkout — finding or creating user', { email: fallbackEmail, reason: authedUserMissing ? 'stale-userId-fallback' : 'guest', via: guestEmail ? 'metadata.guestEmail' : 'paymentIntent.receipt_email' });
+      let user = await prisma.user.findUnique({ where: { email: fallbackEmail } });
 
       if (!user) {
-        console.log('[stripe-webhook] Creating new user', { email: guestEmail, name: guestName });
+        console.log('[stripe-webhook] Creating new user', { email: fallbackEmail, name: guestName });
         user = await prisma.user.create({
           data: {
-            email: guestEmail,
+            email: fallbackEmail,
             name: guestName || null,
             mustChangePassword: true,
           },
