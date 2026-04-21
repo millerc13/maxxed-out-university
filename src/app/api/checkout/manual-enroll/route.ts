@@ -121,7 +121,15 @@ export async function POST(request: NextRequest) {
   }
   await enrollIncludedBundles(userId, course.id, 'manual-offline', txn);
 
-  // 4. Email — magic link if no password yet, course-added otherwise.
+  // 4. Always mint a magic link. Even for existing users with passwords —
+  // offline-sale closers want to text a one-click access link to the buyer,
+  // and a magic link works for both new (set password) and returning
+  // (passwordless one-click sign-in) users.
+  const magicToken = await createMagicLink(userId);
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
+  const activateUrl = `${baseUrl}/auth/activate?token=${magicToken}`;
+
+  // 5. Email — magic link template for new users, course-added for existing.
   // Same bonus-box + team-reach-out notes the webhook sends for high-ticket programs.
   const HIGH_TICKET_COURSE_IDS = new Set(['ht_done_with_you', 'ht_mentorship_12mo']);
   const isHighTicket = HIGH_TICKET_COURSE_IDS.has(course.id);
@@ -135,11 +143,10 @@ export async function POST(request: NextRequest) {
 
   try {
     if (needsPasswordSetup) {
-      const token = await createMagicLink(userId);
       await sendMagicLinkEmail({
         to: userEmail,
         name: userName,
-        token,
+        token: magicToken,
         courseName: course.title,
         courseThumbnail: course.thumbnail,
         bonusBox,
@@ -147,7 +154,7 @@ export async function POST(request: NextRequest) {
       });
       console.log('[manual-enroll] Magic link email queued');
     } else {
-      const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
+      const loginUrl = `${baseUrl}/login`;
       await sendCourseAddedEmail({
         to: userEmail,
         name: userName,
@@ -174,8 +181,10 @@ export async function POST(request: NextRequest) {
     success: true,
     userId,
     courseId: course.id,
+    courseTitle: course.title,
     transactionId: txn,
     newUser: needsPasswordSetup,
     emailSentVia: needsPasswordSetup ? 'magic-link' : 'course-added',
+    activateUrl, // caller (mastermind) uses this to SMS a one-click link
   });
 }
