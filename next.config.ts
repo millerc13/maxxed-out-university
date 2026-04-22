@@ -4,6 +4,15 @@ const nextConfig: NextConfig = {
   // pdfkit reads its built-in AFM fonts via relative filesystem paths —
   // bundling it into the server build breaks those paths.
   serverExternalPackages: ['pdfkit'],
+  // Proxy PostHog through /ph so ad-blockers don't kill analytics.
+  async rewrites() {
+    return [
+      { source: '/ph/static/:path*', destination: 'https://us-assets.i.posthog.com/static/:path*' },
+      { source: '/ph/array/:path*', destination: 'https://us-assets.i.posthog.com/array/:path*' },
+      { source: '/ph/:path*', destination: 'https://us.i.posthog.com/:path*' },
+    ];
+  },
+  skipTrailingSlashRedirect: true,
   images: {
     qualities: [75, 80, 85],
     remotePatterns: [
