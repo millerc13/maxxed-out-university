@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import { Montserrat } from 'next/font/google';
 import { SessionProvider } from '@/components/providers/SessionProvider';
+import { PostHogProvider } from './PostHogProvider';
+import { PostHogPageView } from './PostHogPageView';
+import { PostHogIdentify } from './PostHogIdentify';
+import { Suspense } from 'react';
 import '@/styles/globals.css';
 
 const montserrat = Montserrat({
@@ -40,7 +44,15 @@ export default function RootLayout({
   return (
     <html lang="en" style={{ colorScheme: 'light' }}>
       <body className={`${montserrat.variable} font-sans antialiased bg-background`}>
-        <SessionProvider>{children}</SessionProvider>
+        <PostHogProvider>
+          <SessionProvider>
+            <Suspense fallback={null}>
+              <PostHogPageView />
+            </Suspense>
+            <PostHogIdentify />
+            {children}
+          </SessionProvider>
+        </PostHogProvider>
       </body>
     </html>
   );
