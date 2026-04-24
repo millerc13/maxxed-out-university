@@ -150,30 +150,20 @@ export default async function LessonPage({ params }: LessonPageProps) {
       <Header />
       <main className="min-h-screen bg-gray-900 print:bg-white print:min-h-0">
         <div className="max-w-7xl mx-auto print:max-w-none">
-          {/* Video Player Area - Hidden when printing */}
-          <div className="aspect-video bg-black relative print:hidden">
-            {currentLesson.videoUrl ? (
+          {/* Video Player Area - Hidden when printing, and hidden entirely if the lesson has no video */}
+          {currentLesson.videoUrl && (
+            <div className="aspect-video bg-black relative print:hidden">
               <VideoPlayer lessonId={currentLesson.id} title={currentLesson.title} />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-center text-white">
-                <div>
-                  <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
-                    <Play className="w-12 h-12 text-white ml-1" />
-                  </div>
-                  <p className="text-xl font-medium">{currentLesson.title}</p>
-                  <p className="text-gray-400 mt-2">Video coming soon</p>
-                </div>
-              </div>
-            )}
 
-            {/* Completion Badge */}
-            {currentProgress?.completed && (
-              <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 z-10">
-                <CheckCircle className="w-4 h-4" />
-                Completed
-              </div>
-            )}
-          </div>
+              {/* Completion Badge */}
+              {currentProgress?.completed && (
+                <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 z-10">
+                  <CheckCircle className="w-4 h-4" />
+                  Completed
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Lesson Navigation Bar - Hidden when printing */}
           <div className="bg-gray-800 text-white px-3 sm:px-5 py-3 print:hidden">
