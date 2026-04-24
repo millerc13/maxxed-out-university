@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent } from '@/components/ui/card';
+
+// Always render fresh — enrollment and completion data changes constantly;
+// a cached snapshot is worse than a 300ms DB query on every admin visit.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import {
   Users, DollarSign, TrendingUp, PlayCircle,
   GraduationCap, Eye, Clock, BarChart2,
@@ -19,7 +24,7 @@ async function fetchStreamAnalytics() {
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/analytics/views?metrics[]=totalImpressions&metrics[]=totalTimeViewed&dimensions[]=videoId&from=${from}&to=${to}&limit=20`,
       {
         headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 3600 },
+        next: { revalidate: 300 },
       }
     );
     const data = await res.json();
@@ -43,7 +48,7 @@ async function fetchStreamVideos() {
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream?limit=50`,
       {
         headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 3600 },
+        next: { revalidate: 300 },
       }
     );
     const data = await res.json();
