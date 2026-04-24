@@ -3,8 +3,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Users, Search, Shield, GraduationCap, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { UserRoleSelect } from '@/components/admin/UserRoleSelect';
+import { UserDeleteButton } from '@/components/admin/UserDeleteButton';
+import { auth } from '@/lib/auth';
 
 export default async function AdminUsersPage() {
+  const session = await auth();
+  const currentUserId = session?.user?.id;
   const users = await prisma.user.findMany({
     include: {
       _count: {
@@ -128,13 +132,20 @@ export default async function AdminUsersPage() {
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
                       <Link
                         href={`/admin/users/${user.id}`}
                         className="text-maxxed-blue hover:underline text-sm"
                       >
                         View Details
                       </Link>
+                      {user.id !== currentUserId && (
+                        <UserDeleteButton
+                          userId={user.id}
+                          userLabel={user.email || user.name || user.id}
+                          enrollmentCount={user._count.enrollments}
+                        />
+                      )}
                     </td>
                   </tr>
                 ))}
