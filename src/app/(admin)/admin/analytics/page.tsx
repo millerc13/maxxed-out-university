@@ -5,9 +5,10 @@ import { Card, CardContent } from '@/components/ui/card';
 // a cached snapshot is worse than a 300ms DB query on every admin visit.
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+import Link from 'next/link';
 import {
   Users, DollarSign, TrendingUp, PlayCircle,
-  GraduationCap, Eye, Clock, BarChart2,
+  GraduationCap, Eye, Clock, BarChart2, FileQuestion, UserCheck,
 } from 'lucide-react';
 
 // ── Cloudflare Stream analytics ──────────────────────────────────────────────
@@ -86,6 +87,10 @@ export default async function AnalyticsPage() {
     totalLessonsWithProgress,
     topCourses,
     dailyEnrollments,
+    studentActivity,
+    quizStats,
+    totalQuizAttempts,
+    allQuizAttempts,
     streamAnalytics,
     streamVideos,
   ] = await Promise.all([
@@ -125,6 +130,40 @@ export default async function AnalyticsPage() {
       select: { enrolledAt: true },
       orderBy: { enrolledAt: 'asc' },
     }),
+    // Per-student activity — enrollments, completions, last active
+    prisma.user.findMany({
+      where: { role: 'STUDENT' },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        _count: { select: { enrollments: true } },
+        progress: { select: { completed: true, updatedAt: true } },
+        enrollments: {
+          select: { course: { select: { title: true, slug: true } } },
+          take: 3,
+          orderBy: { enrolledAt: 'desc' },
+        },
+      },
+      take: 50,
+    }),
+    // Per-quiz attempt stats
+    prisma.quiz.findMany({
+      where: { published: true },
+      select: {
+        id: true,
+        title: true,
+        passingScore: true,
+        course: { select: { title: true, slug: true } },
+        attempts: { select: { passed: true, score: true, completedAt: true } },
+      },
+    }),
+    prisma.quizAttempt.count(),
+    // All quiz attempts with userId — grouped in JS below
+    prisma.quizAttempt.findMany({
+      select: { userId: true, passed: true, completedAt: true, score: true },
+    }),
     fetchStreamAnalytics(),
     fetchStreamVideos(),
   ]);
@@ -160,6 +199,93 @@ export default async function AnalyticsPage() {
 
   const totalStreamViews = videoStats.reduce((s, v) => s + v.views, 0);
   const totalStreamWatchSeconds = videoStats.reduce((s, v) => s + v.watchTimeSeconds, 0);
+
+  // ── Per-student activity summary ─────────────────────────────────────────────
+  // Group quiz attempts by userId since the schema has no User->QuizAttempt back-relation.
+  const quizAttemptsByUser = new Map<string, typeof allQuizAttempts>();
+  for (const a of allQuizAttempts) {
+    const list = quizAttemptsByUser.get(a.userId) ?? [];
+    list.push(a);
+    quizAttemptsByUser.set(a.userId, list);
+  }
+
+  const studentRows = studentActivity.map((u) => {
+    const lessonsCompleted = u.progress.filter((p) => p.completed).length;
+    const lessonsInProgress = u.progress.length - lessonsCompleted;
+    const userAttempts = quizAttemptsByUser.get(u.id) ?? [];
+    const quizzesTaken = userAttempts.length;
+    const quizzesPassed = userAttempts.filter((a) => a.passed).length;
+    const lastLessonTouch = u.progress.reduce<Date | null>(
+      (max, p) => (!max || p.updatedAt > max ? p.updatedAt : max),
+      null
+    );
+    const lastQuizTouch = userAttempts.reduce<Date | null>(
+      (max, a) => (a.completedAt && (!max || a.completedAt > max) ? a.completedAt : max),
+      null
+    );
+    const lastActive =
+      lastLessonTouch && lastQuizTouch
+        ? lastLessonTouch > lastQuizTouch ? lastLessonTouch : lastQuizTouch
+        : lastLessonTouch || lastQuizTouch;
+    return {
+      id: u.id,
+      label: u.name || u.email || u.id,
+      email: u.email,
+      enrollments: u._count.enrollments,
+      lessonsCompleted,
+      lessonsInProgress,
+      quizzesTaken,
+      quizzesPassed,
+      lastActive,
+      recentCourses: u.enrollments.map((e) => e.course.title),
+    };
+  });
+  // Sort by activity: last-active desc, then by completions desc
+  studentRows.sort((a, b) => {
+    const at = a.lastActive?.getTime() ?? 0;
+    const bt = b.lastActive?.getTime() ?? 0;
+    if (at !== bt) return bt - at;
+    return b.lessonsCompleted - a.lessonsCompleted;
+  });
+
+  const activeStudentCount = studentRows.filter((s) => s.lastActive).length;
+
+  // ── Quiz performance ─────────────────────────────────────────────────────────
+  const quizRows = quizStats
+    .map((q) => {
+      const completed = q.attempts.filter((a) => a.completedAt);
+      const passed = completed.filter((a) => a.passed);
+      const avgScore = completed.length > 0
+        ? Math.round(completed.reduce((sum, a) => sum + a.score, 0) / completed.length)
+        : null;
+      return {
+        id: q.id,
+        title: q.title,
+        courseTitle: q.course?.title || '—',
+        passingScore: q.passingScore,
+        totalAttempts: q.attempts.length,
+        completedAttempts: completed.length,
+        passedAttempts: passed.length,
+        passRate: completed.length > 0 ? Math.round((passed.length / completed.length) * 100) : null,
+        avgScore,
+      };
+    })
+    .sort((a, b) => b.totalAttempts - a.totalAttempts);
+
+  const quizzesPassedOverall = quizRows.reduce((s, q) => s + q.passedAttempts, 0);
+
+  function relative(date: Date | null): string {
+    if (!date) return 'never';
+    const diff = Date.now() - date.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 2) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 48) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `${days}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
 
   return (
     <div className="space-y-8">
@@ -309,6 +435,142 @@ export default async function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Quiz Performance */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b flex items-center justify-between gap-4 flex-wrap">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2">
+              <FileQuestion className="w-5 h-5 text-maxxed-blue" />
+              Quiz Performance
+            </h2>
+            <div className="flex gap-6 text-sm">
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Total Attempts</p>
+                <p className="text-xl font-bold text-gray-900">{totalQuizAttempts.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Total Passes</p>
+                <p className="text-xl font-bold text-green-600">{quizzesPassedOverall.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+          {quizRows.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">No published quizzes yet</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    <th className="px-6 py-3">Quiz</th>
+                    <th className="px-4 py-3">Course</th>
+                    <th className="px-4 py-3 text-right">Attempts</th>
+                    <th className="px-4 py-3 text-right">Passed</th>
+                    <th className="px-4 py-3 text-right">Pass Rate</th>
+                    <th className="px-4 py-3 text-right">Avg Score</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {quizRows.map((q) => (
+                    <tr key={q.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 font-medium text-gray-900">{q.title}</td>
+                      <td className="px-4 py-3 text-gray-500">{q.courseTitle}</td>
+                      <td className="px-4 py-3 text-right font-medium">{q.totalAttempts}</td>
+                      <td className="px-4 py-3 text-right text-green-600 font-medium">{q.passedAttempts}</td>
+                      <td className="px-4 py-3 text-right">
+                        {q.passRate === null
+                          ? <span className="text-gray-400">—</span>
+                          : <span className={q.passRate >= 70 ? 'text-green-600 font-semibold' : 'text-orange-600 font-semibold'}>{q.passRate}%</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {q.avgScore === null
+                          ? <span className="text-gray-400">—</span>
+                          : <span className={q.avgScore >= q.passingScore ? 'text-green-600' : 'text-orange-600'}>{q.avgScore}%</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Student Activity */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-maxxed-blue" />
+                Student Activity
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                {activeStudentCount} of {studentRows.length} students have started coursework
+              </p>
+            </div>
+          </div>
+          {studentRows.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">No students yet</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    <th className="px-6 py-3">Student</th>
+                    <th className="px-4 py-3 text-right">Enrolled</th>
+                    <th className="px-4 py-3 text-right">Lessons Done</th>
+                    <th className="px-4 py-3 text-right">Quizzes Taken / Passed</th>
+                    <th className="px-4 py-3">Last Active</th>
+                    <th className="px-4 py-3 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {studentRows.map((s) => (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3">
+                        <p className="font-medium text-gray-900">{s.label}</p>
+                        {s.email && s.email !== s.label && (
+                          <p className="text-xs text-gray-500">{s.email}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-medium">{s.enrollments}</span>
+                        {s.recentCourses.length > 0 && (
+                          <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[220px] ml-auto">
+                            {s.recentCourses.join(', ')}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-semibold text-gray-900">{s.lessonsCompleted}</span>
+                        {s.lessonsInProgress > 0 && (
+                          <span className="text-xs text-gray-400"> · {s.lessonsInProgress} started</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {s.quizzesTaken === 0 ? (
+                          <span className="text-gray-400">—</span>
+                        ) : (
+                          <span className="font-medium">
+                            {s.quizzesTaken} / <span className="text-green-600">{s.quizzesPassed}</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{relative(s.lastActive)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Link href={`/admin/users/${s.id}`} className="text-maxxed-blue hover:underline text-xs">
+                          View →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
