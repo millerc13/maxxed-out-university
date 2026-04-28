@@ -590,6 +590,8 @@ export function CourseSectionsBoard({
                 onDelete={() => removeSection(section.id)}
                 onTogglePublished={() => toggleSectionPublished(section.id)}
                 onShowPreview={() => setTab('preview')}
+                onDiscard={discardChanges}
+                isDirty={isDirty}
               />
             ))}
             <UnassignedContainer courses={draft.unassigned} />
@@ -629,6 +631,8 @@ function SectionContainer({
   onDelete,
   onTogglePublished,
   onShowPreview,
+  onDiscard,
+  isDirty,
 }: {
   section: SectionWithCourses;
   isEditing: boolean;
@@ -638,6 +642,8 @@ function SectionContainer({
   onDelete: () => void;
   onTogglePublished: () => void;
   onShowPreview: () => void;
+  onDiscard: () => void;
+  isDirty: boolean;
 }) {
   const Icon = getSectionIcon(section.iconName);
   const courseIds = section.courses.map((c) => c.id);
@@ -705,6 +711,8 @@ function SectionContainer({
           onPatch={onPatch}
           onClose={onClose}
           onShowPreview={onShowPreview}
+          onDiscard={onDiscard}
+          isDirty={isDirty}
         />
       )}
 
@@ -847,11 +855,15 @@ function SectionMetaForm({
   onPatch,
   onClose,
   onShowPreview,
+  onDiscard,
+  isDirty,
 }: {
   section: SectionWithCourses;
   onPatch: (patch: Partial<SectionWithCourses>) => void;
   onClose: () => void;
   onShowPreview: () => void;
+  onDiscard: () => void;
+  isDirty: boolean;
 }) {
   return (
     <div className="px-4 py-4 bg-blue-50/30 border-b border-blue-100 space-y-3">
@@ -938,6 +950,16 @@ function SectionMetaForm({
           >
             <Eye className="w-3.5 h-3.5" />
             See Preview
+          </button>
+          <button
+            type="button"
+            onClick={onDiscard}
+            disabled={!isDirty}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={isDirty ? 'Discard all unsaved changes' : 'No unsaved changes'}
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+            Cancel
           </button>
           <button
             type="button"
