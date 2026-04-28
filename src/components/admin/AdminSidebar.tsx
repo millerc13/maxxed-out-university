@@ -13,7 +13,6 @@ import {
   BarChart2,
   MonitorPlay,
   CreditCard,
-  LayoutGrid,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,7 +21,6 @@ const navItems = [
   { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/courses', label: 'Courses', icon: BookOpen },
-  { href: '/admin/homepage', label: 'Homepage', icon: LayoutGrid },
   { href: '/admin/quizzes', label: 'Quizzes', icon: FileQuestion },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
