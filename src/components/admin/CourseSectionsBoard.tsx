@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,11 +11,12 @@ import {
   Eye,
   EyeOff,
   Pencil,
-  RefreshCw,
   GripVertical,
   Edit,
   ExternalLink,
   ImageOff,
+  Save as SaveIcon,
+  Undo2,
 } from 'lucide-react';
 import {
   DndContext,
@@ -40,6 +41,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { SECTION_ICONS, SECTION_ICON_NAMES, getSectionIcon } from '@/lib/section-icons';
 import { formatPrice } from '@/lib/utils';
 import { DeleteCourseButton } from '@/components/admin/DeleteCourseButton';
+import { SectionsCatalogPreview } from '@/components/admin/SectionsCatalogPreview';
 
 const COLOR_PRESETS = [
   { label: 'Blue', value: 'text-[#0000CC]' },
@@ -52,16 +54,15 @@ const COLOR_PRESETS = [
   { label: 'Slate', value: 'text-slate-700' },
 ];
 
-// Virtual container for courses with no homepageSectionId. Shown at the
-// bottom so admins can see what's currently NOT on the public site, and
-// drag courses into a section to publish them there.
 const UNASSIGNED_ID = '__unassigned__';
+const TEMP_ID_PREFIX = 'temp_';
 
 interface CourseLite {
   id: string;
   title: string;
   slug: string;
   thumbnail: string | null;
+  shortDesc: string | null;
   price: number | null;
   published: boolean;
   comingSoon: boolean;
@@ -81,6 +82,46 @@ interface SectionWithCourses {
   courses: CourseLite[];
 }
 
+interface BoardState {
+  sections: SectionWithCourses[];
+  unassigned: CourseLite[];
+}
+
+// ── Pure helpers ──────────────────────────────────────────────
+function deepEqualState(a: BoardState, b: BoardState): boolean {
+  if (a.sections.length !== b.sections.length) return false;
+  if (a.unassigned.length !== b.unassigned.length) return false;
+  for (let i = 0; i < a.sections.length; i++) {
+    const x = a.sections[i];
+    const y = b.sections[i];
+    if (
+      x.id !== y.id ||
+      x.title !== y.title ||
+      (x.description ?? null) !== (y.description ?? null) ||
+      x.iconName !== y.iconName ||
+      (x.iconColor ?? null) !== (y.iconColor ?? null) ||
+      x.published !== y.published ||
+      x.courses.length !== y.courses.length
+    ) {
+      return false;
+    }
+    for (let j = 0; j < x.courses.length; j++) {
+      if (x.courses[j].id !== y.courses[j].id) return false;
+    }
+  }
+  for (let i = 0; i < a.unassigned.length; i++) {
+    if (a.unassigned[i].id !== b.unassigned[i].id) return false;
+  }
+  return true;
+}
+
+function cloneState(s: BoardState): BoardState {
+  return {
+    sections: s.sections.map((sec) => ({ ...sec, courses: [...sec.courses] })),
+    unassigned: [...s.unassigned],
+  };
+}
+
 export function CourseSectionsBoard({
   initialSections,
   initialUnassigned,
@@ -89,119 +130,140 @@ export function CourseSectionsBoard({
   initialUnassigned: CourseLite[];
 }) {
   const router = useRouter();
-  const [sections, setSections] = useState<SectionWithCourses[]>(initialSections);
-  const [unassigned, setUnassigned] = useState<CourseLite[]>(initialUnassigned);
-  const [busy, setBusy] = useState<string | null>(null);
+
+  // ── Snapshot (last saved state) + draft (in-progress edits) ──
+  // All editor mutations modify `draft` only; nothing hits the API
+  // until Todd clicks Save. Discard rolls back to snapshot.
+  const [snapshot, setSnapshot] = useState<BoardState>({
+    sections: initialSections,
+    unassigned: initialUnassigned,
+  });
+  const [draft, setDraft] = useState<BoardState>(() => cloneState({
+    sections: initialSections,
+    unassigned: initialUnassigned,
+  }));
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [activeCourse, setActiveCourse] = useState<CourseLite | null>(null);
   const [tab, setTab] = useState<'editor' | 'preview'>('editor');
-  const [previewKey, setPreviewKey] = useState(0);
 
-  // Container = a section OR the virtual "Unassigned" pile.
-  const containers = useMemo(
-    () => [
-      ...sections.map((s) => ({ id: s.id, courses: s.courses })),
-      { id: UNASSIGNED_ID, courses: unassigned },
-    ],
-    [sections, unassigned]
+  // When the server data refreshes (e.g. after a course delete from a
+  // child route, or after our own save -> router.refresh), sync the
+  // baseline. Only do this if the user has no pending edits — never
+  // clobber a dirty draft.
+  const initialKey = useMemo(
+    () =>
+      initialSections.map((s) => s.id).join(',') +
+      '|' +
+      initialUnassigned.map((c) => c.id).join(','),
+    [initialSections, initialUnassigned]
   );
+  const lastSyncedKey = useRef(initialKey);
+  useEffect(() => {
+    if (initialKey === lastSyncedKey.current) return;
+    lastSyncedKey.current = initialKey;
+    const incoming = { sections: initialSections, unassigned: initialUnassigned };
+    setSnapshot(incoming);
+    if (deepEqualState(draft, snapshot)) {
+      setDraft(cloneState(incoming));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialKey]);
 
+  const isDirty = useMemo(() => !deepEqualState(snapshot, draft), [snapshot, draft]);
+
+  // Coming-Soon courses for the preview — pulled from across the entire
+  // draft (assigned + unassigned). Mirrors how the public homepage
+  // builds its dedicated Coming Soon section.
+  const previewComingSoon = useMemo(() => {
+    const all = [...draft.unassigned, ...draft.sections.flatMap((s) => s.courses)];
+    return all.filter((c) => c.comingSoon);
+  }, [draft]);
+
+  // ── Container helpers (treats Unassigned as a virtual container) ──
   function findContainerOfCourse(courseId: string): string | null {
-    for (const c of containers) {
-      if (c.courses.some((course) => course.id === courseId)) return c.id;
+    if (draft.unassigned.some((c) => c.id === courseId)) return UNASSIGNED_ID;
+    for (const s of draft.sections) {
+      if (s.courses.some((c) => c.id === courseId)) return s.id;
     }
     return null;
   }
 
   function getCoursesIn(containerId: string): CourseLite[] {
-    if (containerId === UNASSIGNED_ID) return unassigned;
-    return sections.find((s) => s.id === containerId)?.courses ?? [];
+    if (containerId === UNASSIGNED_ID) return draft.unassigned;
+    return draft.sections.find((s) => s.id === containerId)?.courses ?? [];
   }
 
-  function setCoursesIn(containerId: string, courses: CourseLite[]) {
+  function setCoursesIn(d: BoardState, containerId: string, courses: CourseLite[]): BoardState {
     if (containerId === UNASSIGNED_ID) {
-      setUnassigned(courses);
-    } else {
-      setSections((prev) =>
-        prev.map((s) => (s.id === containerId ? { ...s, courses } : s))
-      );
+      return { ...d, unassigned: courses };
     }
+    return {
+      ...d,
+      sections: d.sections.map((s) => (s.id === containerId ? { ...s, courses } : s)),
+    };
   }
 
-  // ── API helpers ────────────────────────────────────────────
-  async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(path, {
-      headers: { 'Content-Type': 'application/json' },
-      ...init,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
-    return data;
+  // ── Draft mutations (no API calls) ─────────────────────────
+  function patchSection(id: string, patch: Partial<SectionWithCourses>) {
+    setDraft((d) => ({
+      ...d,
+      sections: d.sections.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    }));
   }
 
-  async function withBusy(key: string, fn: () => Promise<void>) {
-    setBusy(key);
-    setError(null);
-    try {
-      await fn();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function persistContainer(containerId: string) {
-    if (containerId === UNASSIGNED_ID) {
-      // No section to PUT — courses are unassigned because their
-      // homepageSectionId got nulled by some other section's PUT.
-      return;
-    }
-    const courses = getCoursesIn(containerId);
-    await api(`/api/admin/homepage-sections/${containerId}/courses`, {
-      method: 'PUT',
-      body: JSON.stringify({ courseIds: courses.map((c) => c.id) }),
-    });
-  }
-
-  // ── Section CRUD ───────────────────────────────────────────
-  function createSection() {
-    withBusy('create', async () => {
-      await api('/api/admin/homepage-sections', {
-        method: 'POST',
-        body: JSON.stringify({
+  function addSection() {
+    const tempId = `${TEMP_ID_PREFIX}${Math.random().toString(36).slice(2, 10)}`;
+    setDraft((d) => ({
+      ...d,
+      sections: [
+        ...d.sections,
+        {
+          id: tempId,
           title: 'New section',
+          description: null,
           iconName: 'BookOpen',
           iconColor: 'text-[#0000CC]',
-        }),
-      });
-      router.refresh();
-    });
+          order: d.sections.length,
+          published: true,
+          courses: [],
+        },
+      ],
+    }));
+    setEditingSectionId(tempId);
   }
 
-  function deleteSection(id: string) {
-    if (!confirm('Delete this section? Courses in it will move to "Unassigned" (not deleted).')) return;
-    withBusy(`delete:${id}`, async () => {
-      await api(`/api/admin/homepage-sections/${id}`, { method: 'DELETE' });
-      router.refresh();
+  function removeSection(id: string) {
+    if (
+      !confirm(
+        'Delete this section? Any courses inside will move to "Unassigned" until you save.'
+      )
+    )
+      return;
+    setDraft((d) => {
+      const removed = d.sections.find((s) => s.id === id);
+      if (!removed) return d;
+      return {
+        sections: d.sections.filter((s) => s.id !== id),
+        // Courses from the deleted section spill into Unassigned in the
+        // draft so the admin can see them and re-assign before saving.
+        unassigned: [...removed.courses, ...d.unassigned],
+      };
     });
+    if (editingSectionId === id) setEditingSectionId(null);
   }
 
-  function updateSection(id: string, patch: Partial<SectionWithCourses>) {
-    withBusy(`update:${id}`, async () => {
-      await api(`/api/admin/homepage-sections/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(patch),
-      });
-      // Optimistic local update so the form closes without a full refresh
-      setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-      setEditingSectionId(null);
-      router.refresh();
-    });
+  function toggleSectionPublished(id: string) {
+    setDraft((d) => ({
+      ...d,
+      sections: d.sections.map((s) =>
+        s.id === id ? { ...s, published: !s.published } : s
+      ),
+    }));
   }
 
-  // ── Drag & drop ────────────────────────────────────────────
+  // ── Drag & drop (mutates draft only) ───────────────────────
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -215,8 +277,6 @@ export function CourseSectionsBoard({
     if (course) setActiveCourse(course);
   }
 
-  // While dragging across sections, optimistically move the course in
-  // local state so the user gets instant visual feedback.
   function onDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
@@ -225,28 +285,41 @@ export function CourseSectionsBoard({
     if (activeId === overId) return;
 
     const sourceContainer = findContainerOfCourse(activeId);
-    // The over.id can be either a course ID or a container ID (when
-    // hovering on an empty section's drop zone).
     let destContainer = findContainerOfCourse(overId);
-    if (!destContainer && containers.some((c) => c.id === overId)) destContainer = overId;
+    if (
+      !destContainer &&
+      (overId === UNASSIGNED_ID || draft.sections.some((s) => s.id === overId))
+    ) {
+      destContainer = overId;
+    }
     if (!sourceContainer || !destContainer || sourceContainer === destContainer) return;
 
-    const sourceCourses = getCoursesIn(sourceContainer);
-    const destCourses = getCoursesIn(destContainer);
-    const movingIdx = sourceCourses.findIndex((c) => c.id === activeId);
-    if (movingIdx === -1) return;
-    const moving = sourceCourses[movingIdx];
+    setDraft((d) => {
+      const sourceCourses = (
+        sourceContainer === UNASSIGNED_ID
+          ? d.unassigned
+          : d.sections.find((s) => s.id === sourceContainer)?.courses
+      ) ?? [];
+      const destCourses = (
+        destContainer === UNASSIGNED_ID
+          ? d.unassigned
+          : d.sections.find((s) => s.id === destContainer)?.courses
+      ) ?? [];
 
-    // Where in dest? If hovering over a specific course, insert before it;
-    // otherwise append.
-    const overIdx = destCourses.findIndex((c) => c.id === overId);
-    const newDestCourses = [...destCourses];
-    if (overIdx === -1) newDestCourses.push(moving);
-    else newDestCourses.splice(overIdx, 0, moving);
+      const moving = sourceCourses.find((c) => c.id === activeId);
+      if (!moving) return d;
 
-    const newSourceCourses = sourceCourses.filter((c) => c.id !== activeId);
-    setCoursesIn(sourceContainer, newSourceCourses);
-    setCoursesIn(destContainer, newDestCourses);
+      const overIdx = destCourses.findIndex((c) => c.id === overId);
+      const newDest = [...destCourses];
+      if (overIdx === -1) newDest.push(moving);
+      else newDest.splice(overIdx, 0, moving);
+
+      const newSource = sourceCourses.filter((c) => c.id !== activeId);
+
+      let next = setCoursesIn(d, sourceContainer!, newSource);
+      next = setCoursesIn(next, destContainer!, newDest);
+      return next;
+    });
   }
 
   function onDragEnd(event: DragEndEvent) {
@@ -255,70 +328,196 @@ export function CourseSectionsBoard({
     if (!over) return;
     const activeId = String(active.id);
     const overId = String(over.id);
-
     const sourceContainer = findContainerOfCourse(activeId);
+    if (!sourceContainer || activeId === overId) return;
+
+    // Within-container: arrayMove for reorder.
     let destContainer = findContainerOfCourse(overId);
-    if (!destContainer && containers.some((c) => c.id === overId)) destContainer = overId;
-    if (!sourceContainer || !destContainer) return;
-
-    // Within-container reorder: arrayMove and persist that one container.
-    if (sourceContainer === destContainer && activeId !== overId) {
-      const courses = getCoursesIn(sourceContainer);
-      const oldIdx = courses.findIndex((c) => c.id === activeId);
-      const newIdx = courses.findIndex((c) => c.id === overId);
-      if (oldIdx === -1 || newIdx === -1) return;
-      const reordered = arrayMove(courses, oldIdx, newIdx);
-      setCoursesIn(sourceContainer, reordered);
-      withBusy(`save:${sourceContainer}`, async () => {
-        await persistContainer(sourceContainer);
-      });
-      return;
+    if (
+      !destContainer &&
+      (overId === UNASSIGNED_ID || draft.sections.some((s) => s.id === overId))
+    ) {
+      destContainer = overId;
     }
-
-    // Cross-container drop — onDragOver already updated state.
-    // Persist both containers (skips Unassigned automatically).
-    if (sourceContainer !== destContainer) {
-      withBusy(`save:cross`, async () => {
-        await Promise.all([persistContainer(destContainer!), persistContainer(sourceContainer)]);
+    if (sourceContainer === destContainer) {
+      setDraft((d) => {
+        const courses = getCoursesInDraft(d, sourceContainer!);
+        const oldIdx = courses.findIndex((c) => c.id === activeId);
+        const newIdx = courses.findIndex((c) => c.id === overId);
+        if (oldIdx === -1 || newIdx === -1) return d;
+        return setCoursesIn(d, sourceContainer!, arrayMove(courses, oldIdx, newIdx));
       });
     }
+    // Cross-container: onDragOver already updated the draft.
+  }
+
+  // ── Save / Discard ─────────────────────────────────────────
+  async function api<T = any>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
+  }
+
+  async function saveAll() {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      // Step 1 — Delete sections that exist in snapshot but not in draft.
+      const draftIds = new Set(draft.sections.map((s) => s.id));
+      for (const s of snapshot.sections) {
+        if (!draftIds.has(s.id)) {
+          await api(`/api/admin/homepage-sections/${s.id}`, { method: 'DELETE' });
+        }
+      }
+
+      // Step 2 — Create any temp_ sections, mapping temp ids to real ids.
+      const idRemap = new Map<string, string>();
+      for (const s of draft.sections) {
+        if (s.id.startsWith(TEMP_ID_PREFIX)) {
+          const result = await api<{ section: { id: string } }>(
+            '/api/admin/homepage-sections',
+            {
+              method: 'POST',
+              body: JSON.stringify({
+                title: s.title,
+                description: s.description,
+                iconName: s.iconName,
+                iconColor: s.iconColor,
+                published: s.published,
+              }),
+            }
+          );
+          idRemap.set(s.id, result.section.id);
+        }
+      }
+
+      const realId = (id: string) => idRemap.get(id) ?? id;
+
+      // Step 3 — Reorder all sections (cheap; idempotent).
+      await api('/api/admin/homepage-sections/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({ ids: draft.sections.map((s) => realId(s.id)) }),
+      });
+
+      // Step 4 — For each section: update meta if changed; always sync
+      // course list (cheap and ensures course order matches the draft).
+      for (const s of draft.sections) {
+        const id = realId(s.id);
+        const snap = snapshot.sections.find((x) => x.id === s.id);
+        const metaChanged =
+          !snap ||
+          snap.title !== s.title ||
+          (snap.description ?? null) !== (s.description ?? null) ||
+          snap.iconName !== s.iconName ||
+          (snap.iconColor ?? null) !== (s.iconColor ?? null) ||
+          snap.published !== s.published;
+        // Skip meta PUT for newly-created sections — POST already set it.
+        if (metaChanged && !s.id.startsWith(TEMP_ID_PREFIX)) {
+          await api(`/api/admin/homepage-sections/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              title: s.title,
+              description: s.description,
+              iconName: s.iconName,
+              iconColor: s.iconColor,
+              published: s.published,
+            }),
+          });
+        }
+        await api(`/api/admin/homepage-sections/${id}/courses`, {
+          method: 'PUT',
+          body: JSON.stringify({ courseIds: s.courses.map((c) => c.id) }),
+        });
+      }
+
+      // Step 5 — Snapshot now matches what's on the server.
+      const newDraft: BoardState = {
+        ...draft,
+        sections: draft.sections.map((s) => ({ ...s, id: realId(s.id) })),
+      };
+      setSnapshot(cloneState(newDraft));
+      setDraft(newDraft);
+      // Refresh the server props for any side effects (e.g. course
+      // detail pages that read homepageSectionId).
+      router.refresh();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function discardChanges() {
+    if (!confirm('Discard all unsaved changes?')) return;
+    setDraft(cloneState(snapshot));
+    setEditingSectionId(null);
+    setError(null);
   }
 
   // ── Render ─────────────────────────────────────────────────
   return (
     <div className="space-y-0">
-      {/* Header + Tabs */}
       <div className="-mx-4 sm:-mx-6 -mt-4 sm:-mt-6 mb-6 px-4 sm:px-6 pt-5 pb-0 bg-gradient-to-b from-gray-50 to-white border-b border-gray-200">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Courses & Homepage Sections</h1>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              Courses & Homepage Sections
+              {isDirty && (
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
+                  Unsaved changes
+                </span>
+              )}
+            </h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              Drag courses between sections to change how they appear on{' '}
-              <span className="font-mono">/</span>, <span className="font-mono">/courses</span>, and{' '}
-              <span className="font-mono">/dashboard</span>. Click a course to edit its details.
+              Drag courses between sections, edit section details. Nothing hits the public site
+              until you click <span className="font-semibold">Save</span>.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={createSection}
-              disabled={busy === 'create'}
-              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              onClick={addSection}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
             >
-              {busy === 'create' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
+              <Plus className="w-4 h-4" />
               New Section
             </button>
             <Link
               href="/admin/courses/new"
-              className="flex items-center gap-2 px-3 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-maxxed-blue-dark"
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
             >
               <Plus className="w-4 h-4" />
               New Course
             </Link>
+            {isDirty && (
+              <button
+                type="button"
+                onClick={discardChanges}
+                disabled={saving}
+                className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Undo2 className="w-4 h-4" />
+                Discard
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={saveAll}
+              disabled={!isDirty || saving}
+              className="flex items-center gap-2 px-4 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-medium hover:bg-maxxed-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <SaveIcon className="w-4 h-4" />
+              )}
+              Save Changes
+            </button>
           </div>
         </div>
 
@@ -352,34 +551,24 @@ export function CourseSectionsBoard({
         </div>
       )}
 
-      {tab === 'preview' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Live page at <span className="font-mono">/?previewAs=customer</span>. Click reload after editing.
-            </p>
-            <button
-              type="button"
-              onClick={() => setPreviewKey((k) => k + 1)}
-              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Reload
-            </button>
+      {/* Both panels stay mounted so editor state and the in-page
+          preview both retain their content across tab switches. */}
+      <div className={tab === 'preview' ? 'block' : 'hidden'}>
+        <div className="rounded-lg border border-gray-200 overflow-hidden bg-[#f5f5f7]">
+          <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800 flex items-center gap-2">
+            <span className="font-semibold">Preview</span>
+            <span>Reflects your current draft (unsaved). Click Save above to publish.</span>
           </div>
-          <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
-            <iframe
-              key={previewKey}
-              src="/?previewAs=customer"
-              title="Homepage preview"
-              className="w-full block"
-              style={{ height: 'calc(100vh - 220px)' }}
+          <div className="bg-background">
+            <SectionsCatalogPreview
+              sections={draft.sections}
+              comingSoonCourses={previewComingSoon}
             />
           </div>
         </div>
-      )}
+      </div>
 
-      {tab === 'editor' && (
+      <div className={tab === 'editor' ? 'block' : 'hidden'}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -388,26 +577,22 @@ export function CourseSectionsBoard({
           onDragEnd={onDragEnd}
         >
           <div className="space-y-4">
-            {sections.map((section) => (
+            {draft.sections.map((section) => (
               <SectionContainer
                 key={section.id}
                 section={section}
                 isEditing={editingSectionId === section.id}
-                busy={busy}
                 onEdit={() =>
                   setEditingSectionId(editingSectionId === section.id ? null : section.id)
                 }
-                onSaveMeta={(patch) => updateSection(section.id, patch)}
-                onCancelEdit={() => setEditingSectionId(null)}
-                onDelete={() => deleteSection(section.id)}
-                onTogglePublished={() =>
-                  updateSection(section.id, { published: !section.published })
-                }
+                onPatch={(patch) => patchSection(section.id, patch)}
+                onClose={() => setEditingSectionId(null)}
+                onDelete={() => removeSection(section.id)}
+                onTogglePublished={() => toggleSectionPublished(section.id)}
+                onShowPreview={() => setTab('preview')}
               />
             ))}
-
-            {/* Unassigned virtual container */}
-            <UnassignedContainer courses={unassigned} />
+            <UnassignedContainer courses={draft.unassigned} />
           </div>
 
           <DragOverlay>
@@ -424,30 +609,35 @@ export function CourseSectionsBoard({
             ) : null}
           </DragOverlay>
         </DndContext>
-      )}
+      </div>
     </div>
   );
 }
 
-// ── Section container (sortable list of courses inside) ──
+function getCoursesInDraft(d: BoardState, containerId: string): CourseLite[] {
+  if (containerId === UNASSIGNED_ID) return d.unassigned;
+  return d.sections.find((s) => s.id === containerId)?.courses ?? [];
+}
+
+// ── Section container ─────────────────────────────────────────
 function SectionContainer({
   section,
   isEditing,
-  busy,
   onEdit,
-  onSaveMeta,
-  onCancelEdit,
+  onPatch,
+  onClose,
   onDelete,
   onTogglePublished,
+  onShowPreview,
 }: {
   section: SectionWithCourses;
   isEditing: boolean;
-  busy: string | null;
   onEdit: () => void;
-  onSaveMeta: (patch: Partial<SectionWithCourses>) => void;
-  onCancelEdit: () => void;
+  onPatch: (patch: Partial<SectionWithCourses>) => void;
+  onClose: () => void;
   onDelete: () => void;
   onTogglePublished: () => void;
+  onShowPreview: () => void;
 }) {
   const Icon = getSectionIcon(section.iconName);
   const courseIds = section.courses.map((c) => c.id);
@@ -489,7 +679,11 @@ function SectionContainer({
           <button
             type="button"
             onClick={onEdit}
-            className="p-2 text-gray-500 hover:text-maxxed-blue hover:bg-gray-100 rounded-lg"
+            className={`p-2 rounded-lg ${
+              isEditing
+                ? 'text-maxxed-blue bg-blue-50'
+                : 'text-gray-500 hover:text-maxxed-blue hover:bg-gray-100'
+            }`}
             title="Edit section details"
           >
             <Pencil className="w-4 h-4" />
@@ -497,21 +691,21 @@ function SectionContainer({
           <button
             type="button"
             onClick={onDelete}
-            disabled={busy === `delete:${section.id}`}
-            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
+            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
             title="Delete section"
           >
-            {busy === `delete:${section.id}` ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Trash2 className="w-4 h-4" />
-            )}
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {isEditing && (
-        <SectionMetaForm section={section} onSave={onSaveMeta} onCancel={onCancelEdit} />
+        <SectionMetaForm
+          section={section}
+          onPatch={onPatch}
+          onClose={onClose}
+          onShowPreview={onShowPreview}
+        />
       )}
 
       <SortableContext items={courseIds} strategy={verticalListSortingStrategy}>
@@ -564,7 +758,6 @@ function UnassignedContainer({ courses }: { courses: CourseLite[] }) {
   );
 }
 
-// ── Single course row (sortable) ──
 function SortableCourseRow({ course }: { course: CourseLite }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: course.id,
@@ -648,39 +841,18 @@ function SortableCourseRow({ course }: { course: CourseLite }) {
   );
 }
 
-// ── Inline section meta form (title, description, icon, color) ──
+// ── Inline section meta form (draft-only — no API calls) ──
 function SectionMetaForm({
   section,
-  onSave,
-  onCancel,
+  onPatch,
+  onClose,
+  onShowPreview,
 }: {
   section: SectionWithCourses;
-  onSave: (patch: Partial<SectionWithCourses>) => void;
-  onCancel: () => void;
+  onPatch: (patch: Partial<SectionWithCourses>) => void;
+  onClose: () => void;
+  onShowPreview: () => void;
 }) {
-  // Local state shadows section meta for snappy text input (avoids
-  // re-keystroke jitter from waiting on server). Saves fire on blur for
-  // text fields and immediately for icon/color picks. No explicit Save
-  // button — the editor view always reflects the latest persisted state.
-  const [title, setTitle] = useState(section.title);
-  const [description, setDescription] = useState(section.description ?? '');
-
-  function commitTitle() {
-    const trimmed = title.trim();
-    if (!trimmed || trimmed === section.title) {
-      setTitle(section.title);
-      return;
-    }
-    onSave({ title: trimmed });
-  }
-
-  function commitDescription() {
-    const trimmed = description.trim();
-    const current = section.description ?? '';
-    if (trimmed === current) return;
-    onSave({ description: trimmed || null });
-  }
-
   return (
     <div className="px-4 py-4 bg-blue-50/30 border-b border-blue-100 space-y-3">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -688,16 +860,8 @@ function SectionMetaForm({
           <label className="block text-xs font-semibold text-gray-700 mb-1">Title</label>
           <input
             type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={commitTitle}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              if (e.key === 'Escape') {
-                setTitle(section.title);
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
+            value={section.title}
+            onChange={(e) => onPatch({ title: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue"
           />
         </div>
@@ -705,16 +869,10 @@ function SectionMetaForm({
           <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
           <input
             type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onBlur={commitDescription}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              if (e.key === 'Escape') {
-                setDescription(section.description ?? '');
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
+            value={section.description ?? ''}
+            onChange={(e) =>
+              onPatch({ description: e.target.value === '' ? null : e.target.value })
+            }
             placeholder="Optional sub-headline shown under the title"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue"
           />
@@ -731,9 +889,7 @@ function SectionMetaForm({
               <button
                 key={name}
                 type="button"
-                onClick={() => {
-                  if (name !== section.iconName) onSave({ iconName: name });
-                }}
+                onClick={() => onPatch({ iconName: name })}
                 className={`w-9 h-9 flex items-center justify-center rounded-lg border-2 transition-colors ${
                   selected
                     ? 'border-maxxed-blue bg-blue-50'
@@ -757,9 +913,7 @@ function SectionMetaForm({
               <button
                 key={c.value}
                 type="button"
-                onClick={() => {
-                  if (c.value !== section.iconColor) onSave({ iconColor: c.value });
-                }}
+                onClick={() => onPatch({ iconColor: c.value })}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors flex items-center gap-1.5 ${
                   selected ? 'border-maxxed-blue bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
@@ -772,15 +926,27 @@ function SectionMetaForm({
         </div>
       </div>
 
-      <div className="flex justify-between items-center pt-1">
-        <p className="text-xs text-gray-500 italic">Changes save automatically.</p>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-gray-700"
-        >
-          Done
-        </button>
+      <div className="flex flex-wrap justify-between items-center gap-2 pt-1">
+        <p className="text-xs text-gray-500 italic">
+          Edits stay local until you click <span className="font-semibold">Save Changes</span> at the top.
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onShowPreview}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-maxxed-blue/30 text-maxxed-blue rounded-md text-xs font-semibold hover:bg-maxxed-blue/10"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            See Preview
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-gray-700"
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );

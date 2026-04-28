@@ -30,11 +30,14 @@ export default async function AdminCoursesPage() {
   ]);
 
   // Flatten course data into the lite shape the client component expects.
+  // shortDesc is included so the in-app catalog preview can render the
+  // exact same CourseCard the public site uses.
   const toLite = (c: typeof allCourses[number]) => ({
     id: c.id,
     title: c.title,
     slug: c.slug,
     thumbnail: c.thumbnail,
+    shortDesc: c.shortDesc,
     price: c.price,
     published: c.published,
     comingSoon: c.comingSoon,
