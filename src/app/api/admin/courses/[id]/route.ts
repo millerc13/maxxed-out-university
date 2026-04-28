@@ -59,7 +59,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, featured, comingSoon, price } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price } = body;
 
     // Check if course exists
     const existing = await prisma.course.findUnique({ where: { id } });
@@ -87,7 +87,6 @@ export async function PUT(
         ...(shortDesc !== undefined && { shortDesc }),
         ...(thumbnail !== undefined && { thumbnail }),
         ...(published !== undefined && { published }),
-        ...(featured !== undefined && { featured }),
         ...(comingSoon !== undefined && { comingSoon }),
         ...(price !== undefined && { price: price ? parseInt(price) : null }),
       },

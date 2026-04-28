@@ -100,11 +100,6 @@ export default async function AdminCoursesPage() {
                             <h3 className="font-bold text-gray-900">
                               {course.title}
                             </h3>
-                            {course.featured && (
-                              <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded font-medium">
-                                Featured
-                              </span>
-                            )}
                             {course.comingSoon && (
                               <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded font-medium">
                                 Coming Soon

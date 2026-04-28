@@ -87,7 +87,6 @@ model Course {
   previewVideo String?
   price        Int?
   published    Boolean          @default(false)
-  featured     Boolean          @default(false)
   comingSoon   Boolean          @default(false)
   isBundle     Boolean          @default(false)
   bundleId     String?

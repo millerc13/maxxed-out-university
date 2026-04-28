@@ -16,7 +16,6 @@ interface Course {
   shortDesc: string | null;
   thumbnail: string | null;
   published: boolean;
-  featured: boolean;
   comingSoon: boolean;
   price: number | null;
 }
@@ -41,7 +40,6 @@ export function CourseForm({ course }: CourseFormProps) {
     shortDesc: course?.shortDesc || '',
     thumbnail: course?.thumbnail || '',
     published: course?.published || false,
-    featured: course?.featured || false,
     comingSoon: course?.comingSoon || false,
     price: course?.price ? String(course.price / 100) : '',
   });
@@ -316,21 +314,6 @@ export function CourseForm({ course }: CourseFormProps) {
                   />
                   <Label htmlFor="published" className="cursor-pointer">
                     Published (visible to students)
-                  </Label>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="featured"
-                    checked={formData.featured}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, featured: e.target.checked }))
-                    }
-                    className="w-4 h-4 text-maxxed-blue rounded"
-                  />
-                  <Label htmlFor="featured" className="cursor-pointer">
-                    Featured (highlighted on homepage)
                   </Label>
                 </div>
 
