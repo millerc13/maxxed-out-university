@@ -15,10 +15,10 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: 'Training Center | MaxxedOut',
-  description: 'Real estate investment education and training platform',
+  description: 'Business education and training for serious entrepreneurs',
   openGraph: {
     title: 'Training Center | MaxxedOut',
-    description: 'Real estate investment education and training platform',
+    description: 'Business education and training for serious entrepreneurs',
     images: [
       {
         url: 'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/6938430a35652be0d603e258.jpeg',
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Training Center | MaxxedOut',
-    description: 'Real estate investment education and training platform',
+    description: 'Business education and training for serious entrepreneurs',
     images: ['https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/6938430a35652be0d603e258.jpeg'],
   },
 };

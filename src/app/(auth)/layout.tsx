@@ -35,7 +35,7 @@ export default function AuthLayout({
         <div className="relative w-full flex flex-col items-center gap-6">
           {children}
           <p className="text-xs text-text-muted text-center">
-            Trusted by thousands of real estate investors across the country
+            Trusted by thousands of entrepreneurs across the country
           </p>
         </div>
       </main>
