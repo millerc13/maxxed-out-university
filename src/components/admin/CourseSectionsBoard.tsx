@@ -658,10 +658,28 @@ function SectionMetaForm({
   onSave: (patch: Partial<SectionWithCourses>) => void;
   onCancel: () => void;
 }) {
+  // Local state shadows section meta for snappy text input (avoids
+  // re-keystroke jitter from waiting on server). Saves fire on blur for
+  // text fields and immediately for icon/color picks. No explicit Save
+  // button — the editor view always reflects the latest persisted state.
   const [title, setTitle] = useState(section.title);
   const [description, setDescription] = useState(section.description ?? '');
-  const [iconName, setIconName] = useState(section.iconName);
-  const [iconColor, setIconColor] = useState(section.iconColor || COLOR_PRESETS[0].value);
+
+  function commitTitle() {
+    const trimmed = title.trim();
+    if (!trimmed || trimmed === section.title) {
+      setTitle(section.title);
+      return;
+    }
+    onSave({ title: trimmed });
+  }
+
+  function commitDescription() {
+    const trimmed = description.trim();
+    const current = section.description ?? '';
+    if (trimmed === current) return;
+    onSave({ description: trimmed || null });
+  }
 
   return (
     <div className="px-4 py-4 bg-blue-50/30 border-b border-blue-100 space-y-3">
@@ -672,6 +690,14 @@ function SectionMetaForm({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') {
+                setTitle(section.title);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue"
           />
         </div>
@@ -681,6 +707,14 @@ function SectionMetaForm({
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            onBlur={commitDescription}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') {
+                setDescription(section.description ?? '');
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
             placeholder="Optional sub-headline shown under the title"
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue"
           />
@@ -692,12 +726,14 @@ function SectionMetaForm({
         <div className="flex flex-wrap gap-1.5">
           {SECTION_ICON_NAMES.map((name) => {
             const I = SECTION_ICONS[name];
-            const selected = name === iconName;
+            const selected = name === section.iconName;
             return (
               <button
                 key={name}
                 type="button"
-                onClick={() => setIconName(name)}
+                onClick={() => {
+                  if (name !== section.iconName) onSave({ iconName: name });
+                }}
                 className={`w-9 h-9 flex items-center justify-center rounded-lg border-2 transition-colors ${
                   selected
                     ? 'border-maxxed-blue bg-blue-50'
@@ -705,7 +741,7 @@ function SectionMetaForm({
                 }`}
                 title={name}
               >
-                <I className={`w-4 h-4 ${selected ? iconColor : 'text-gray-600'}`} />
+                <I className={`w-4 h-4 ${selected ? section.iconColor || 'text-[#0000CC]' : 'text-gray-600'}`} />
               </button>
             );
           })}
@@ -716,12 +752,14 @@ function SectionMetaForm({
         <label className="block text-xs font-semibold text-gray-700 mb-1.5">Color</label>
         <div className="flex flex-wrap gap-1.5">
           {COLOR_PRESETS.map((c) => {
-            const selected = c.value === iconColor;
+            const selected = c.value === (section.iconColor || COLOR_PRESETS[0].value);
             return (
               <button
                 key={c.value}
                 type="button"
-                onClick={() => setIconColor(c.value)}
+                onClick={() => {
+                  if (c.value !== section.iconColor) onSave({ iconColor: c.value });
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors flex items-center gap-1.5 ${
                   selected ? 'border-maxxed-blue bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
@@ -734,27 +772,14 @@ function SectionMetaForm({
         </div>
       </div>
 
-      <div className="flex gap-2 pt-1">
-        <button
-          type="button"
-          onClick={() =>
-            onSave({
-              title: title.trim() || section.title,
-              description: description.trim() || null,
-              iconName,
-              iconColor,
-            })
-          }
-          className="px-4 py-1.5 bg-maxxed-blue text-white rounded-md text-sm font-medium hover:bg-maxxed-blue-dark"
-        >
-          Save
-        </button>
+      <div className="flex justify-between items-center pt-1">
+        <p className="text-xs text-gray-500 italic">Changes save automatically.</p>
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-1.5 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50"
+          className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-gray-700"
         >
-          Cancel
+          Done
         </button>
       </div>
     </div>
