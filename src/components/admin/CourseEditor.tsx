@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye } from 'lucide-react';
+import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye, RefreshCw, Handshake, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CourseForm } from '@/components/admin/CourseForm';
 import { ModuleManager } from '@/components/admin/ModuleManager';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface CourseEditorProps {
   course: any;
@@ -14,7 +15,8 @@ interface CourseEditorProps {
 
 export function CourseEditor({ course }: CourseEditorProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'content' | 'quizzes' | 'settings' | 'products'>('content');
+  const [activeTab, setActiveTab] = useState<'settings' | 'preview' | 'content' | 'quizzes' | 'products'>('settings');
+  const [previewKey, setPreviewKey] = useState(0); // bump to force iframe reload
 
   return (
     <div className="space-y-0">
@@ -60,9 +62,10 @@ export function CourseEditor({ course }: CourseEditorProps) {
         {/* Tabs */}
         <div className="flex gap-0 overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
           {([
+            { key: 'settings' as const, label: 'Settings', icon: Settings },
+            { key: 'preview' as const, label: 'Preview', icon: Eye },
             { key: 'content' as const, label: 'Content', icon: Layers },
             { key: 'quizzes' as const, label: 'Quizzes', icon: FileQuestion },
-            { key: 'settings' as const, label: 'Settings', icon: Settings },
             { key: 'products' as const, label: 'GHL Products', icon: Link2 },
           ]).map((tab) => (
             <button
@@ -83,6 +86,59 @@ export function CourseEditor({ course }: CourseEditorProps) {
           ))}
         </div>
       </div>
+
+      {/* ── TAB: Preview ── */}
+      {/* For courses with an externalUrl, the on-platform slug page just
+          redirects off-site, so iframing it would be useless. Instead, show
+          the catalog card preview (the only on-platform UI students see for
+          partner programs).
+          For normal courses, iframe the real page in customer-preview mode. */}
+      {activeTab === 'preview' && course.externalUrl && (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">
+            This course redirects to{' '}
+            <a
+              href={course.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-maxxed-blue hover:underline"
+            >
+              {course.externalUrl}
+            </a>
+            {' '}when clicked, so the only on-platform view is the catalog card below.
+          </p>
+          <div className="max-w-md">
+            <ExternalCardPreview course={course} />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'preview' && !course.externalUrl && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              Live page at <span className="font-mono">/courses/{course.slug}</span>. Save changes on the Settings tab and click reload to refresh.
+            </p>
+            <button
+              type="button"
+              onClick={() => setPreviewKey((k) => k + 1)}
+              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reload
+            </button>
+          </div>
+          <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
+            <iframe
+              key={previewKey}
+              src={`/courses/${course.slug}?previewAs=customer`}
+              title={`Preview: ${course.title}`}
+              className="w-full block"
+              style={{ height: 'calc(100vh - 220px)' }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── TAB: Content ── */}
       {activeTab === 'content' && (
@@ -206,6 +262,53 @@ export function CourseEditor({ course }: CourseEditorProps) {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// Catalog card preview for external/partner courses. 1:1 copy of the
+// FeaturedCard styling from src/app/(dashboard)/courses/page.tsx (the
+// "Partnership Programs" tier) — same Tailwind classes, same Apply Only
+// badge and Apply Now CTA — so the admin sees exactly what visitors see
+// on the courses page.
+function ExternalCardPreview({ course }: { course: any }) {
+  return (
+    <div className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+      <div className="relative aspect-video overflow-hidden">
+        {course.thumbnail ? (
+          <Image
+            src={course.thumbnail}
+            alt={course.title}
+            fill
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex items-center justify-center">
+            <Handshake className="w-10 h-10 text-white/20" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+        <div className="absolute bottom-3 left-4">
+          <span className="bg-[#0000CC] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
+            <Handshake className="w-3.5 h-3.5" /> Apply Only
+          </span>
+        </div>
+      </div>
+      <div className="p-5 flex flex-col flex-1">
+        <h3 className="font-bold text-lg text-gray-900 line-clamp-1">
+          {course.title}
+        </h3>
+        <p className="text-sm text-gray-400 line-clamp-2 mt-1.5 flex-1">
+          {course.shortDesc || course.description?.split('\n')[0]}
+        </p>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+          <span className="text-xs text-gray-400">Application required</span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0000CC]/10 text-[#0000CC] text-xs font-bold rounded-lg">
+            Apply Now <ExternalLink className="w-3.5 h-3.5" />
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

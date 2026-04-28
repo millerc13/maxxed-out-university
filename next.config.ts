@@ -36,6 +36,11 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'assets.cdn.filesafe.space',
       },
+      // R2.dev subdomain for our public bucket (used for admin-uploaded images)
+      {
+        protocol: 'https',
+        hostname: '*.r2.dev',
+      },
     ],
   },
 };

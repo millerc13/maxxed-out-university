@@ -13,11 +13,18 @@ import { getModuleAccess } from '@/lib/gating';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ previewAs?: string }>;
 }
 
-export default async function CoursePage({ params }: CoursePageProps) {
+export default async function CoursePage({ params, searchParams }: CoursePageProps) {
   const { slug } = await params;
+  const { previewAs } = await searchParams;
   const session = await auth();
+  // `?previewAs=customer` lets the admin preview tab iframe this page
+  // and see exactly what a non-admin, non-enrolled visitor sees — no
+  // AdminEnrollButton, no auto-unlocked quizzes/lessons, no own progress.
+  const isCustomerPreview =
+    previewAs === 'customer' && (session?.user as any)?.role === 'ADMIN';
 
   // Get the course with all modules, lessons, and quizzes
   const course = await prisma.course.findUnique({
@@ -52,35 +59,39 @@ export default async function CoursePage({ params }: CoursePageProps) {
   }
 
   // Check if user is enrolled (direct or via bundle)
-  const isEnrolled = session?.user?.id
-    ? await isEffectivelyEnrolled(session.user.id, course.id)
-    : false;
+  const isEnrolled =
+    !isCustomerPreview && session?.user?.id
+      ? await isEffectivelyEnrolled(session.user.id, course.id)
+      : false;
 
-  // Check if user is admin
-  const isAdmin = (session?.user as any)?.role === 'ADMIN';
+  // Check if user is admin (forced false in customer preview)
+  const isAdmin =
+    !isCustomerPreview && (session?.user as any)?.role === 'ADMIN';
 
-  // Get user's progress
-  const progress = session?.user?.id
-    ? await prisma.lessonProgress.findMany({
-        where: {
-          userId: session.user.id,
-          lesson: { module: { courseId: course.id } },
-        },
-      })
-    : [];
+  // Get user's progress (skip in customer preview — visitor has none)
+  const progress =
+    !isCustomerPreview && session?.user?.id
+      ? await prisma.lessonProgress.findMany({
+          where: {
+            userId: session.user.id,
+            lesson: { module: { courseId: course.id } },
+          },
+        })
+      : [];
 
   const progressMap = new Map(progress.map((p) => [p.lessonId, p]));
 
-  // Get user's quiz attempts
-  const quizAttempts = session?.user?.id
-    ? await prisma.quizAttempt.findMany({
-        where: {
-          userId: session.user.id,
-          quizId: { in: course.quizzes.map((q) => q.id) },
-        },
-        orderBy: { startedAt: 'desc' },
-      })
-    : [];
+  // Get user's quiz attempts (skip in customer preview)
+  const quizAttempts =
+    !isCustomerPreview && session?.user?.id
+      ? await prisma.quizAttempt.findMany({
+          where: {
+            userId: session.user.id,
+            quizId: { in: course.quizzes.map((q) => q.id) },
+          },
+          orderBy: { startedAt: 'desc' },
+        })
+      : [];
 
   const quizAttemptsMap = new Map<string, typeof quizAttempts>();
   for (const attempt of quizAttempts) {
@@ -96,12 +107,13 @@ export default async function CoursePage({ params }: CoursePageProps) {
   });
 
   // Get this user's certificate for this course (if awarded)
-  const userCertificate = session?.user?.id
-    ? await prisma.certificate.findUnique({
-        where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
-        select: { certificateId: true },
-      })
-    : null;
+  const userCertificate =
+    !isCustomerPreview && session?.user?.id
+      ? await prisma.certificate.findUnique({
+          where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
+          select: { certificateId: true },
+        })
+      : null;
 
   // Calculate stats
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);

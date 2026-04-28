@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, ArrowLeft } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Upload, X, ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 
 interface Course {
@@ -29,6 +29,10 @@ export function CourseForm({ course }: CourseFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     title: course?.title || '',
@@ -57,6 +61,25 @@ export function CourseForm({ course }: CourseFormProps) {
       // Only auto-generate slug for new courses
       slug: course?.id ? prev.slug : generateSlug(title),
     }));
+  };
+
+  const handleFileSelected = async (file: File) => {
+    setUploadError('');
+    setIsUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'courses');
+      const res = await fetch('/api/admin/upload/image', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      setFormData((prev) => ({ ...prev, thumbnail: data.url }));
+    } catch (err: any) {
+      setUploadError(err.message);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,16 +189,95 @@ export function CourseForm({ course }: CourseFormProps) {
 
               {/* Thumbnail */}
               <div className="md:col-span-2">
-                <Label htmlFor="thumbnail">Thumbnail URL</Label>
-                <Input
-                  id="thumbnail"
-                  value={formData.thumbnail}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, thumbnail: e.target.value }))
-                  }
-                  placeholder="https://..."
-                  className="mt-1"
-                />
+                <Label>Thumbnail</Label>
+                <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-start">
+                  {/* Preview */}
+                  <div className="w-full sm:w-64 aspect-video rounded-lg border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {formData.thumbnail ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={formData.thumbnail}
+                        alt="Thumbnail preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-gray-300" />
+                    )}
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex-1 min-w-0">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleFileSelected(f);
+                      }}
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            {formData.thumbnail ? 'Replace image' : 'Upload image'}
+                          </>
+                        )}
+                      </button>
+                      {formData.thumbnail && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({ ...prev, thumbnail: '' }))
+                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-red-600"
+                        >
+                          <X className="w-4 h-4" />
+                          Remove
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowUrlInput((v) => !v)}
+                        className="text-sm text-maxxed-blue hover:underline"
+                      >
+                        {showUrlInput ? 'Hide URL' : 'Paste URL instead'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      PNG, JPG, WebP, or GIF. Max 8MB. 16:9 aspect ratio works best.
+                    </p>
+                    {uploadError && (
+                      <p className="text-xs text-red-600 mt-1">{uploadError}</p>
+                    )}
+                    {showUrlInput && (
+                      <Input
+                        id="thumbnail"
+                        value={formData.thumbnail}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, thumbnail: e.target.value }))
+                        }
+                        placeholder="https://..."
+                        className="mt-2"
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Price */}
@@ -196,7 +298,7 @@ export function CourseForm({ course }: CourseFormProps) {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Leave empty if price is handled by GoHighLevel
+                  This is the exact amount charged at checkout via FanBasis. Leave empty for free.
                 </p>
               </div>
 
