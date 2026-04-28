@@ -1,9 +1,13 @@
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
 import { PrismaClient } from '@prisma/client';
 
-const EMAIL = 'cj-miller@resurgence.cloud';
+const EMAIL = (process.argv[2] || 'cj-miller@resurgence.cloud').trim().toLowerCase();
 const prisma = new PrismaClient();
 
 async function main() {
+  console.log(`Target email: ${EMAIL}`);
   const user = await prisma.user.findUnique({
     where: { email: EMAIL },
     include: {

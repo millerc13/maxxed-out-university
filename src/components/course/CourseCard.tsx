@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, Check, ExternalLink } from 'lucide-react';
+import { ChevronRight, Check, ExternalLink, CheckCircle, Play } from 'lucide-react';
 import { formatPrice, getPriceTier } from '@/lib/utils';
 
 interface CourseCardProps {
@@ -18,6 +18,10 @@ interface CourseCardProps {
   price?: number | null;
   externalUrl?: string;
   shortDesc?: string | null;
+  // True when the current user already owns this course (direct enrollment
+  // or via a parent bundle). Replaces the price/Apply badge with an
+  // "Enrolled" tag and the CTA with "Continue".
+  enrolled?: boolean;
 }
 
 export function CourseCard({
@@ -32,6 +36,7 @@ export function CourseCard({
   price,
   externalUrl,
   shortDesc,
+  enrolled = false,
 }: CourseCardProps) {
   const [showLearning, setShowLearning] = useState(false);
 
@@ -69,8 +74,14 @@ export function CourseCard({
           </div>
         )}
 
-        {/* Price Badge / Apply badge */}
-        {!comingSoon && externalUrl ? (
+        {/* Top-right badge: Enrolled wins, then Apply, then Price */}
+        {!comingSoon && enrolled ? (
+          <div className="absolute top-3 right-3">
+            <span className="bg-green-500 text-white px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-md">
+              <CheckCircle className="w-3 h-3" /> Enrolled
+            </span>
+          </div>
+        ) : !comingSoon && externalUrl ? (
           <div className="absolute top-3 right-3">
             <span className="bg-maxxed-blue text-white px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
               Apply
@@ -158,6 +169,10 @@ export function CourseCard({
           {comingSoon ? (
             <span className="inline-block px-8 py-3 border-2 border-gray-300 text-gray-400 text-xs font-bold uppercase tracking-wider rounded cursor-not-allowed">
               Coming Soon
+            </span>
+          ) : enrolled ? (
+            <span className="inline-flex items-center gap-2 px-8 py-3 border-2 border-green-600 bg-green-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-all duration-300 hover:bg-green-700 hover:border-green-700">
+              <Play className="w-3.5 h-3.5" /> Continue
             </span>
           ) : externalUrl ? (
             <span className="inline-flex items-center gap-2 px-8 py-3 border-2 border-maxxed-blue bg-maxxed-blue text-white text-xs font-bold uppercase tracking-wider rounded transition-all duration-300 hover:bg-maxxed-blue-dark hover:border-maxxed-blue-dark">

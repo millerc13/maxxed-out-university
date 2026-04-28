@@ -93,6 +93,11 @@ model Course {
   bundleId     String?
   externalUrl  String?
   order        Int              @default(0)
+  // Catalog section + position. Null section means the course doesn't appear
+  // on / or /courses (admin-only / hidden product). Both pages render from
+  // these fields; the legacy price-tier classifier was removed.
+  homepageSectionId String?
+  homepageOrder     Int               @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])
@@ -106,8 +111,29 @@ model Course {
   featuredInFunnels FunnelDeployment[] @relation("FunnelFeaturedCourses")
   promoCodes        PromoCode[]        @relation("PromoCodeCourses")
   tools             Tool[]
+  homepageSection   HomepageSection? @relation(fields: [homepageSectionId], references: [id], onDelete: SetNull)
 
   @@index([bundleId])
+  @@index([homepageSectionId, homepageOrder])
+}
+
+// Catalog section shown on / and /courses. Admin-curated: title,
+// description, icon, and which courses belong to it. Order field controls
+// the section's position on the page.
+model HomepageSection {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  iconName    String   @default("BookOpen")
+  // Tailwind color class for the icon (e.g. "text-amber-500"). Optional.
+  iconColor   String?
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  courses     Course[]
+
+  @@index([order])
 }
 
 model Module {

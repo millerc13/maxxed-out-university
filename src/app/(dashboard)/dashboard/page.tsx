@@ -4,11 +4,10 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getEnrolledBundleIds } from '@/lib/enrollment';
 import { Header, Footer } from '@/components/layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Clock, Trophy, ArrowRight, Play, CheckCircle, Lock, GraduationCap, FileQuestion, ExternalLink, Handshake } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { BookOpen, Clock, Trophy, Play, GraduationCap, FileQuestion } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { formatPrice } from '@/lib/utils';
+import { CoursesSection } from '@/components/course/CoursesSection';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -63,15 +62,6 @@ export default async function DashboardPage() {
     },
   });
 
-  // Unenrolled courses: published, not enrolled, not a bundle child the user already has via bundle,
-  // and either has lessons OR is an external/partner program.
-  const unenrolledCourses = allCourses.filter(c =>
-    !enrolledCourseIds.has(c.id) &&
-    !c.isBundle &&
-    (!c.bundleId || !enrolledBundleIds.has(c.bundleId)) &&
-    (c.externalUrl || c.modules.reduce((acc, m) => acc + m.lessons.length, 0) > 0)
-  );
-
   // Fetch user's lesson progress
   const progress = isCustomerView ? [] : await prisma.lessonProgress.findMany({
     where: { userId: session.user.id },
@@ -88,16 +78,6 @@ export default async function DashboardPage() {
     },
     orderBy: { updatedAt: 'desc' },
   });
-
-  // Helper function to sort courses: High-value first, then by order
-  const sortCourses = <T extends { title: string; price: number | null; order: number }>(courses: T[]): T[] => {
-    return [...courses].sort((a, b) => {
-      const priceA = a.price ?? 0;
-      const priceB = b.price ?? 0;
-      if (priceB !== priceA) return priceB - priceA;
-      return a.order - b.order;
-    });
-  };
 
   // Enrolled courses to show: admin sees all, regular users see their enrollments
   // Hide bundle child courses when user is enrolled in the parent bundle
@@ -141,41 +121,7 @@ export default async function DashboardPage() {
         }).then(rows => rows.length),
       ]);
 
-  const sortedCoursesToShow = sortCourses(coursesToShow);
-
-  const coursesWithProgress = sortedCoursesToShow.map((course) => {
-    const totalLessons = course.modules.reduce(
-      (acc, m) => acc + m.lessons.length,
-      0
-    );
-    const completedLessons = progress.filter(
-      (p) =>
-        p.completed &&
-        p.lesson.module.courseId === course.id
-    ).length;
-    const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-
-    // Find next lesson to continue
-    const allLessons = course.modules.flatMap((m) =>
-      m.lessons.map((l) => ({ ...l, moduleName: m.title }))
-    );
-    const completedLessonIds = new Set(
-      progress.filter((p) => p.completed).map((p) => p.lessonId)
-    );
-    const nextLesson = allLessons.find((l) => !completedLessonIds.has(l.id));
-
-    return {
-      id: course.id,
-      courseId: course.id,
-      course,
-      totalLessons,
-      completedLessons,
-      progressPercent,
-      nextLesson,
-    };
-  });
-
-  // Get recently watched lessons (in progress)
+  // Recently watched lessons feed (last 3 in-progress)
   const recentProgress = progress
     .filter((p) => !p.completed && p.watchedSeconds > 0)
     .slice(0, 3);
@@ -194,7 +140,7 @@ export default async function DashboardPage() {
               <h1 className="text-3xl md:text-4xl font-extrabold mb-2">
                 Welcome back{session.user.name ? `, ${session.user.name.split(' ')[0]}` : ''}!
               </h1>
-              <p className="text-blue-200 text-sm">Your real estate investing education continues here.</p>
+              <p className="text-blue-200 text-sm">Your business education continues here.</p>
             </div>
           </div>
 
@@ -299,109 +245,6 @@ export default async function DashboardPage() {
             );
           })()}
 
-          {/* My Courses Section */}
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-text-dark">
-                  My Courses
-                  {coursesWithProgress.length > 0 && (
-                    <span className="ml-2 text-sm font-semibold text-text-muted bg-gray-100 px-2 py-0.5 rounded-full align-middle">{coursesWithProgress.length}</span>
-                  )}
-                </h2>
-                {showAllCourses && (
-                  <p className="text-sm text-text-muted">Courses you have access to</p>
-                )}
-              </div>
-              <Link
-                href="/courses"
-                className="text-sm text-maxxed-blue hover:underline flex items-center gap-1"
-              >
-                Browse all courses
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            {coursesWithProgress.length === 0 ? (
-              <Card className="shadow-card">
-                <CardContent className="py-16 text-center">
-                  <BookOpen className="w-16 h-16 text-text-muted mx-auto mb-4" />
-                  <CardTitle className="text-xl mb-2">No courses yet</CardTitle>
-                  <CardDescription className="mb-6">
-                    You haven&apos;t enrolled in any courses yet. Browse our catalog to get started.
-                  </CardDescription>
-                  <Link
-                    href="/courses"
-                    className="inline-block px-6 py-3 bg-maxxed-blue text-white font-bold text-sm uppercase tracking-wider rounded hover:bg-maxxed-blue-dark transition-colors"
-                  >
-                    Browse Courses
-                  </Link>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {coursesWithProgress.map((enrollment) => (
-                  <Card key={enrollment.id} className="shadow-card overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
-                    <div className="relative aspect-video bg-gray-100">
-                      {enrollment.course.thumbnail ? (
-                        <Image
-                          src={enrollment.course.thumbnail}
-                          alt={enrollment.course.title}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex flex-col items-center justify-center p-5 text-center">
-                          <BookOpen className="w-8 h-8 text-white/30 mb-2" />
-                          <p className="text-white text-xs font-bold leading-tight line-clamp-3">{enrollment.course.title}</p>
-                        </div>
-                      )}
-                      {enrollment.progressPercent === 100 && (
-                        <div className="absolute top-3 right-3 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          Complete
-                        </div>
-                      )}
-                    </div>
-                    <CardContent className="p-5">
-                      <h3 className="font-bold text-text-dark mb-2 line-clamp-1">
-                        {enrollment.course.title}
-                      </h3>
-                      <p className="text-sm text-text-muted mb-4 line-clamp-2">
-                        {enrollment.course.shortDesc || enrollment.course.description}
-                      </p>
-
-                      {/* Progress Bar */}
-                      <div className="mb-4">
-                        <div className="flex justify-between text-xs text-text-muted mb-1">
-                          <span>{enrollment.completedLessons} of {enrollment.totalLessons} lessons</span>
-                          <span>{enrollment.progressPercent}%</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-maxxed-blue rounded-full transition-all"
-                            style={{ width: `${enrollment.progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <Link
-                        href={
-                          enrollment.nextLesson
-                            ? `/courses/${enrollment.course.slug}/lessons/${enrollment.nextLesson.slug}`
-                            : `/courses/${enrollment.course.slug}`
-                        }
-                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-maxxed-blue text-white font-bold text-sm uppercase tracking-wider rounded hover:bg-maxxed-blue-dark transition-colors"
-                      >
-                        <Play className="w-4 h-4" />
-                        {enrollment.progressPercent === 0 ? 'Start Learning' : enrollment.progressPercent === 100 ? 'Review Course' : 'Continue'}
-                      </Link>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Continue Learning Section */}
           {recentProgress.length > 0 && (
@@ -440,93 +283,11 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* Explore More Courses */}
-          {unenrolledCourses.length > 0 && !showAllCourses && (
-            <div className="mb-10">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-text-dark">Explore More Courses</h2>
-                  <p className="text-sm text-text-muted">Level up your real estate investing knowledge</p>
-                </div>
-                <Link
-                  href="/courses"
-                  className="text-sm text-maxxed-blue hover:underline flex items-center gap-1"
-                >
-                  View all
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sortCourses(unenrolledCourses).map((course) => {
-                  const isExternal = !!course.externalUrl;
-                  const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
-                  const cardInner = (
-                    <Card className="shadow-card overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all h-full">
-                      <div className="relative aspect-video bg-gray-100">
-                        {course.thumbnail ? (
-                          <Image
-                            src={course.thumbnail}
-                            alt={course.title}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex flex-col items-center justify-center p-5 text-center">
-                            {isExternal ? (
-                              <Handshake className="w-8 h-8 text-white/30 mb-2" />
-                            ) : (
-                              <BookOpen className="w-8 h-8 text-white/30 mb-2" />
-                            )}
-                            <p className="text-white text-xs font-bold leading-tight line-clamp-3">{course.title}</p>
-                          </div>
-                        )}
-                        {isExternal ? (
-                          <div className="absolute bottom-3 left-3 bg-maxxed-blue text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-md uppercase tracking-wider flex items-center gap-1">
-                            <Handshake className="w-3 h-3" /> Apply Only
-                          </div>
-                        ) : course.price ? (
-                          <div className="absolute bottom-3 left-3 bg-white text-gray-900 px-2.5 py-1 rounded-lg text-sm font-extrabold shadow-md">
-                            {formatPrice(course.price)}
-                          </div>
-                        ) : null}
-                      </div>
-                      <CardContent className="p-5">
-                        <h3 className="font-bold text-text-dark mb-2 line-clamp-1">
-                          {course.title}
-                        </h3>
-                        <p className="text-sm text-text-muted mb-4 line-clamp-2">
-                          {course.shortDesc || course.description}
-                        </p>
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                          <span className="text-xs text-text-muted">
-                            {isExternal ? 'Application required' : `${totalLessons} lessons`}
-                          </span>
-                          <span className="text-xs font-bold text-maxxed-blue flex items-center gap-1">
-                            {isExternal ? (
-                              <>Apply Now <ExternalLink className="w-3.5 h-3.5" /></>
-                            ) : (
-                              <>View Course <ArrowRight className="w-3.5 h-3.5" /></>
-                            )}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                  return isExternal ? (
-                    <a key={course.id} href={course.externalUrl!} target="_blank" rel="noopener noreferrer" className="block h-full no-underline">
-                      {cardInner}
-                    </a>
-                  ) : (
-                    <Link key={course.id} href={`/courses/${course.slug}`} className="block h-full no-underline">
-                      {cardInner}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
         </div>
+
+        {/* Same catalog as / and /courses — bundle children hidden if owned,
+            "Enrolled" badge on direct enrollments. Single source of truth. */}
+        <CoursesSection />
       </main>
       <Footer />
     </>
