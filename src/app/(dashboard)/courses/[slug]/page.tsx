@@ -13,12 +13,24 @@ import { getModuleAccess } from '@/lib/gating';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ previewAs?: string }>;
+  searchParams: Promise<{
+    previewAs?: string;
+    // Admin-only field overrides used by /admin/courses/[id]'s Preview tab
+    // to render unsaved draft edits without persisting them. Ignored when
+    // the viewer isn't an authenticated admin.
+    _title?: string;
+    _description?: string;
+    _shortDesc?: string;
+    _thumbnail?: string;
+    _price?: string;
+    _comingSoon?: string;
+  }>;
 }
 
 export default async function CoursePage({ params, searchParams }: CoursePageProps) {
   const { slug } = await params;
-  const { previewAs } = await searchParams;
+  const search = await searchParams;
+  const { previewAs } = search;
   const session = await auth();
   // `?previewAs=customer` lets the admin preview tab iframe this page
   // and see exactly what a non-admin, non-enrolled visitor sees — no
@@ -27,7 +39,7 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
     previewAs === 'customer' && (session?.user as any)?.role === 'ADMIN';
 
   // Get the course with all modules, lessons, and quizzes
-  const course = await prisma.course.findUnique({
+  const courseRaw = await prisma.course.findUnique({
     where: { slug, published: true },
     include: {
       modules: {
@@ -48,13 +60,36 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
     },
   });
 
-  if (!course) {
+  if (!courseRaw) {
     notFound();
   }
 
+  // Apply admin-only field overrides on top of the loaded course so the
+  // Preview tab on /admin/courses/[id] can show unsaved drafts. Restricted
+  // to isCustomerPreview (which already requires an admin session) so
+  // there's no risk of regular visitors spoofing course content via URL.
+  const course = isCustomerPreview
+    ? {
+        ...courseRaw,
+        title: search._title ?? courseRaw.title,
+        description: search._description ?? courseRaw.description,
+        shortDesc: search._shortDesc ?? courseRaw.shortDesc,
+        thumbnail: search._thumbnail ?? courseRaw.thumbnail,
+        price:
+          search._price !== undefined && search._price !== ''
+            ? Number(search._price) || null
+            : courseRaw.price,
+        comingSoon:
+          search._comingSoon !== undefined
+            ? search._comingSoon === 'true'
+            : courseRaw.comingSoon,
+      }
+    : courseRaw;
+
   // External partner programs don't have an on-platform detail view —
-  // redirect straight to the partner's site.
-  if ((course as any).externalUrl) {
+  // redirect straight to the partner's site (skipped in admin preview so
+  // the admin can still see the *would-be* layout while editing fields).
+  if (!isCustomerPreview && (course as any).externalUrl) {
     redirect((course as any).externalUrl);
   }
 

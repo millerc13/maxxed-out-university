@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, ArrowLeft, Upload, X, ImageIcon } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Upload, X, ImageIcon, Eye, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface Course {
@@ -20,20 +20,30 @@ interface Course {
   price: number | null;
 }
 
-interface CourseFormProps {
-  course?: Course;
+export interface CourseFormDraft {
+  title: string;
+  slug: string;
+  description: string;
+  shortDesc: string;
+  thumbnail: string;
+  published: boolean;
+  comingSoon: boolean;
+  price: string;
 }
 
-export function CourseForm({ course }: CourseFormProps) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+interface CourseFormProps {
+  course?: Course;
+  // Optional callbacks used by /admin/courses/[id]'s editor wrapper to:
+  //  · stream the current draft up to the parent (so the Preview tab can
+  //    show unsaved field overrides without remounting)
+  //  · jump the parent's tabs to the Preview tab
+  // When omitted, CourseForm runs standalone (e.g. for /admin/courses/new).
+  onDraftChange?: (draft: CourseFormDraft) => void;
+  onShowPreview?: () => void;
+}
 
-  const [formData, setFormData] = useState({
+function initialDraft(course?: Course): CourseFormDraft {
+  return {
     title: course?.title || '',
     slug: course?.slug || '',
     description: course?.description || '',
@@ -42,7 +52,40 @@ export function CourseForm({ course }: CourseFormProps) {
     published: course?.published || false,
     comingSoon: course?.comingSoon || false,
     price: course?.price ? String(course.price / 100) : '',
-  });
+  };
+}
+
+function isDraftDirty(course: Course | undefined, draft: CourseFormDraft): boolean {
+  const baseline = initialDraft(course);
+  return (
+    baseline.title !== draft.title ||
+    baseline.slug !== draft.slug ||
+    baseline.description !== draft.description ||
+    baseline.shortDesc !== draft.shortDesc ||
+    baseline.thumbnail !== draft.thumbnail ||
+    baseline.published !== draft.published ||
+    baseline.comingSoon !== draft.comingSoon ||
+    baseline.price !== draft.price
+  );
+}
+
+export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormProps) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [formData, setFormData] = useState<CourseFormDraft>(() => initialDraft(course));
+  const dirty = isDraftDirty(course, formData);
+
+  // Stream draft state up to the editor wrapper so the Preview tab can
+  // render with the live overrides. Fires on every formData change.
+  useEffect(() => {
+    onDraftChange?.(formData);
+  }, [formData, onDraftChange]);
 
   const generateSlug = (title: string) => {
     return title
@@ -337,7 +380,7 @@ export function CourseForm({ course }: CourseFormProps) {
         </Card>
 
         {/* Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/admin/courses"
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
@@ -346,23 +389,55 @@ export function CourseForm({ course }: CourseFormProps) {
             Back to Courses
           </Link>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="flex items-center gap-2 px-6 py-2 bg-maxxed-blue text-white rounded-lg font-medium hover:bg-maxxed-blue-dark disabled:opacity-50 transition-colors"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                {course?.id ? 'Save Changes' : 'Create Course'}
-              </>
+          <div className="flex flex-wrap items-center gap-2">
+            {dirty && (
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
+                Unsaved changes
+              </span>
             )}
-          </button>
+            {onShowPreview && (
+              <button
+                type="button"
+                onClick={onShowPreview}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-maxxed-blue/30 text-maxxed-blue rounded-lg text-sm font-semibold hover:bg-maxxed-blue/10"
+              >
+                <Eye className="w-4 h-4" />
+                See Preview
+              </button>
+            )}
+            {course?.id && dirty && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirm('Discard unsaved changes?')) return;
+                  setFormData(initialDraft(course));
+                  setError('');
+                }}
+                disabled={isLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Undo2 className="w-4 h-4" />
+                Cancel
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={isLoading || (!!course?.id && !dirty)}
+              className="flex items-center gap-2 px-6 py-2 bg-maxxed-blue text-white rounded-lg font-medium hover:bg-maxxed-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {course?.id ? 'Save Changes' : 'Create Course'}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </form>

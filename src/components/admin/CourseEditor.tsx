@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye, RefreshCw, Handshake, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { CourseForm } from '@/components/admin/CourseForm';
+import { CourseForm, type CourseFormDraft } from '@/components/admin/CourseForm';
 import { ModuleManager } from '@/components/admin/ModuleManager';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -17,6 +17,41 @@ export function CourseEditor({ course }: CourseEditorProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'settings' | 'preview' | 'content' | 'quizzes' | 'products'>('settings');
   const [previewKey, setPreviewKey] = useState(0); // bump to force iframe reload
+  // The Settings tab streams its in-progress form values up here so the
+  // Preview tab's iframe can render with those unsaved overrides applied.
+  // Initial value mirrors what CourseForm starts with.
+  const [draft, setDraft] = useState<CourseFormDraft>({
+    title: course?.title || '',
+    slug: course?.slug || '',
+    description: course?.description || '',
+    shortDesc: course?.shortDesc || '',
+    thumbnail: course?.thumbnail || '',
+    published: course?.published || false,
+    comingSoon: course?.comingSoon || false,
+    price: course?.price ? String(course.price / 100) : '',
+  });
+
+  // Build the iframe src with admin-only override params reflecting the
+  // current draft. /courses/[slug]/page.tsx merges these on top of the
+  // saved course (only when previewAs=customer + admin session).
+  const previewSrc = useMemo(() => {
+    const params = new URLSearchParams({ previewAs: 'customer' });
+    if (draft.title !== course.title) params.set('_title', draft.title);
+    if (draft.description !== (course.description ?? ''))
+      params.set('_description', draft.description);
+    if (draft.shortDesc !== (course.shortDesc ?? ''))
+      params.set('_shortDesc', draft.shortDesc);
+    if (draft.thumbnail !== (course.thumbnail ?? ''))
+      params.set('_thumbnail', draft.thumbnail);
+    const draftPriceCents = draft.price
+      ? Math.round(parseFloat(draft.price) * 100)
+      : null;
+    if (draftPriceCents !== course.price)
+      params.set('_price', draftPriceCents != null ? String(draftPriceCents) : '');
+    if (draft.comingSoon !== course.comingSoon)
+      params.set('_comingSoon', draft.comingSoon ? 'true' : 'false');
+    return `/courses/${course.slug}?${params.toString()}`;
+  }, [draft, course]);
 
   return (
     <div className="space-y-0">
@@ -93,8 +128,8 @@ export function CourseEditor({ course }: CourseEditorProps) {
           the catalog card preview (the only on-platform UI students see for
           partner programs).
           For normal courses, iframe the real page in customer-preview mode. */}
-      {activeTab === 'preview' && course.externalUrl && (
-        <div className="space-y-3">
+      {course.externalUrl && (
+        <div className={`space-y-3 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
           <p className="text-sm text-gray-500">
             This course redirects to{' '}
             <a
@@ -108,16 +143,27 @@ export function CourseEditor({ course }: CourseEditorProps) {
             {' '}when clicked, so the only on-platform view is the catalog card below.
           </p>
           <div className="max-w-md">
-            <ExternalCardPreview course={course} />
+            {/* Render the catalog card with the live draft values so the
+                Preview tab updates as the admin types in Settings. We
+                pass the raw draft (no `|| course.*` fallback) so an
+                empty edit reads as empty here too — WYSIWYG. */}
+            <ExternalCardPreview
+              course={{
+                title: draft.title,
+                shortDesc: draft.shortDesc,
+                description: draft.description,
+                thumbnail: draft.thumbnail,
+              }}
+            />
           </div>
         </div>
       )}
 
-      {activeTab === 'preview' && !course.externalUrl && (
-        <div className="space-y-3">
+      {!course.externalUrl && (
+        <div className={`space-y-3 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
-              Live page at <span className="font-mono">/courses/{course.slug}</span>. Save changes on the Settings tab and click reload to refresh.
+              Reflects your current draft (unsaved). Click <span className="font-semibold">Save Changes</span> on Settings to publish.
             </p>
             <button
               type="button"
@@ -129,9 +175,12 @@ export function CourseEditor({ course }: CourseEditorProps) {
             </button>
           </div>
           <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
+            {/* Re-keying on previewSrc forces the iframe to reload whenever
+                the draft changes. Without this, typing in Settings wouldn't
+                update the Preview tab the next time it's viewed. */}
             <iframe
-              key={previewKey}
-              src={`/courses/${course.slug}?previewAs=customer`}
+              key={`${previewKey}::${previewSrc}`}
+              src={previewSrc}
               title={`Preview: ${course.title}`}
               className="w-full block"
               style={{ height: 'calc(100vh - 220px)' }}
@@ -211,9 +260,15 @@ export function CourseEditor({ course }: CourseEditorProps) {
       )}
 
       {/* ── TAB: Settings ── */}
-      {activeTab === 'settings' && (
-        <CourseForm course={course} />
-      )}
+      {/* Always mounted so a typed-but-not-yet-saved draft survives a
+          tab switch to Preview. */}
+      <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
+        <CourseForm
+          course={course}
+          onDraftChange={setDraft}
+          onShowPreview={() => setActiveTab('preview')}
+        />
+      </div>
 
       {/* ── TAB: GHL Products ── */}
       {activeTab === 'products' && (
