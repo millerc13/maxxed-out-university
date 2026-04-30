@@ -384,8 +384,24 @@ async function enrollFromFanbasis(params: {
   // Bundle unlock — if this course is a bundle, also enroll in every child course.
   const purchasedCourse = await prisma.course.findUnique({
     where: { id: params.courseId },
-    select: { isBundle: true, thumbnail: true, title: true },
+    select: { isBundle: true, thumbnail: true, title: true, slug: true },
   });
+
+  // Link buyer to GHL contact + tag with the course they bought, so
+  // /admin/messages classifies them as a Sale and the closer-side GHL
+  // UI shows what was purchased. Best-effort — won't break the webhook
+  // if GHL is down or unconfigured.
+  if (params.email) {
+    try {
+      const { linkUserToGhlContactByEmail, syncCoursePurchase } = await import('@/lib/ghl');
+      const contactId = await linkUserToGhlContactByEmail(resolvedUserId, params.email);
+      if (contactId && purchasedCourse?.slug) {
+        await syncCoursePurchase(contactId, purchasedCourse.slug);
+      }
+    } catch (err) {
+      console.error('[fanbasis-webhook] GHL link/tag failed (non-fatal)', err);
+    }
+  }
 
   if (purchasedCourse?.isBundle) {
     try {

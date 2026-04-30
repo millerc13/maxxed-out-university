@@ -2,6 +2,69 @@
 
 import { useId } from 'react';
 
+interface SwitchProps {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  id?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
+  size?: 'sm' | 'md';
+}
+
+/**
+ * Bare pill-switch in maxxed-blue brand. Use this when the visual label
+ * is provided by the surrounding markup (e.g. compact tri-toggle row in
+ * a card). Use `<Toggle>` when you want the switch paired with an
+ * always-visible text label + description.
+ */
+export function Switch({
+  checked,
+  onChange,
+  id,
+  disabled,
+  ariaLabel,
+  size = 'md',
+}: SwitchProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const dims =
+    size === 'sm'
+      ? {
+          root: 'h-5 w-9',
+          knob: 'h-4 w-4',
+          on: 'translate-x-4',
+          off: 'translate-x-0.5',
+        }
+      : {
+          root: 'h-6 w-11',
+          knob: 'h-5 w-5',
+          on: 'translate-x-5',
+          off: 'translate-x-0.5',
+        };
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      id={inputId}
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className={`relative shrink-0 inline-flex items-center rounded-full transition-colors duration-200 ease-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-maxxed-blue/50 focus-visible:ring-offset-1 ${dims.root} ${
+        checked ? 'bg-maxxed-blue' : 'bg-gray-300'
+      }`}
+    >
+      <span
+        aria-hidden
+        className={`inline-block ${dims.knob} rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-out ${
+          checked ? dims.on : dims.off
+        }`}
+      />
+    </button>
+  );
+}
+
 interface ToggleProps {
   checked: boolean;
   onChange: (next: boolean) => void;
@@ -12,11 +75,8 @@ interface ToggleProps {
 }
 
 /**
- * Pill-switch toggle styled to match the maxxed-blue brand. Replaces the
- * native checkboxes used across the admin form.
- *
- * Layout: switch on the right, label + optional description filling the
- * remaining row width. Click anywhere on the label flips the switch.
+ * Labeled pill-switch row. Renders label + optional description on the
+ * left and the switch on the right. Click anywhere on the row toggles.
  */
 export function Toggle({
   checked,
@@ -46,24 +106,12 @@ export function Toggle({
           </p>
         )}
       </div>
-      <button
-        type="button"
-        role="switch"
+      <Switch
         id={inputId}
-        aria-checked={checked}
+        checked={checked}
+        onChange={onChange}
         disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
-        className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-maxxed-blue/50 focus-visible:ring-offset-2 ${
-          checked ? 'bg-maxxed-blue' : 'bg-gray-300'
-        }`}
-      >
-        <span
-          aria-hidden
-          className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-out ${
-            checked ? 'translate-x-5' : 'translate-x-0.5'
-          }`}
-        />
-      </button>
+      />
     </label>
   );
 }

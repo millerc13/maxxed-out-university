@@ -129,36 +129,57 @@ export function ConversationViewer({
     );
   }
 
+  const contactName =
+    contact &&
+    ([contact.name, contact.firstName, contact.lastName].filter(Boolean)[0] ||
+      contact.email ||
+      contact.id);
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-bold text-gray-900 truncate">
-            Conversation
-            <span className="ml-2 text-xs font-normal text-gray-500">
-              · {messages.length} {messages.length === 1 ? 'message' : 'messages'}
-            </span>
-          </h3>
+      <div className="px-4 py-3 border-b border-gray-100 bg-white flex items-start justify-between gap-3">
+        <div className="min-w-0 flex items-center gap-3">
           {contact && (
-            <p className="text-xs text-gray-500 mt-0.5 truncate">
-              {[contact.name, contact.firstName, contact.lastName].filter(Boolean)[0] ||
-                contact.email ||
-                contact.id}
-              {contact.email && ` · ${contact.email}`}
-              {contact.phone && ` · ${contact.phone}`}
-            </p>
+            <span className="hidden sm:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-maxxed-blue to-maxxed-blue-dark text-white text-sm font-extrabold shadow-sm">
+              {(contactName || '?').charAt(0).toUpperCase()}
+            </span>
           )}
+          <div className="min-w-0">
+            <h3 className="font-bold text-gray-900 truncate text-sm sm:text-base capitalize">
+              {contactName || 'Conversation'}
+            </h3>
+            <p className="text-[11px] sm:text-xs text-gray-500 truncate flex items-center gap-1.5">
+              <span className="tabular-nums">
+                {messages.length} {messages.length === 1 ? 'message' : 'messages'}
+              </span>
+              {contact?.email && (
+                <>
+                  <span className="text-gray-300">·</span>
+                  <span className="truncate normal-case">{contact.email}</span>
+                </>
+              )}
+              {contact?.phone && (
+                <>
+                  <span className="hidden sm:inline text-gray-300">·</span>
+                  <span className="hidden sm:inline">{contact.phone}</span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => load(false)}
           disabled={refreshing}
-          className="flex items-center gap-1.5 px-2 py-1 border border-gray-300 rounded text-xs text-gray-700 hover:bg-white disabled:opacity-50"
+          className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-maxxed-blue/40"
           title="Refresh"
+          aria-label="Refresh conversation"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+          />
+          <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
@@ -170,7 +191,7 @@ export function ConversationViewer({
 
       <div
         ref={listRef}
-        className="max-h-[60vh] overflow-y-auto px-4 py-4 space-y-2 bg-gray-50/30"
+        className="max-h-[60vh] md:max-h-[calc(100dvh-22rem)] overflow-y-auto px-4 py-4 space-y-2 bg-gray-50/40"
       >
         {loading ? (
           <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
@@ -247,10 +268,10 @@ function MessageRow({ message }: { message: GHLMessage }) {
         </div>
 
         <div
-          className={`rounded-lg px-3 py-2 shadow-sm ${
+          className={`rounded-2xl px-3.5 py-2 shadow-sm ${
             outbound
-              ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white'
-              : 'bg-white border border-gray-200 text-gray-900'
+              ? 'bg-maxxed-blue text-white rounded-br-md'
+              : 'bg-white border border-gray-200 text-gray-900 rounded-bl-md'
           }`}
         >
           {isEmail && message.meta?.email?.subject && (
@@ -263,7 +284,7 @@ function MessageRow({ message }: { message: GHLMessage }) {
             </p>
           )}
           <p
-            className={`text-sm whitespace-pre-wrap break-words ${
+            className={`text-sm whitespace-pre-wrap [overflow-wrap:anywhere] ${
               outbound ? '' : 'text-gray-800'
             }`}
           >

@@ -117,6 +117,53 @@ export function getCourseTag(prefix: string, courseSlug: string): string {
 }
 
 /**
+ * Find a GHL contact by email and link it to a local User row by setting
+ * `User.ghlContactId`. Idempotent — if already linked or no GHL contact
+ * exists for that email, it's a no-op. Used by purchase webhooks +
+ * backfill scripts so every buyer has a linked conversation thread.
+ */
+export async function linkUserToGhlContactByEmail(
+  userId: string,
+  email: string
+): Promise<string | null> {
+  if (!email) return null;
+  // Avoid the cyclic prisma import — use the singleton.
+  const { prisma } = await import('./prisma');
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { ghlContactId: true },
+  });
+  if (u?.ghlContactId) return u.ghlContactId;
+
+  const contact = await searchGhlContactByEmail(email);
+  if (!contact?.id) return null;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { ghlContactId: contact.id },
+  });
+  return contact.id;
+}
+
+/**
+ * Tag a GHL contact with the course they purchased so closers + ops can
+ * see at a glance what each contact bought. Format: "enrolled-{slug}".
+ * Fire-and-forget — failures shouldn't break the webhook.
+ */
+export async function syncCoursePurchase(
+  ghlContactId: string | null,
+  courseSlug: string
+): Promise<void> {
+  if (!ghlContactId) return;
+  const tag = getCourseTag(GHL_TAGS.ENROLLED_PREFIX, courseSlug);
+  try {
+    await addTagToContact(ghlContactId, tag);
+  } catch (err) {
+    console.error('[GHL] syncCoursePurchase failed', { ghlContactId, tag, err });
+  }
+}
+
+/**
  * Sync course completion to GHL
  * Call this when a student completes a course
  */
@@ -1088,6 +1135,8 @@ export interface GHLContactDetail {
   name?: string;
   phone?: string;
   tags?: string[];
+  dateAdded?: string;
+  dateUpdated?: string;
 }
 
 interface GHLSearchConversationsResponse {
@@ -1134,6 +1183,29 @@ export async function getGhlContactById(contactId: string): Promise<GHLContactDe
   } catch (err) {
     console.error('[GHL] getGhlContactById failed', err);
     return null;
+  }
+}
+
+/** List recent GHL contacts for the location, newest first. Used to surface
+ *  leads (people who applied but haven't bought) on the /admin/messages list.
+ *  GHL returns up to 100 per page; we take the most recent page. */
+export async function listRecentGhlContacts(
+  limit = 100
+): Promise<GHLContactDetail[]> {
+  const locationId = process.env.GHL_LOCATION_ID?.trim();
+  if (!locationId) throw new Error('GHL_LOCATION_ID is not configured');
+  try {
+    const params = new URLSearchParams({
+      locationId,
+      limit: String(Math.min(limit, 100)),
+    });
+    const json = await ghlV2Fetch<GHLSearchContactsResponse>(
+      `/contacts/?${params.toString()}`
+    );
+    return Array.isArray(json.contacts) ? json.contacts : [];
+  } catch (err) {
+    console.error('[GHL] listRecentGhlContacts failed', err);
+    return [];
   }
 }
 

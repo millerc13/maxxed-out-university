@@ -49,9 +49,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+        const inputEmail = credentials.email as string;
+        // Match the primary email first (unchanged behavior); only if
+        // that misses, fall back to emailAliases for users whose
+        // recorded email differs from one they actually know.
+        const user =
+          (await prisma.user.findUnique({ where: { email: inputEmail } })) ??
+          (await prisma.user.findFirst({
+            where: { emailAliases: { has: inputEmail } },
+          }));
 
         if (!user || !user.passwordHash) {
           return null;

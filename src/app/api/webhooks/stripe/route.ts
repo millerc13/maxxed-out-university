@@ -142,6 +142,21 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
     });
     console.log('[stripe-webhook] Enrollment upserted', { enrollmentId: enrollment.id, createdAt: enrollment.enrolledAt });
 
+    // Link buyer to GHL contact + tag with the course they bought, so
+    // /admin/messages classifies them as a Sale and the closer-side
+    // GHL UI shows what was purchased.
+    if (userEmail) {
+      try {
+        const { linkUserToGhlContactByEmail, syncCoursePurchase } = await import('@/lib/ghl');
+        const contactId = await linkUserToGhlContactByEmail(resolvedUserId, userEmail);
+        if (contactId && courseSlug) {
+          await syncCoursePurchase(contactId, courseSlug);
+        }
+      } catch (err) {
+        console.error('[stripe-webhook] GHL link/tag failed (non-fatal)', err);
+      }
+    }
+
     const purchasedCourse = await prisma.course.findUnique({
       where: { id: courseId },
       select: { isBundle: true, thumbnail: true, title: true },
