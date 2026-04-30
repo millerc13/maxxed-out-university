@@ -4,6 +4,7 @@ import { SessionProvider } from '@/components/providers/SessionProvider';
 import { PostHogProvider } from './PostHogProvider';
 import { PostHogPageView } from './PostHogPageView';
 import { PostHogIdentify } from './PostHogIdentify';
+import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 import { Suspense } from 'react';
 import '@/styles/globals.css';
 
@@ -16,6 +17,25 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: 'Training Center | MaxxedOut',
   description: 'Business education and training for serious entrepreneurs',
+  // PWA install metadata for iOS Safari "Add to Home Screen".
+  // Deliberately uses statusBarStyle: 'default' (white status bar,
+  // page content sits cleanly below it) — NOT 'black-translucent',
+  // which overlays the status bar onto the page and would expose
+  // the Header's blue brand border at the very top in standalone mode.
+  appleWebApp: {
+    capable: true,
+    title: 'Maxxed Out',
+    statusBarStyle: 'default',
+  },
+  // Favicon / install icons. iOS uses apple-touch-180 from the home
+  // screen; Android pulls icons from the manifest.
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/apple-touch-180.png', sizes: '180x180', type: 'image/png' }],
+  },
   openGraph: {
     title: 'Training Center | MaxxedOut',
     description: 'Business education and training for serious entrepreneurs',
@@ -50,6 +70,7 @@ export default function RootLayout({
               <PostHogPageView />
             </Suspense>
             <PostHogIdentify />
+            <ServiceWorkerRegister />
             {children}
           </SessionProvider>
         </PostHogProvider>
