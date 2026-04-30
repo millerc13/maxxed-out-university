@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { listRecentGhlContacts } from '@/lib/ghl';
-import { getSuccessfulFanbasisTransactions } from '@/lib/fanbasis-spend';
+import { listFanbasisTransactions } from '@/lib/fanbasis-spend';
 
 /**
  * GHL tags that mark a contact as a course-funnel applicant. These are
@@ -94,23 +94,17 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       take: 200,
     }),
-    getSuccessfulFanbasisTransactions(),
+    listFanbasisTransactions(),
   ]);
 
-  // Build two indexes for matching successful Fanbasis transactions
-  // back to a local user: by payment_id (== Enrollment.transactionId,
-  // exact match) and by buyer email (fallback for cases where the user
-  // has a paymentId-less manual record but the Fanbasis email matches
-  // their university email).
-  const fbByPaymentId = new Map<string, number>();
-  const fbByEmail = new Map<string, number[]>();
+  // Per-email Fanbasis spend, summed straight from the live API list.
+  // Email match works because we keep a User<->Fanbasis-buyer email
+  // alignment via emailAliases (see auth.ts) — fixes drift from
+  // typo'd manual imports.
+  const fbByEmail = new Map<string, number>();
   for (const tx of fanbasisTxs) {
-    fbByPaymentId.set(tx.paymentId, tx.cents);
-    if (tx.email) {
-      const arr = fbByEmail.get(tx.email) ?? [];
-      arr.push(tx.cents);
-      fbByEmail.set(tx.email, arr);
-    }
+    if (!tx.email) continue;
+    fbByEmail.set(tx.email, (fbByEmail.get(tx.email) ?? 0) + tx.grossCents);
   }
 
   const localContacts: Contact[] = users.map((u) => {
@@ -118,33 +112,8 @@ export async function GET(request: NextRequest) {
     const lastActivity = (lastEnroll?.enrolledAt ?? u.createdAt).toISOString();
     const badge: Contact['badge'] = lastEnroll ? 'purchased' : 'lead';
 
-    // Sum real Fanbasis spend. Prefer matching by transactionId
-    // (1:1 with Fanbasis payment_id, robust to email mismatches);
-    // fall back to email-based matching for any txs that haven't
-    // been claimed by a transactionId. Each tx is counted at most
-    // once per user.
-    const matchedPaymentIds = new Set<string>();
-    let totalSpentCents = 0;
-    for (const e of u.enrollments) {
-      const txnId = e.transactionId?.trim();
-      if (!txnId) continue;
-      const cents = fbByPaymentId.get(txnId);
-      if (cents == null) continue;
-      totalSpentCents += cents;
-      matchedPaymentIds.add(txnId);
-    }
     const emailKey = u.email?.toLowerCase().trim() ?? '';
-    if (emailKey && fbByEmail.has(emailKey)) {
-      // Pull every tx for this email that wasn't already claimed via
-      // transactionId match. (Re-derive from the source list so we
-      // can check paymentId per tx.)
-      for (const tx of fanbasisTxs) {
-        if (tx.email !== emailKey) continue;
-        if (matchedPaymentIds.has(tx.paymentId)) continue;
-        totalSpentCents += tx.cents;
-        matchedPaymentIds.add(tx.paymentId);
-      }
-    }
+    const totalSpentCents = emailKey ? (fbByEmail.get(emailKey) ?? 0) : 0;
 
     return {
       id: u.id,

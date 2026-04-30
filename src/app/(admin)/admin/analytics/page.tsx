@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent } from '@/components/ui/card';
-import { getEnrichedFanbasisTransactions } from '@/lib/fanbasis-spend';
+import { listFanbasisTransactions } from '@/lib/fanbasis-spend';
 
 // Always render fresh — enrollment and completion data changes constantly;
 // a cached snapshot is worse than a 300ms DB query on every admin visit.
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 import Link from 'next/link';
 import {
-  Users, DollarSign, TrendingUp,
+  Users, DollarSign, TrendingUp, Receipt, Wallet,
   GraduationCap, BarChart2, FileQuestion, UserCheck,
 } from 'lucide-react';
 
@@ -41,9 +41,8 @@ export default async function AnalyticsPage() {
     topCourses,
     dailyEnrollments,
     studentActivity,
-    quizStats,
-    totalQuizAttempts,
-    allQuizAttempts,
+    quizAttemptsRaw,
+    studentUsers,
     fanbasisTxs,
   ] = await Promise.all([
     prisma.user.count({ where: { role: 'STUDENT' } }),
@@ -114,94 +113,74 @@ export default async function AnalyticsPage() {
       },
       take: 50,
     }),
-    // Per-quiz attempt stats
-    prisma.quiz.findMany({
-      where: { published: true },
+    // Per-attempt rows for the Student Quiz Results section. We pull
+    // every attempt with the quiz + user joined; the page then filters
+    // to "real customer" attempts only (matched against Fanbasis spend
+    // below) so test users + deleted accounts don't pollute the table.
+    prisma.quizAttempt.findMany({
       select: {
         id: true,
-        title: true,
-        passingScore: true,
-        course: { select: { title: true, slug: true } },
-        attempts: { select: { passed: true, score: true, completedAt: true } },
+        score: true,
+        passed: true,
+        startedAt: true,
+        completedAt: true,
+        userId: true,
+        quiz: {
+          select: {
+            title: true,
+            passingScore: true,
+            course: { select: { title: true, slug: true } },
+          },
+        },
       },
+      orderBy: { startedAt: 'desc' },
     }),
-    prisma.quizAttempt.count(),
-    prisma.quizAttempt.findMany({
-      select: { userId: true, passed: true, completedAt: true, score: true },
+    prisma.user.findMany({
+      where: { role: 'STUDENT' },
+      select: { id: true, email: true, name: true },
     }),
-    // Real successful Fanbasis transactions, sourced from webhook logs
-    // and enriched with per-transaction fee/net amounts via the
-    // Fanbasis API. Lets us show gross + net (after fees) revenue.
-    getEnrichedFanbasisTransactions(),
+    // Every successful Fanbasis transaction with gross + net + fees,
+    // pulled live from the Fanbasis list API. Authoritative — matches
+    // the Fanbasis dashboard exactly (incl. ClarityPay financing
+    // splits which webhook logs alone can't see).
+    listFanbasisTransactions(),
   ]);
 
   // ── Revenue ──────────────────────────────────────────────────────────────
-  // Fanbasis: sum every successful transaction (already deduped by
-  // payment_id in the helper), authoritative because amounts come from
-  // the webhook payloads themselves.
-  const fanbasisRevenue = fanbasisTxs.reduce((sum, t) => sum + t.cents, 0);
-
-  // Fees + net (post-fee) revenue, sourced per-transaction from the
-  // Fanbasis API. If the API call fell over for any tx, we count that
-  // tx's gross as its own net (rather than zero) so the headline number
-  // doesn't lie about how much money came in.
-  const fanbasisFeesCents = fanbasisTxs.reduce(
-    (sum, t) => sum + (t.feeCents ?? 0),
+  // Fanbasis numbers come straight from their list API — gross, net,
+  // and fees are all what Fanbasis itself reports. Matches the
+  // creator dashboard exactly, including ClarityPay financing splits
+  // that aren't visible in webhook payloads.
+  const fanbasisGrossCents = fanbasisTxs.reduce(
+    (sum, t) => sum + t.grossCents,
     0
   );
   const fanbasisNetCents = fanbasisTxs.reduce(
-    (sum, t) => sum + (t.netCents ?? t.cents),
+    (sum, t) => sum + t.netCents,
     0
   );
-  const fanbasisFeesResolvedFor = fanbasisTxs.filter(
-    (t) => t.feeCents != null
-  ).length;
 
-  // Stripe: prefer `originalPrice` snapshot; fall back to course list
-  // price (works for old enrollments that pre-date the snapshot column).
-  // Stripe enrollments aren't logged to WebhookLog, so we rely on what
-  // got persisted at checkout.
-  const stripeEnrollmentsForRevenue = paidEnrollments.filter(
+  // Stripe: gross from `originalPrice` snapshot (or course list
+  // price for older rows). Stripe webhooks aren't logged to
+  // WebhookLog and we don't fetch from Stripe's API yet, so we treat
+  // Stripe gross as net — fee data simply isn't on file. Volume is
+  // tiny relative to Fanbasis so this rounds to ~0% error.
+  const stripeEnrollments = paidEnrollments.filter(
     (e) => e.source === 'stripe'
   );
-  const stripeRevenue = stripeEnrollmentsForRevenue.reduce(
+  const stripeRevenue = stripeEnrollments.reduce(
     (sum, e) => sum + (e.originalPrice ?? e.course.price ?? 0),
     0
   );
 
-  // Fanbasis enrollments dedupe: an enrollment may share its
-  // transactionId with a webhook log row, in which case the webhook
-  // amount is authoritative. Anything not matched in the webhook log
-  // (e.g. a rare race condition) falls back to its `originalPrice`.
-  const matchedFanbasisTxIds = new Set(fanbasisTxs.map((t) => t.paymentId));
-  const fanbasisEnrollmentsMissingFromLog = paidEnrollments.filter(
-    (e) =>
-      e.source === 'fanbasis' &&
-      e.transactionId &&
-      !matchedFanbasisTxIds.has(e.transactionId)
-  );
-  const fanbasisFallbackRevenue = fanbasisEnrollmentsMissingFromLog.reduce(
-    (sum, e) => sum + (e.originalPrice ?? e.course.price ?? 0),
-    0
-  );
+  const totalRevenue = fanbasisGrossCents + stripeRevenue;
+  const totalNetRevenue = fanbasisNetCents + stripeRevenue;
+  // Total fees = whatever Fanbasis sliced off the gross before
+  // crediting. Includes processor + ClarityPay financing + platform
+  // fees — anything between the buyer's card and Todd's payout.
+  const totalFeesCents = totalRevenue - totalNetRevenue;
 
-  const totalRevenue =
-    stripeRevenue + fanbasisRevenue + fanbasisFallbackRevenue;
-
-  // Net = total minus Fanbasis fees. (We don't have Stripe fees handy
-  // because Stripe webhooks aren't logged the way Fanbasis ones are;
-  // Stripe gross is treated as net for now. This is fine — Stripe
-  // volume is tiny relative to Fanbasis high-ticket revenue.)
-  const totalNetRevenue = totalRevenue - fanbasisFeesCents;
-  void fanbasisNetCents; // explicit alternate path; using subtraction keeps Stripe parity simple
-
-  // Count real successful purchases: Stripe enrollments (one per
-  // checkout) + every successful Fanbasis transaction we saw in the
-  // webhook log (the source of truth for high-ticket sales — most of
-  // those buyers were imported as `manual-offline` so counting by
-  // enrollment.source would miss them).
-  const totalPaidPurchases =
-    stripeEnrollmentsForRevenue.length + fanbasisTxs.length;
+  const totalPaidPurchases = fanbasisTxs.length + stripeEnrollments.length;
 
   const completionRate = totalLessonsWithProgress > 0
     ? Math.round((completedLessons / totalLessonsWithProgress) * 100)
@@ -221,10 +200,41 @@ export default async function AnalyticsPage() {
   }
   const maxDayCount = Math.max(...days.map(d => d.count), 1);
 
-  // ── Per-student activity summary ─────────────────────────────────────────────
-  // Group quiz attempts by userId since the schema has no User->QuizAttempt back-relation.
-  const quizAttemptsByUser = new Map<string, typeof allQuizAttempts>();
-  for (const a of allQuizAttempts) {
+  // ── Real-customer filter ─────────────────────────────────────────────────
+  // A "real customer" is a STUDENT whose email shows up in the live
+  // Fanbasis transactions list with cumulative spend ≥ $1,000. This
+  // naturally excludes:
+  //   · orphaned quiz attempts (deleted users — userId still in
+  //     QuizAttempt but no User row; no email to match)
+  //   · admins (role gate)
+  //   · CJ-style $2-$3 test charges (under threshold)
+  //   · accounts that never paid (no Fanbasis match)
+  const fanbasisSpendByEmail = new Map<string, number>();
+  for (const t of fanbasisTxs) {
+    if (!t.email) continue;
+    fanbasisSpendByEmail.set(
+      t.email,
+      (fanbasisSpendByEmail.get(t.email) ?? 0) + t.grossCents
+    );
+  }
+  const REAL_CUSTOMER_THRESHOLD_CENTS = 100_000; // $1,000
+  const realCustomerUserIds = new Set<string>();
+  const userById = new Map<string, (typeof studentUsers)[number]>();
+  for (const u of studentUsers) {
+    userById.set(u.id, u);
+    const spend = fanbasisSpendByEmail.get(
+      (u.email ?? '').toLowerCase().trim()
+    );
+    if (spend != null && spend >= REAL_CUSTOMER_THRESHOLD_CENTS) {
+      realCustomerUserIds.add(u.id);
+    }
+  }
+
+  // Group quiz attempts by userId for per-student tallies (used by the
+  // Student Activity table). Unfiltered here — student-activity
+  // already only iterates STUDENT-role users.
+  const quizAttemptsByUser = new Map<string, typeof quizAttemptsRaw>();
+  for (const a of quizAttemptsRaw) {
     const list = quizAttemptsByUser.get(a.userId) ?? [];
     list.push(a);
     quizAttemptsByUser.set(a.userId, list);
@@ -271,29 +281,29 @@ export default async function AnalyticsPage() {
 
   const activeStudentCount = studentRows.filter((s) => s.lastActive).length;
 
-  // ── Quiz performance ─────────────────────────────────────────────────────────
-  const quizRows = quizStats
-    .map((q) => {
-      const completed = q.attempts.filter((a) => a.completedAt);
-      const passed = completed.filter((a) => a.passed);
-      const avgScore = completed.length > 0
-        ? Math.round(completed.reduce((sum, a) => sum + a.score, 0) / completed.length)
-        : null;
+  // ── Quiz results — real customers only ──────────────────────────────────
+  // Flat per-attempt rows: who took which quiz, when, and whether they
+  // passed. Filtered to confirmed paying customers so test/orphan
+  // attempts don't pollute the dashboard.
+  const realQuizAttempts = quizAttemptsRaw
+    .filter((a) => realCustomerUserIds.has(a.userId))
+    .map((a) => {
+      const u = userById.get(a.userId);
       return {
-        id: q.id,
-        title: q.title,
-        courseTitle: q.course?.title || '—',
-        passingScore: q.passingScore,
-        totalAttempts: q.attempts.length,
-        completedAttempts: completed.length,
-        passedAttempts: passed.length,
-        passRate: completed.length > 0 ? Math.round((passed.length / completed.length) * 100) : null,
-        avgScore,
+        id: a.id,
+        studentName: u?.name || u?.email || a.userId,
+        studentEmail: u?.email ?? null,
+        quizTitle: a.quiz.title,
+        courseTitle: a.quiz.course?.title ?? '—',
+        score: a.score,
+        passingScore: a.quiz.passingScore,
+        passed: a.passed,
+        when: a.completedAt ?? a.startedAt,
+        completed: !!a.completedAt,
       };
-    })
-    .sort((a, b) => b.totalAttempts - a.totalAttempts);
-
-  const quizzesPassedOverall = quizRows.reduce((s, q) => s + q.passedAttempts, 0);
+    });
+  const realAttemptsTotal = realQuizAttempts.length;
+  const realAttemptsPassed = realQuizAttempts.filter((r) => r.passed).length;
 
   function relative(date: Date | null): string {
     if (!date) return 'never';
@@ -315,50 +325,59 @@ export default async function AnalyticsPage() {
         <p className="text-gray-500 text-sm mt-1">Platform performance · last 30 days</p>
       </div>
 
-      {/* Top KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Revenue — surface gross + net (after Fanbasis fees) */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Revenue
-                </p>
-                <p className="text-2xl font-extrabold text-gray-900 mt-1 tabular-nums">
-                  {formatCurrency(totalRevenue)}
-                </p>
-                <p className="text-xs mt-1 flex items-baseline gap-1 flex-wrap">
-                  <span className="text-gray-400">Net</span>
-                  <span className="font-bold text-emerald-700 tabular-nums">
-                    {formatCurrency(totalNetRevenue)}
-                  </span>
-                  {fanbasisFeesCents > 0 && (
-                    <span className="text-gray-400">
-                      · {formatCurrency(fanbasisFeesCents)} fees
-                    </span>
-                  )}
-                </p>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  {totalPaidPurchases} purchases
-                  {fanbasisFeesResolvedFor < fanbasisTxs.length && (
-                    <span className="ml-1 text-amber-600">
-                      · {fanbasisTxs.length - fanbasisFeesResolvedFor} fee lookup
-                      {fanbasisTxs.length - fanbasisFeesResolvedFor === 1
-                        ? ''
-                        : 's'}{' '}
-                      pending
-                    </span>
-                  )}
-                </p>
+      {/* Revenue KPIs — gross / net / fees as three separate cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          {
+            label: 'Gross Revenue',
+            value: formatCurrency(totalRevenue),
+            icon: DollarSign,
+            color: 'bg-green-500',
+            sub: `${totalPaidPurchases} paid purchases · Stripe + Fanbasis`,
+          },
+          {
+            label: 'Net Revenue',
+            value: formatCurrency(totalNetRevenue),
+            icon: Wallet,
+            color: 'bg-emerald-600',
+            sub: 'Actually credited · per Fanbasis API',
+          },
+          {
+            label: 'Fees',
+            value: formatCurrency(totalFeesCents),
+            icon: Receipt,
+            color: 'bg-rose-500',
+            sub:
+              totalRevenue > 0
+                ? `${((totalFeesCents / totalRevenue) * 100).toFixed(1)}% of gross · processor + ClarityPay`
+                : 'Fanbasis processing fees',
+          },
+        ].map((stat) => (
+          <Card key={stat.label} className="overflow-hidden">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-extrabold text-gray-900 mt-1 tabular-nums">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">{stat.sub}</p>
+                </div>
+                <div
+                  className={`p-2.5 rounded-xl ${stat.color} shrink-0`}
+                >
+                  <stat.icon className="w-5 h-5 text-white" />
+                </div>
               </div>
-              <div className="p-2.5 rounded-xl bg-green-500 shrink-0">
-                <DollarSign className="w-5 h-5 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
+      {/* Engagement KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Total Students', value: totalUsers.toLocaleString(), icon: Users, color: 'bg-blue-500', sub: `+${newUsersThisMonth} this month` },
           { label: 'Total Enrollments', value: totalEnrollments.toLocaleString(), icon: GraduationCap, color: 'bg-purple-500', sub: `+${newEnrollmentsThisMonth} this month` },
@@ -448,57 +467,88 @@ export default async function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      {/* Quiz Performance */}
+      {/* Student Quiz Results — real customers only */}
       <Card>
         <CardContent className="p-0">
           <div className="px-6 py-4 border-b flex items-center justify-between gap-4 flex-wrap">
-            <h2 className="font-bold text-gray-900 flex items-center gap-2">
-              <FileQuestion className="w-5 h-5 text-maxxed-blue" />
-              Quiz Performance
-            </h2>
+            <div>
+              <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                <FileQuestion className="w-5 h-5 text-maxxed-blue" />
+                Student Quiz Results
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Paying customers only · test attempts and orphaned records hidden
+              </p>
+            </div>
             <div className="flex gap-6 text-sm">
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider">Total Attempts</p>
-                <p className="text-xl font-bold text-gray-900">{totalQuizAttempts.toLocaleString()}</p>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Attempts</p>
+                <p className="text-xl font-bold text-gray-900">{realAttemptsTotal.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider">Total Passes</p>
-                <p className="text-xl font-bold text-green-600">{quizzesPassedOverall.toLocaleString()}</p>
+                <p className="text-xs text-gray-400 uppercase tracking-wider">Passed</p>
+                <p className="text-xl font-bold text-green-600">{realAttemptsPassed.toLocaleString()}</p>
               </div>
             </div>
           </div>
-          {quizRows.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400 text-sm">No published quizzes yet</div>
+          {realQuizAttempts.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">
+              No customer quiz attempts yet
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    <th className="px-6 py-3">Quiz</th>
+                    <th className="px-6 py-3">Student</th>
+                    <th className="px-4 py-3">Quiz</th>
                     <th className="px-4 py-3">Course</th>
-                    <th className="px-4 py-3 text-right">Attempts</th>
-                    <th className="px-4 py-3 text-right">Passed</th>
-                    <th className="px-4 py-3 text-right">Pass Rate</th>
-                    <th className="px-4 py-3 text-right">Avg Score</th>
+                    <th className="px-4 py-3 text-right">Score</th>
+                    <th className="px-4 py-3 text-center">Result</th>
+                    <th className="px-4 py-3">When</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {quizRows.map((q) => (
-                    <tr key={q.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 font-medium text-gray-900">{q.title}</td>
-                      <td className="px-4 py-3 text-gray-500">{q.courseTitle}</td>
-                      <td className="px-4 py-3 text-right font-medium">{q.totalAttempts}</td>
-                      <td className="px-4 py-3 text-right text-green-600 font-medium">{q.passedAttempts}</td>
-                      <td className="px-4 py-3 text-right">
-                        {q.passRate === null
-                          ? <span className="text-gray-400">—</span>
-                          : <span className={q.passRate >= 70 ? 'text-green-600 font-semibold' : 'text-orange-600 font-semibold'}>{q.passRate}%</span>}
+                  {realQuizAttempts.map((a) => (
+                    <tr key={a.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3">
+                        <p className="font-medium text-gray-900">{a.studentName}</p>
+                        {a.studentEmail && a.studentEmail !== a.studentName && (
+                          <p className="text-xs text-gray-500">{a.studentEmail}</p>
+                        )}
                       </td>
+                      <td className="px-4 py-3 text-gray-700">{a.quizTitle}</td>
+                      <td className="px-4 py-3 text-gray-500">{a.courseTitle}</td>
                       <td className="px-4 py-3 text-right">
-                        {q.avgScore === null
-                          ? <span className="text-gray-400">—</span>
-                          : <span className={q.avgScore >= q.passingScore ? 'text-green-600' : 'text-orange-600'}>{q.avgScore}%</span>}
+                        <span
+                          className={
+                            a.score >= a.passingScore
+                              ? 'text-green-600 font-semibold tabular-nums'
+                              : 'text-orange-600 font-semibold tabular-nums'
+                          }
+                        >
+                          {a.score}%
+                        </span>
+                        <span className="text-xs text-gray-400 tabular-nums">
+                          {' '}/ {a.passingScore}%
+                        </span>
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        {!a.completed ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-[0.14em] bg-gray-100 text-gray-600 ring-1 ring-gray-200">
+                            In progress
+                          </span>
+                        ) : a.passed ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-[0.14em] bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                            Passed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-[0.14em] bg-red-50 text-red-700 ring-1 ring-red-200">
+                            Failed
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{relative(a.when)}</td>
                     </tr>
                   ))}
                 </tbody>

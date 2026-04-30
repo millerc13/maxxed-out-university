@@ -1,174 +1,155 @@
-import { prisma } from '@/lib/prisma';
+/**
+ * Source of truth for Fanbasis revenue numbers.
+ *
+ * Backed by Fanbasis's `GET /public-api/checkout-sessions/transactions`
+ * list endpoint, which returns every successful transaction for the
+ * creator with per-tx `fee_amount` and `net_amount` already computed
+ * by Fanbasis itself. We do NOT compute fees ourselves anymore — the
+ * API's `net_amount` is what actually landed in Todd's account, full
+ * stop. This means we capture ClarityPay financing splits, processor
+ * fees, and platform fees correctly without touching them.
+ *
+ * Webhook logs are still useful for real-time event handling (e.g.
+ * tagging GHL contacts as Sales the moment a payment lands), but for
+ * any "what's our total revenue" question, ask this module.
+ */
 
-export type FanbasisTx = {
-  /** ULID-style id (e.g. 01KPS5DMEED…). What's stored in
-   *  Enrollment.transactionId and what the webhook payload calls
-   *  `payment_id`. */
-  paymentId: string;
-  /** Numeric id (e.g. 1783818). The Fanbasis public transactions API
-   *  expects THIS one, not the ULID. Available in
-   *  `payment.succeeded` events; absent in `product.purchased` so
-   *  we may not have it for every successful transaction. */
-  transactionHistoryId: number | null;
+const LIST_URL =
+  'https://www.fanbasis.com/public-api/checkout-sessions/transactions';
+
+export type FanbasisTransaction = {
+  /** Numeric transaction history id, used for `GET /transactions/:id`. */
+  id: number;
+  /** Buyer email, normalized lowercase. */
   email: string;
-  cents: number;
-  /** Processing fee Fanbasis charged for this transaction, in cents.
-   *  Null when the API lookup failed or wasn't run. */
-  feeCents?: number | null;
-  /** What actually landed in Todd's account, in cents (gross − fee).
-   *  Null when the API lookup failed or wasn't run. */
-  netCents?: number | null;
+  /** Buyer name. */
+  name: string;
+  /** Gross paid by the buyer, in cents. */
+  grossCents: number;
+  /**
+   * Just the processor fee Fanbasis itemized — typically Stripe's
+   * 2.9% + $0.30. Does NOT include ClarityPay financing splits or
+   * Fanbasis platform fees. For "total fees" use `grossCents − netCents`.
+   */
+  feeCents: number;
+  /** What was actually credited to Todd. Authoritative. */
+  netCents: number;
+  /** ISO timestamp of the transaction. */
+  date: string;
+  /** Product title at time of sale. */
+  productTitle: string;
 };
 
-/**
- * Loads every successful Fanbasis transaction from the WebhookLog table,
- * deduped by `payment_id`. Fanbasis fires two events per purchase
- * (`payment.succeeded` and `product.purchased`) — only one slot per
- * payment_id is kept.
- *
- * Amounts in Fanbasis webhooks are in DOLLARS (e.g. `amount: 6000`
- * means $6,000), so we convert to cents on the way out.
- *
- * Returns a list of transactions that callers can index by paymentId
- * (== Enrollment.transactionId) or by buyer email — whichever they
- * trust more. Email-based matching can miss buyers whose Fanbasis
- * checkout email differs from their university account email (typos,
- * partner accounts, etc.); paymentId-based matching is exact.
- */
-export async function getSuccessfulFanbasisTransactions(): Promise<FanbasisTx[]> {
-  const events = await prisma.webhookLog.findMany({
-    where: {
-      source: 'fanbasis',
-      event: { in: ['payment.succeeded', 'product.purchased'] },
-      status: 'received',
-    },
-    select: { id: true, payload: true },
-  });
+type ListResponse = {
+  status?: string;
+  data?: {
+    transactions?: Array<{
+      id?: number | string;
+      fan?: { email?: string; name?: string };
+      service?: { price?: string | number; title?: string };
+      product?: { title?: string };
+      amount?: number | string;
+      fee_amount?: number | string;
+      net_amount?: number | string;
+      transaction_date?: string;
+    }>;
+    pagination?: {
+      current_page?: number;
+      total_pages?: number;
+      has_more?: boolean;
+    };
+  };
+};
 
-  const byPaymentId = new Map<string, FanbasisTx>();
-
-  for (const ev of events) {
-    const top = ev.payload as { data?: Record<string, unknown> } | null;
-    const data = (top?.data ?? top) as Record<string, unknown> | null;
-    if (!data) continue;
-    if (data.status !== 'succeeded') continue;
-
-    const buyer = data.buyer as { email?: string } | undefined;
-    const email = buyer?.email?.toLowerCase().trim() ?? '';
-    const paymentId = (data.payment_id as string | undefined)?.trim();
-    if (!paymentId) continue;
-
-    // amount is in dollars (USD). Some events have `amount`, others
-    // only `total_price` or `product_price` — pick the first defined.
-    const dollars =
-      (data.amount as number | undefined) ??
-      (data.total_price as number | undefined) ??
-      (data.product_price as number | undefined);
-    if (typeof dollars !== 'number' || !Number.isFinite(dollars) || dollars <= 0) {
-      continue;
-    }
-
-    const cents = Math.round(dollars * 100);
-
-    // `transaction_history_id` is in `payment.succeeded` events but
-    // typically not in `product.purchased`. We merge across both
-    // events for the same payment_id so we keep whichever entry has
-    // the numeric ID (the public API needs it).
-    const rawHistoryId = data.transaction_history_id;
-    const transactionHistoryId =
-      typeof rawHistoryId === 'number' && Number.isFinite(rawHistoryId)
-        ? rawHistoryId
-        : null;
-
-    const existing = byPaymentId.get(paymentId);
-    byPaymentId.set(paymentId, {
-      paymentId,
-      transactionHistoryId:
-        transactionHistoryId ?? existing?.transactionHistoryId ?? null,
-      email,
-      cents,
-    });
-  }
-
-  return [...byPaymentId.values()];
+function dollarsToCents(v: number | string | null | undefined): number {
+  if (v == null) return 0;
+  const n = typeof v === 'string' ? parseFloat(v) : v;
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100);
 }
 
 /**
- * Pull processor-fee details for a single Fanbasis payment from their
- * public API. Returns null on any failure so callers can fall back to
- * the gross figure they already have.
+ * Fetch every successful Fanbasis transaction. Paginated under the
+ * hood (100/page, max 100 pages = 10k transactions before we bail
+ * out — far beyond what's plausible for one creator). Cached 5 min
+ * via Next.js fetch.
  *
- * IMPORTANT — the API expects the *numeric* `transaction_history_id`
- * (e.g. 1783818), NOT the ULID `payment_id` (01KP…). The ULID returns
- * 400 "Invalid transaction ID".
+ * Returns an empty array (not an error) when the API key isn't
+ * configured or the API call fails — callers should treat zero as
+ * "no data" without crashing.
  *
- * Fanbasis returns amounts in DOLLARS — we convert to cents to match
- * everything else in this codebase.
- *
- * Cached for 10 minutes via Next.js fetch — fees on a given
- * transaction don't change after the fact.
+ * The transactions API hits live data, so we need the live key. In
+ * prod `FANBASIS_API_KEY` IS the live key; in local dev it's typically
+ * the sandbox key, so we check `FANBASIS_REAL_KEY` first as an
+ * explicit override the developer can set in `.env.local`.
  */
-export async function fetchFanbasisTransactionFees(
-  transactionHistoryId: number
-): Promise<{ feeCents: number; netCents: number } | null> {
-  // The transactions API hits live data, so we need the real key. In
-  // prod `FANBASIS_API_KEY` already IS the live key; in local dev it's
-  // typically the sandbox key, so check `FANBASIS_REAL_KEY` first as
-  // an explicit override the developer can set in `.env.local`.
+export async function listFanbasisTransactions(): Promise<
+  FanbasisTransaction[]
+> {
   const apiKey = (
     process.env.FANBASIS_REAL_KEY ?? process.env.FANBASIS_API_KEY
   )?.trim();
-  if (!apiKey || !transactionHistoryId) return null;
+  if (!apiKey) return [];
 
-  try {
-    const res = await fetch(
-      `https://www.fanbasis.com/public-api/transactions/${transactionHistoryId}`,
-      {
-        headers: { 'x-api-key': apiKey, Accept: 'application/json' },
-        next: { revalidate: 600 },
-      }
-    );
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      status?: string;
-      data?: { fee_amount?: number; net_amount?: number };
-    };
-    if (json.status !== 'success' || !json.data) return null;
-    const fee = json.data.fee_amount;
-    const net = json.data.net_amount;
-    if (typeof fee !== 'number' || typeof net !== 'number') return null;
-    return {
-      feeCents: Math.round(fee * 100),
-      netCents: Math.round(net * 100),
-    };
-  } catch {
-    return null;
+  const out: FanbasisTransaction[] = [];
+  let page = 1;
+  // Hard upper bound to keep a runaway pagination from hanging the
+  // request. 100 pages × 100 per page = 10,000 txs — well above
+  // anything we'd realistically hit.
+  const PAGE_LIMIT = 100;
+
+  while (page <= PAGE_LIMIT) {
+    let json: ListResponse;
+    try {
+      const res = await fetch(
+        `${LIST_URL}?per_page=100&page=${page}`,
+        {
+          headers: { 'x-api-key': apiKey, Accept: 'application/json' },
+          next: { revalidate: 300 },
+        }
+      );
+      if (!res.ok) break;
+      json = (await res.json()) as ListResponse;
+    } catch {
+      break;
+    }
+
+    if (json.status !== 'success' || !json.data?.transactions) break;
+
+    for (const t of json.data.transactions) {
+      const id = typeof t.id === 'string' ? parseInt(t.id, 10) : t.id;
+      if (typeof id !== 'number' || !Number.isFinite(id)) continue;
+      out.push({
+        id,
+        email: (t.fan?.email ?? '').toLowerCase().trim(),
+        name: t.fan?.name ?? '',
+        grossCents: dollarsToCents(t.amount ?? t.service?.price),
+        feeCents: dollarsToCents(t.fee_amount),
+        netCents: dollarsToCents(t.net_amount),
+        date: t.transaction_date ?? '',
+        productTitle: t.product?.title ?? t.service?.title ?? '',
+      });
+    }
+
+    if (!json.data.pagination?.has_more) break;
+    page++;
   }
+
+  return out;
 }
 
 /**
- * Fetch every successful Fanbasis transaction AND enrich each with
- * fee/net data from the Fanbasis transactions API. Used by the admin
- * analytics revenue card to show gross vs. actually-received revenue.
- *
- * Transactions without a `transaction_history_id` (e.g. only seen in
- * a `product.purchased` event) get null fee/net — caller should
- * surface them as "fee lookup unavailable".
+ * Per-email "total spent" lookup, sourced from the Fanbasis list API.
+ * Used by the admin Messages page to surface real money spent per
+ * contact based on actual successful transactions, not the
+ * pre-discount `originalPrice` snapshot stored on the Enrollment row.
  */
-export async function getEnrichedFanbasisTransactions(): Promise<FanbasisTx[]> {
-  const txs = await getSuccessfulFanbasisTransactions();
-  const enriched = await Promise.all(
-    txs.map(async (t) => {
-      if (!t.transactionHistoryId) {
-        return { ...t, feeCents: null, netCents: null };
-      }
-      const fees = await fetchFanbasisTransactionFees(t.transactionHistoryId);
-      return {
-        ...t,
-        feeCents: fees?.feeCents ?? null,
-        netCents: fees?.netCents ?? null,
-      };
-    })
-  );
-  return enriched;
+export async function getFanbasisSpendByEmail(): Promise<Map<string, number>> {
+  const txs = await listFanbasisTransactions();
+  const out = new Map<string, number>();
+  for (const t of txs) {
+    if (!t.email) continue;
+    out.set(t.email, (out.get(t.email) ?? 0) + t.grossCents);
+  }
+  return out;
 }

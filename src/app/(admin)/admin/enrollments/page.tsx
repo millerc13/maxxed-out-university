@@ -5,8 +5,14 @@ import { EnrollUserButton } from '@/components/admin/EnrollUserButton';
 import { DeleteEnrollmentButton } from '@/components/admin/DeleteEnrollmentButton';
 
 export default async function AdminEnrollmentsPage() {
+  // Top-level enrollments only — bundle children are auto-created
+  // when someone buys a bundle (one purchase → 30+ Enrollment rows),
+  // so showing them here is noise. Keeping `bundleId: null` keeps
+  // standalone courses + bundle parents, which is what an admin
+  // actually thinks of as "what did this customer buy".
   const [enrollments, courses, users] = await Promise.all([
     prisma.enrollment.findMany({
+      where: { course: { bundleId: null } },
       include: {
         user: { select: { id: true, email: true, name: true } },
         course: { select: { id: true, title: true, slug: true } },
@@ -38,45 +44,22 @@ export default async function AdminEnrollmentsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <GraduationCap className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{enrollments.length}</p>
-              <p className="text-sm text-gray-500">Total Enrollments</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <GraduationCap className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {enrollments.filter((e) => e.source === 'ghl').length}
-              </p>
-              <p className="text-sm text-gray-500">From GHL</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <GraduationCap className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {enrollments.filter((e) => e.source === 'manual').length}
-              </p>
-              <p className="text-sm text-gray-500">Manual</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className="p-3 bg-green-100 rounded-lg">
+            <GraduationCap className="w-6 h-6 text-green-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{enrollments.length}</p>
+            <p className="text-sm text-gray-500">
+              Total Enrollments{' '}
+              <span className="text-xs text-gray-400">
+                · top-level purchases only, bundle children excluded
+              </span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Mobile card stack */}
       <div className="md:hidden space-y-3">
@@ -85,24 +68,11 @@ export default async function AdminEnrollmentsPage() {
             key={enrollment.id}
             className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
           >
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-gray-900 truncate">
-                  {enrollment.user.name || enrollment.user.email}
-                </p>
-                <p className="text-xs text-gray-500 truncate">{enrollment.user.email}</p>
-              </div>
-              <span
-                className={`shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${
-                  enrollment.source === 'ghl'
-                    ? 'bg-blue-100 text-blue-700'
-                    : enrollment.source === 'manual'
-                      ? 'bg-purple-100 text-purple-700'
-                      : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {enrollment.source || 'unknown'}
-              </span>
+            <div className="mb-2">
+              <p className="font-medium text-gray-900 truncate">
+                {enrollment.user.name || enrollment.user.email}
+              </p>
+              <p className="text-xs text-gray-500 truncate">{enrollment.user.email}</p>
             </div>
             <p className="text-sm font-semibold text-gray-700 mb-1">
               {enrollment.course.title}
@@ -140,9 +110,6 @@ export default async function AdminEnrollmentsPage() {
                     Course
                   </th>
                   <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">
-                    Source
-                  </th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">
                     Enrolled
                   </th>
                   <th className="text-right px-6 py-3 text-sm font-medium text-gray-500">
@@ -165,19 +132,6 @@ export default async function AdminEnrollmentsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-medium">{enrollment.course.title}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 text-xs rounded font-medium ${
-                          enrollment.source === 'ghl'
-                            ? 'bg-blue-100 text-blue-700'
-                            : enrollment.source === 'manual'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {enrollment.source || 'unknown'}
-                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(enrollment.enrolledAt).toLocaleDateString()}
