@@ -674,10 +674,12 @@ function SectionContainer({
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Show/hide + delete are desktop-only — mobile keeps just the
+              pencil so section titles aren't crowded by 3 icons. */}
           <button
             type="button"
             onClick={onTogglePublished}
-            className="p-2 text-gray-500 hover:text-maxxed-blue hover:bg-gray-100 rounded-lg"
+            className="hidden md:inline-flex p-2 text-gray-500 hover:text-maxxed-blue hover:bg-gray-100 rounded-lg"
             title={section.published ? 'Hide section' : 'Show section'}
           >
             {section.published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -697,7 +699,7 @@ function SectionContainer({
           <button
             type="button"
             onClick={onDelete}
-            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+            className="hidden md:inline-flex p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
             title="Delete section"
           >
             <Trash2 className="w-4 h-4" />
@@ -826,24 +828,30 @@ function SortableCourseRow({ course }: { course: CourseLite }) {
         </p>
       </div>
 
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1">
+        {/* Edit pencil — always visible on mobile, hover-reveal on desktop. */}
         <Link
           href={`/admin/courses/${course.id}`}
-          className="p-1.5 text-gray-500 hover:text-maxxed-blue hover:bg-white rounded"
+          className="p-1.5 text-gray-500 hover:text-maxxed-blue hover:bg-white rounded md:opacity-0 md:group-hover:opacity-100 md:transition-opacity"
           title="Edit course"
         >
           <Edit className="w-4 h-4" />
         </Link>
+        {/* View + Delete — desktop only (hover-revealed). On mobile they
+            stay hidden so the row isn't cluttered; long-press / tap-into
+            the editor to access them. */}
         <Link
           href={course.externalUrl || `/courses/${course.slug}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-white rounded"
+          className="hidden md:inline-flex p-1.5 text-gray-500 hover:text-green-600 hover:bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
           title="View course"
         >
           {course.externalUrl ? <ExternalLink className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </Link>
-        <DeleteCourseButton courseId={course.id} courseTitle={course.title} />
+        <div className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity">
+          <DeleteCourseButton courseId={course.id} courseTitle={course.title} />
+        </div>
       </div>
     </div>
   );
