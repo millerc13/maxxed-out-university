@@ -155,18 +155,20 @@ function SectionShell({
   icon: React.ReactNode;
   children: React.ReactNode;
 }) {
+  // Same layout the home page (CoursesSection) uses: icon + title on
+  // their own line, description as a normal paragraph below — reads
+  // cleanly at every width. The previous flex-row treatment crammed
+  // an inline divider rule between title and description and broke
+  // on mobile.
   return (
-    <section>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex items-center gap-2">
+    <section className="mb-12">
+      <div className="mb-6">
+        <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 mb-1 flex items-center gap-3">
           {icon}
-          <h2 className="text-2xl font-extrabold tracking-tight text-gray-900">{title}</h2>
-        </div>
-        <div className="flex-1 h-px bg-[#0000CC]/15" />
+          {title}
+        </h2>
         {description && (
-          <span className="text-[11px] font-bold uppercase tracking-widest text-[#0000CC]/50">
-            {description}
-          </span>
+          <p className="text-text-body ml-9">{description}</p>
         )}
       </div>
       {children}
