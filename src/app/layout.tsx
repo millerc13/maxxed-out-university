@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   // the Header's blue brand border at the very top in standalone mode.
   appleWebApp: {
     capable: true,
-    title: 'Maxxed Out',
+    title: 'Maxxed Out University',
     statusBarStyle: 'default',
   },
   // Favicon / install icons. iOS uses apple-touch-180 from the home
