@@ -42,7 +42,7 @@ export function Header() {
   const userInitial = userName.charAt(0).toUpperCase();
 
   return (
-    <header className="bg-white shadow-header sticky top-0 z-50">
+    <header className="bg-white border-t-4 border-maxxed-blue shadow-header sticky top-0 z-50">
       <div className="flex justify-between items-center px-5 md:px-10 py-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 text-2xl font-extrabold text-text-dark no-underline">
