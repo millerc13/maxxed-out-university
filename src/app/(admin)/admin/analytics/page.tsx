@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent } from '@/components/ui/card';
-import { getSuccessfulFanbasisTransactions } from '@/lib/fanbasis-spend';
+import { getEnrichedFanbasisTransactions } from '@/lib/fanbasis-spend';
 
 // Always render fresh — enrollment and completion data changes constantly;
 // a cached snapshot is worse than a 300ms DB query on every admin visit.
@@ -129,8 +129,10 @@ export default async function AnalyticsPage() {
     prisma.quizAttempt.findMany({
       select: { userId: true, passed: true, completedAt: true, score: true },
     }),
-    // Real successful Fanbasis transactions, sourced from webhook logs.
-    getSuccessfulFanbasisTransactions(),
+    // Real successful Fanbasis transactions, sourced from webhook logs
+    // and enriched with per-transaction fee/net amounts via the
+    // Fanbasis API. Lets us show gross + net (after fees) revenue.
+    getEnrichedFanbasisTransactions(),
   ]);
 
   // ── Revenue ──────────────────────────────────────────────────────────────
@@ -138,6 +140,22 @@ export default async function AnalyticsPage() {
   // payment_id in the helper), authoritative because amounts come from
   // the webhook payloads themselves.
   const fanbasisRevenue = fanbasisTxs.reduce((sum, t) => sum + t.cents, 0);
+
+  // Fees + net (post-fee) revenue, sourced per-transaction from the
+  // Fanbasis API. If the API call fell over for any tx, we count that
+  // tx's gross as its own net (rather than zero) so the headline number
+  // doesn't lie about how much money came in.
+  const fanbasisFeesCents = fanbasisTxs.reduce(
+    (sum, t) => sum + (t.feeCents ?? 0),
+    0
+  );
+  const fanbasisNetCents = fanbasisTxs.reduce(
+    (sum, t) => sum + (t.netCents ?? t.cents),
+    0
+  );
+  const fanbasisFeesResolvedFor = fanbasisTxs.filter(
+    (t) => t.feeCents != null
+  ).length;
 
   // Stripe: prefer `originalPrice` snapshot; fall back to course list
   // price (works for old enrollments that pre-date the snapshot column).
@@ -170,9 +188,20 @@ export default async function AnalyticsPage() {
   const totalRevenue =
     stripeRevenue + fanbasisRevenue + fanbasisFallbackRevenue;
 
+  // Net = total minus Fanbasis fees. (We don't have Stripe fees handy
+  // because Stripe webhooks aren't logged the way Fanbasis ones are;
+  // Stripe gross is treated as net for now. This is fine — Stripe
+  // volume is tiny relative to Fanbasis high-ticket revenue.)
+  const totalNetRevenue = totalRevenue - fanbasisFeesCents;
+  void fanbasisNetCents; // explicit alternate path; using subtraction keeps Stripe parity simple
+
+  // Count real successful purchases: Stripe enrollments (one per
+  // checkout) + every successful Fanbasis transaction we saw in the
+  // webhook log (the source of truth for high-ticket sales — most of
+  // those buyers were imported as `manual-offline` so counting by
+  // enrollment.source would miss them).
   const totalPaidPurchases =
-    stripeEnrollmentsForRevenue.length +
-    paidEnrollments.filter((e) => e.source === 'fanbasis').length;
+    stripeEnrollmentsForRevenue.length + fanbasisTxs.length;
 
   const completionRate = totalLessonsWithProgress > 0
     ? Math.round((completedLessons / totalLessonsWithProgress) * 100)
@@ -288,8 +317,49 @@ export default async function AnalyticsPage() {
 
       {/* Top KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Revenue — surface gross + net (after Fanbasis fees) */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Revenue
+                </p>
+                <p className="text-2xl font-extrabold text-gray-900 mt-1 tabular-nums">
+                  {formatCurrency(totalRevenue)}
+                </p>
+                <p className="text-xs mt-1 flex items-baseline gap-1 flex-wrap">
+                  <span className="text-gray-400">Net</span>
+                  <span className="font-bold text-emerald-700 tabular-nums">
+                    {formatCurrency(totalNetRevenue)}
+                  </span>
+                  {fanbasisFeesCents > 0 && (
+                    <span className="text-gray-400">
+                      · {formatCurrency(fanbasisFeesCents)} fees
+                    </span>
+                  )}
+                </p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {totalPaidPurchases} purchases
+                  {fanbasisFeesResolvedFor < fanbasisTxs.length && (
+                    <span className="ml-1 text-amber-600">
+                      · {fanbasisTxs.length - fanbasisFeesResolvedFor} fee lookup
+                      {fanbasisTxs.length - fanbasisFeesResolvedFor === 1
+                        ? ''
+                        : 's'}{' '}
+                      pending
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-green-500 shrink-0">
+                <DollarSign className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {[
-          { label: 'Revenue', value: formatCurrency(totalRevenue), icon: DollarSign, color: 'bg-green-500', sub: `${totalPaidPurchases} paid purchases · Stripe + Fanbasis` },
           { label: 'Total Students', value: totalUsers.toLocaleString(), icon: Users, color: 'bg-blue-500', sub: `+${newUsersThisMonth} this month` },
           { label: 'Total Enrollments', value: totalEnrollments.toLocaleString(), icon: GraduationCap, color: 'bg-purple-500', sub: `+${newEnrollmentsThisMonth} this month` },
           { label: 'Completion Rate', value: `${completionRate}%`, icon: TrendingUp, color: 'bg-orange-500', sub: `${completedLessons.toLocaleString()} lessons done` },
