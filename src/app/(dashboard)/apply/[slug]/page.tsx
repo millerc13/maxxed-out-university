@@ -74,28 +74,28 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     <>
       <Header />
       <main className="min-h-screen bg-[#f5f5f7] py-10 px-5 md:px-10">
-        <div className="text-center mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[3px] text-maxxed-blue mb-2">
-            Apply for
-          </p>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-text-dark">{course.title}</h1>
-          <p className="text-text-body mt-2 max-w-xl mx-auto">
-            A few quick questions so Todd&rsquo;s team can pre-qualify you for this program.
-          </p>
+        <div className="mx-auto w-full max-w-3xl">
+          <div className="text-center mb-8">
+            <p className="text-xs font-semibold uppercase tracking-[3px] text-maxxed-blue mb-2">
+              Apply for
+            </p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-text-dark">
+              {course.title}
+            </h1>
+            <p className="text-text-body mt-2 max-w-xl mx-auto">
+              A few quick questions so Todd&rsquo;s team can pre-qualify you for this program.
+            </p>
+          </div>
+          <ApplyWizardOnPlatform
+            course={{
+              id: course.id,
+              title: course.title,
+              slug: course.slug,
+              price: course.price,
+              checkoutAfterApply: course.checkoutAfterApply,
+            }}
+          />
         </div>
-        <ApplyWizardOnPlatform
-          course={{
-            id: course.id,
-            title: course.title,
-            slug: course.slug,
-            thumbnail: course.thumbnail,
-            price: course.price,
-            checkoutAfterApply: course.checkoutAfterApply,
-          }}
-          stripePublishableKey={stripePublishableKey}
-          enabledProviders={enabledProviders.length > 0 ? enabledProviders : ['stripe']}
-          promoEnabled={promoEnabled}
-        />
       </main>
       <Footer />
     </>

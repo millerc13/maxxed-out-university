@@ -29,11 +29,14 @@ export function CourseEditor({ course }: CourseEditorProps) {
     published: course?.published || false,
     comingSoon: course?.comingSoon || false,
     price: course?.price ? String(course.price / 100) : '',
-    applyMode: !!course?.externalUrl,
+    applyMode: course?.applyMode ?? !!course?.externalUrl,
     externalUrl: course?.externalUrl || '',
     checkoutAfterApply: !!course?.checkoutAfterApply,
     notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
     heroStats: Array.isArray(course?.heroStats) ? course.heroStats : [],
+    checkoutBullets: Array.isArray(course?.checkoutBullets)
+      ? (course.checkoutBullets as string[]).filter((s) => typeof s === 'string')
+      : [],
   });
 
   // Whether the *draft* (not the saved course) is in apply-only mode.

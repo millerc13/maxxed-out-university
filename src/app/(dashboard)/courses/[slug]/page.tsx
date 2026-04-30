@@ -172,11 +172,14 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
   ]);
   const isHighTicketCoaching = HIGH_TICKET_SLUGS.has(course.slug);
   // The course's "buy" CTA routes through /apply/[slug] (qualifying
-  // questions, optionally followed by checkout) when either the new
-  // course-level toggle is on OR the slug is in the legacy high-ticket
-  // list. Either path keeps existing courses behaving as they do today.
+  // questions, optionally followed by checkout) when any of:
+  //   · the new course-level applyMode toggle is on
+  //   · checkoutAfterApply is on (apply form ends in payment)
+  //   · the slug is in the legacy high-ticket list
   const usesApplyFlow =
-    (course as any).checkoutAfterApply === true || isHighTicketCoaching;
+    (course as any).applyMode === true ||
+    (course as any).checkoutAfterApply === true ||
+    isHighTicketCoaching;
 
   // Bundle gating — module is locked until prior-module quiz is passed.
   // No-op for non-bundle courses and for admins.

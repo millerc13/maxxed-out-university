@@ -17,6 +17,9 @@ interface FunnelCheckoutProps {
   coursePrice: number;
   courseSlug: string;
   courseThumbnail?: string | null;
+  /** Per-course bullet list shown in the dark "What's Included" panel.
+   *  Empty array → falls back to legacy hardcoded defaults. */
+  checkoutBullets?: string[];
   promoEnabled?: boolean;
   enabledProviders?: string[];
   accentColor?: string;
@@ -25,6 +28,14 @@ interface FunnelCheckoutProps {
   prefillName?: string | null;
   prefillPhone?: string | null;
 }
+
+const DEFAULT_CHECKOUT_BULLETS = [
+  'Immediate access upon enrollment',
+  'Dedicated 1-on-1 time with Todd',
+  'Certificate of completion',
+  'Lifetime access on all devices',
+  '30-day money back guarantee',
+];
 
 interface ContactInfo {
   firstName: string;
@@ -173,6 +184,7 @@ export function FunnelCheckout({
   coursePrice: coursePriceProp,
   courseSlug,
   courseThumbnail,
+  checkoutBullets,
   promoEnabled = false,
   enabledProviders = ['stripe'],
   accentColor = '#D4AF37',
@@ -395,13 +407,10 @@ export function FunnelCheckout({
             What&apos;s Included
           </p>
           <ul className="space-y-2.5 flex-1">
-            {[
-              'Immediate access upon enrollment',
-              'Dedicated 1-on-1 time with Todd',
-              'Certificate of completion',
-              'Lifetime access on all devices',
-              '30-day money back guarantee',
-            ].map((item) => (
+            {(checkoutBullets && checkoutBullets.length > 0
+              ? checkoutBullets
+              : DEFAULT_CHECKOUT_BULLETS
+            ).map((item) => (
               <li key={item} className="flex items-start gap-2.5">
                 <Check className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-white/50" strokeWidth={3} />
                 <span className="text-white/70 text-[13px] leading-snug">{item}</span>

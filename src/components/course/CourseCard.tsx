@@ -16,6 +16,7 @@ interface CourseCardProps {
   comingSoon?: boolean;
   price?: number | null;
   externalUrl?: string;
+  applyMode?: boolean;
   shortDesc?: string | null;
   // True when the current user already owns this course (direct enrollment
   // or via a parent bundle). Replaces the price/Apply badge with an
@@ -34,10 +35,16 @@ export function CourseCard({
   comingSoon = false,
   price,
   externalUrl,
+  applyMode,
   shortDesc,
   enrolled = false,
 }: CourseCardProps) {
   const [showLearning, setShowLearning] = useState(false);
+
+  // Apply Now is shown whenever the course is in apply mode, regardless of
+  // whether an external URL is set. Without one, the click goes to the
+  // on-platform /apply/[slug] flow.
+  const isApply = applyMode || !!externalUrl;
 
   const cardContent = (
     <div className={`bg-white rounded-xl overflow-hidden shadow-card transition-all duration-300 h-full flex flex-col ${
@@ -87,7 +94,7 @@ export function CourseCard({
               <CheckCircle className="w-3 h-3" /> Enrolled
             </span>
           </div>
-        ) : !comingSoon && externalUrl ? (
+        ) : !comingSoon && isApply ? (
           <div className="absolute top-3 right-3">
             <span className="bg-maxxed-blue text-white px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
               Apply
@@ -180,9 +187,9 @@ export function CourseCard({
             <span className="inline-flex items-center gap-2 px-8 py-3 border-2 border-green-600 bg-green-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-all duration-300 hover:bg-green-700 hover:border-green-700">
               <Play className="w-3.5 h-3.5" /> Continue
             </span>
-          ) : externalUrl ? (
+          ) : isApply ? (
             <span className="inline-flex items-center gap-2 px-8 py-3 border-2 border-maxxed-blue bg-maxxed-blue text-white text-xs font-bold uppercase tracking-wider rounded transition-all duration-300 hover:bg-maxxed-blue-dark hover:border-maxxed-blue-dark">
-              Apply Now <ExternalLink className="w-3.5 h-3.5" />
+              Apply Now {externalUrl && <ExternalLink className="w-3.5 h-3.5" />}
             </span>
           ) : (
             <span className="inline-block px-8 py-3 border-2 border-maxxed-blue text-maxxed-blue text-xs font-bold uppercase tracking-wider no-underline rounded transition-all duration-300 hover:bg-maxxed-blue hover:text-white">
@@ -208,6 +215,9 @@ export function CourseCard({
     );
   }
 
+  // Default — route to the course detail page. Apply-mode courses (no
+  // external URL) ALSO go here first, so the visitor sees the course
+  // overview + description before clicking through to the apply form.
   return (
     <Link href={`/courses/${slug}`} className="block no-underline h-full">
       {cardContent}

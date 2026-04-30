@@ -1,7 +1,23 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Loader2, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useForm, Controller, type SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { Button } from "./ui/Button";
+import { Input, Textarea, Label, FieldError } from "./ui/Input";
+import { RadioGroup, RadioCard } from "./ui/RadioGroup";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/Select";
+import { ProgressBar } from "./ProgressBar";
 import {
   applicationSchema,
   revenueOptions,
@@ -11,550 +27,510 @@ import {
   commitmentOptions,
   heardAboutOptions,
   type ApplicationPayload,
-} from '@/lib/apply-schema';
-import { FunnelCheckout } from '@/components/checkout/FunnelCheckout';
+} from "@/lib/apply-schema";
+import { cn } from "@/lib/cn";
 
-const STEP_LABELS = ['Your Info', 'Your Business', 'Your Goals', 'Your Fit'];
+const STORAGE_KEY = "maxxed-apply-onplatform-draft-v1";
+const STEP_LABELS = ["Your Info", "Your Business", "Your Goals", "Your Fit"];
 const TIME_SLOTS = [
-  'Weekday Mornings',
-  'Weekday Afternoons',
-  'Weekday Evenings',
-  'Weekends',
+  "Weekday Mornings",
+  "Weekday Afternoons",
+  "Weekday Evenings",
+  "Weekends",
 ];
 
-interface Course {
+type FieldKeys = (keyof ApplicationPayload)[];
+const STEP_FIELDS: FieldKeys[] = [
+  ["name", "email", "phone", "businessName", "website"],
+  ["revenue", "teamSize", "industry"],
+  ["bottleneck", "vision"],
+  ["commitment", "bestTimes", "heardAbout"],
+];
+
+interface CourseLite {
   id: string;
-  title: string;
   slug: string;
-  thumbnail: string | null;
+  title: string;
   price: number | null;
   checkoutAfterApply: boolean;
 }
 
-interface Props {
-  course: Course;
-  stripePublishableKey: string;
-  enabledProviders: string[];
-  promoEnabled: boolean;
+interface ApplyWizardOnPlatformProps {
+  course: CourseLite;
 }
 
-type FormState = ApplicationPayload;
+function QualifiedInterstitial() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white"
+    >
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, rgba(0,0,255,0.06), transparent 60%)",
+        }}
+      />
+      <div className="relative flex flex-col items-center text-center px-6 max-w-lg">
+        <div className="relative">
+          <motion.span
+            aria-hidden
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: [0.6, 1.15, 1], opacity: [0, 0.6, 0.3] }}
+            transition={{ duration: 1.4, ease: "easeOut" }}
+            className="absolute inset-0 rounded-full bg-maxxed-blue/20 blur-xl"
+          />
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="relative flex h-24 w-24 md:h-28 md:w-28 items-center justify-center rounded-full bg-maxxed-blue shadow-[0_20px_60px_rgba(0,0,255,0.35)]"
+          >
+            <svg
+              viewBox="0 0 52 52"
+              className="h-12 w-12 md:h-14 md:w-14 text-white"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <motion.path
+                d="M14 27 L23 36 L40 18"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ delay: 0.35, duration: 0.55, ease: "easeOut" }}
+              />
+            </svg>
+          </motion.div>
+        </div>
+        <motion.h2
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+          className="mt-8 font-extrabold uppercase tracking-[-0.01em] text-text-dark leading-[1.05]"
+          style={{ fontSize: "clamp(28px, 4.5vw, 44px)" }}
+        >
+          You&apos;re a fit.
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.85, duration: 0.5 }}
+          className="mt-3 text-text-body text-[15px] md:text-base leading-relaxed"
+        >
+          Application received. Securing your spot and preparing checkout&hellip;
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 0.3 }}
+          className="mt-8 w-full max-w-xs h-1.5 rounded-full bg-border overflow-hidden"
+        >
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 0.4, duration: 2.0, ease: "easeInOut" }}
+            className="h-full origin-left bg-maxxed-blue"
+          />
+        </motion.div>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.4, duration: 0.4 }}
+          className="mt-4 text-[10px] md:text-[11px] font-extrabold uppercase tracking-[0.22em] text-text-muted"
+        >
+          Redirecting to secure payment&hellip;
+        </motion.p>
+      </div>
+    </motion.div>
+  );
+}
 
-const initialState: FormState = {
-  name: '',
-  email: '',
-  phone: '',
-  businessName: '',
-  website: '',
-  bestTimes: [],
-  program: 'university',
-};
-
-/**
- * On-platform mirror of the funnel repo's 4-step ApplyWizard. After
- * the final step submits, the lead is captured in GHL via /api/apply.
- * If the course has `checkoutAfterApply` ON and a price, the wizard
- * advances to a step 5 (the existing <FunnelCheckout /> with contact
- * prefilled). Otherwise the user lands on an inline thank-you screen.
- */
-export function ApplyWizardOnPlatform({
-  course,
-  stripePublishableKey,
-  enabledProviders,
-  promoEnabled,
-}: Props) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 'thanks'>(1);
-  const [data, setData] = useState<FormState>(initialState);
+export function ApplyWizardOnPlatform({ course }: ApplyWizardOnPlatformProps) {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [partialFired, setPartialFired] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [qualifying, setQualifying] = useState(false);
+  const hydrated = useRef(false);
+  const [submitArmed, setSubmitArmed] = useState(false);
 
-  function patch(p: Partial<FormState>) {
-    setData((prev) => ({ ...prev, ...p }));
-  }
+  const sendToCheckoutAfter =
+    course.checkoutAfterApply && !!course.price && course.price > 0;
 
-  function toggleBestTime(slot: string) {
-    setData((prev) => {
-      const current = prev.bestTimes ?? [];
-      return {
-        ...prev,
-        bestTimes: current.includes(slot)
-          ? current.filter((s) => s !== slot)
-          : [...current, slot],
-      };
-    });
-  }
+  const form = useForm<ApplicationPayload>({
+    resolver: zodResolver(applicationSchema),
+    mode: "onBlur",
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      businessName: "",
+      website: "",
+      bestTimes: [],
+      vision: "",
+    } as Partial<ApplicationPayload> as ApplicationPayload,
+  });
 
-  function validateStep(s: 1 | 2 | 3 | 4): string | null {
-    if (s === 1) {
-      if (!data.name || data.name.trim().length < 2) return 'Please enter your full name';
-      if (!data.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email))
-        return 'Please enter a valid email';
-      if (!data.phone || data.phone.replace(/\D/g, '').length < 7)
-        return 'Please enter a valid phone number';
-    }
-    return null;
-  }
+  const {
+    register,
+    handleSubmit,
+    control,
+    trigger,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = form;
 
-  async function fireApply(payload: FormState, partial: boolean) {
-    const body = {
-      ...payload,
-      partial,
-      courseId: course.id,
-      courseSlug: course.slug,
-      program: 'university' as const,
-    };
-    const parsed = applicationSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new Error(parsed.error.issues[0]?.message ?? 'Validation failed');
-    }
-    const res = await fetch('/api/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parsed.data),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      throw new Error(j.error || `Submit failed (${res.status})`);
-    }
-  }
-
-  async function next() {
-    if (step === 'thanks' || step === 5) return;
-    const err = validateStep(step);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setError(null);
-
-    // Step-1 partial submission — abandoned-lead capture so we still
-    // have name/email/phone in GHL even if the user bails on later steps.
-    if (step === 1 && !partialFired) {
-      try {
-        await fireApply(data, true);
-        setPartialFired(true);
-      } catch {
-        /* swallow — partial is best-effort */
-      }
-    }
-
-    if (step < 4) {
-      setStep((s) => ((s as number) + 1) as 2 | 3 | 4);
-      return;
-    }
-
-    setSubmitting(true);
+  useEffect(() => {
     try {
-      await fireApply(data, false);
-      if (course.checkoutAfterApply && course.price && course.price > 0) {
-        setStep(5);
-      } else {
-        setStep('thanks');
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<ApplicationPayload>;
+        for (const [k, v] of Object.entries(parsed)) {
+          if (v !== undefined) setValue(k as keyof ApplicationPayload, v as never);
+        }
       }
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
+    } catch {
+      /* ignore */
+    }
+    hydrated.current = true;
+  }, [setValue]);
+
+  useEffect(() => {
+    const sub = watch((value) => {
+      if (!hydrated.current) return;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+      } catch {
+        /* ignore */
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [watch]);
+
+  useEffect(() => {
+    if (step !== 4) {
+      setSubmitArmed(false);
+      return;
+    }
+    setSubmitArmed(false);
+    const t = setTimeout(() => setSubmitArmed(true), 400);
+    return () => clearTimeout(t);
+  }, [step]);
+
+  const partialCaptureFired = useRef(false);
+  const firePartialCapture = () => {
+    if (partialCaptureFired.current) return;
+    partialCaptureFired.current = true;
+    const values = getValues();
+    fetch("/api/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...values,
+        courseId: course.id,
+        courseSlug: course.slug,
+        program: "university",
+        partial: true,
+      }),
+      keepalive: true,
+    }).catch(() => {
+      partialCaptureFired.current = false;
+    });
+  };
+
+  const goNext = async () => {
+    const ok = await trigger(STEP_FIELDS[step - 1]);
+    if (ok) {
+      if (step === 1) firePartialCapture();
+      setStep((s) => Math.min(s + 1, 4));
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  };
+
+  const goBack = () => {
+    setStep((s) => Math.max(s - 1, 1));
+    window.scrollTo({ top: 0, behavior: "instant" });
+  };
+
+  const onSubmit: SubmitHandler<ApplicationPayload> = async (values) => {
+    setSubmitting(true);
+    setServerError(null);
+    try {
+      const res = await fetch("/api/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...values,
+          courseId: course.id,
+          courseSlug: course.slug,
+          program: "university",
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Request failed (${res.status})`);
+      }
+      localStorage.removeItem(STORAGE_KEY);
+
+      if (sendToCheckoutAfter) {
+        const params = new URLSearchParams({
+          courseId: course.id,
+          fromApply: "1",
+          name: values.name,
+          email: values.email,
+          phone: values.phone,
+        });
+        setQualifying(true);
+        setTimeout(() => {
+          router.push(`/checkout?${params.toString()}`);
+        }, 2500);
+      } else {
+        router.push(`/courses/${course.slug}?applied=1`);
+      }
+    } catch (err) {
+      setServerError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
       setSubmitting(false);
     }
-  }
+  };
 
-  function back() {
-    if (step === 5) return;
-    if (typeof step === 'number' && step > 1)
-      setStep((s) => ((s as number) - 1) as 1 | 2 | 3);
-  }
-
-  if (step === 'thanks') {
-    return (
-      <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-card p-8 md:p-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5">
-          <Check className="w-8 h-8 text-green-600" />
-        </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-text-dark mb-3">
-          Application received
-        </h1>
-        <p className="text-text-body leading-relaxed">
-          Todd&rsquo;s team will review your application and reach out within one business day.
-          In the meantime, feel free to{' '}
-          <a href="/courses" className="text-maxxed-blue hover:underline font-semibold">
-            browse the catalog
-          </a>
-          .
-        </p>
-      </div>
+  const bestTimes = watch("bestTimes") ?? [];
+  const toggleTime = (t: string) => {
+    const has = bestTimes.includes(t);
+    setValue(
+      "bestTimes",
+      has ? bestTimes.filter((x) => x !== t) : [...bestTimes, t],
+      { shouldValidate: true }
     );
-  }
-
-  if (step === 5) {
-    const [firstName, ...rest] = data.name.trim().split(/\s+/);
-    return (
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6 flex items-start gap-3">
-          <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-semibold text-green-900 text-sm">
-              You&rsquo;re a fit. Lock in your spot below.
-            </p>
-            <p className="text-xs text-green-800/80 mt-0.5">
-              Your application is saved. Complete payment now to start, or close this page —
-              Todd&rsquo;s team will reach out within one business day either way.
-            </p>
-          </div>
-        </div>
-        <FunnelCheckout
-          publishableKey={stripePublishableKey}
-          courseId={course.id}
-          courseTitle={course.title}
-          coursePrice={course.price ?? 0}
-          courseSlug={course.slug}
-          courseThumbnail={course.thumbnail}
-          promoEnabled={promoEnabled}
-          enabledProviders={enabledProviders}
-          isAuthenticated={false}
-          prefillEmail={data.email}
-          prefillName={[firstName, rest.join(' ')].filter(Boolean).join(' ')}
-          prefillPhone={data.phone}
-        />
-      </div>
-    );
-  }
+  };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-maxxed-blue">
-            Step {step} of 4 · {STEP_LABELS[step - 1]}
-          </span>
-          <span className="text-xs text-text-muted">{course.title}</span>
-        </div>
-        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-maxxed-blue transition-all"
-            style={{ width: `${(step / 4) * 100}%` }}
-          />
-        </div>
-      </div>
+    <div className="card-solid p-6 md:p-10 lg:p-12 border border-border">
+      <AnimatePresence>{qualifying && <QualifiedInterstitial />}</AnimatePresence>
+      <ProgressBar current={step} total={4} labels={STEP_LABELS} />
 
-      <div className="bg-white rounded-2xl shadow-card p-6 md:p-8 space-y-5">
-        {step === 1 && <Step1 data={data} patch={patch} />}
-        {step === 2 && <Step2 data={data} patch={patch} />}
-        {step === 3 && <Step3 data={data} patch={patch} />}
-        {step === 4 && <Step4 data={data} patch={patch} toggleBestTime={toggleBestTime} />}
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-10">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            {step === 1 && (
+              <div className="space-y-6">
+                <Intro
+                  title="Tell us who you are."
+                  body={`Name, email, and phone are all our team needs to reach out about ${course.title}. Everything after this helps us prep a useful conversation — share as much or as little as you want.`}
+                />
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="name" required>Full Name</Label>
+                    <Input id="name" placeholder="Jane Investor" aria-invalid={!!errors.name} {...register("name")} />
+                    <FieldError message={errors.name?.message} />
+                  </div>
+                  <div>
+                    <Label htmlFor="email" required>Email</Label>
+                    <Input id="email" type="email" autoComplete="email" placeholder="you@domain.com" aria-invalid={!!errors.email} {...register("email")} />
+                    <FieldError message={errors.email?.message} />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone" required>Phone</Label>
+                    <Input id="phone" type="tel" autoComplete="tel" placeholder="+1 (555) 555-5555" aria-invalid={!!errors.phone} {...register("phone")} />
+                    <FieldError message={errors.phone?.message} />
+                  </div>
+                  <div>
+                    <Label htmlFor="businessName">Business / LLC Name</Label>
+                    <Input id="businessName" placeholder="Acme Holdings LLC" aria-invalid={!!errors.businessName} {...register("businessName")} />
+                    <FieldError message={errors.businessName?.message} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="website">Website (optional)</Label>
+                    <Input id="website" type="text" placeholder="yoursite.com" aria-invalid={!!errors.website} {...register("website")} />
+                    <FieldError message={errors.website?.message} />
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
-            {error}
-          </div>
+            {step === 2 && (
+              <div className="space-y-8">
+                <Intro
+                  title="Where are you at in your business?"
+                  body="All optional — whatever you share helps us prep the right conversation."
+                />
+                <Controller control={control} name="revenue" render={({ field }) => (
+                  <div>
+                    <Label>Current revenue</Label>
+                    <RadioGroup value={field.value} onValueChange={field.onChange} className="sm:grid-cols-2">
+                      {revenueOptions.map((v) => <RadioCard key={v} value={v} label={v} />)}
+                    </RadioGroup>
+                    <FieldError message={errors.revenue?.message} />
+                  </div>
+                )} />
+                <Controller control={control} name="teamSize" render={({ field }) => (
+                  <div>
+                    <Label>Team size</Label>
+                    <RadioGroup value={field.value} onValueChange={field.onChange} className="sm:grid-cols-2">
+                      {teamSizeOptions.map((v) => <RadioCard key={v} value={v} label={v} />)}
+                    </RadioGroup>
+                    <FieldError message={errors.teamSize?.message} />
+                  </div>
+                )} />
+                <Controller control={control} name="industry" render={({ field }) => (
+                  <div>
+                    <Label>Primary industry / focus</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger><SelectValue placeholder="Select your focus" /></SelectTrigger>
+                      <SelectContent>
+                        {industryOptions.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FieldError message={errors.industry?.message} />
+                  </div>
+                )} />
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-8">
+                <Intro
+                  title="What are you trying to unlock?"
+                  body="Optional. The clearer you are, the more useful our call will be."
+                />
+                <Controller control={control} name="bottleneck" render={({ field }) => (
+                  <div>
+                    <Label>What&apos;s your biggest obstacle right now?</Label>
+                    <RadioGroup value={field.value} onValueChange={field.onChange} className="sm:grid-cols-2">
+                      {bottleneckOptions.map((v) => <RadioCard key={v} value={v} label={v} />)}
+                    </RadioGroup>
+                    <FieldError message={errors.bottleneck?.message} />
+                  </div>
+                )} />
+                <div>
+                  <Label htmlFor="vision">What does success look like 12 months from now?</Label>
+                  <Textarea id="vision" rows={6} placeholder="Revenue, team size, freedom — paint the picture." aria-invalid={!!errors.vision} {...register("vision")} />
+                  <FieldError message={errors.vision?.message} />
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-8">
+                <Intro
+                  title="Last step."
+                  body="Optional — one honest answer here saves us both time on the call."
+                />
+                <Controller control={control} name="commitment" render={({ field }) => (
+                  <div>
+                    <Label>How quickly do you want to start?</Label>
+                    <RadioGroup value={field.value} onValueChange={field.onChange}>
+                      {commitmentOptions.map((v) => <RadioCard key={v} value={v} label={v} />)}
+                    </RadioGroup>
+                    <FieldError message={errors.commitment?.message} />
+                  </div>
+                )} />
+                <div>
+                  <Label>Preferred call times</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {TIME_SLOTS.map((t) => {
+                      const active = bestTimes.includes(t);
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => toggleTime(t)}
+                          aria-pressed={active}
+                          className={cn(
+                            "rounded-md border-2 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] transition-all cursor-pointer",
+                            active
+                              ? "bg-maxxed-blue border-maxxed-blue text-white"
+                              : "bg-white border-border-strong text-text-body hover:border-maxxed-blue/60 hover:text-maxxed-blue"
+                          )}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <FieldError message={Array.isArray(errors.bestTimes) ? undefined : errors.bestTimes?.message} />
+                </div>
+                <Controller control={control} name="heardAbout" render={({ field }) => (
+                  <div>
+                    <Label>How did you hear about us?</Label>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger><SelectValue placeholder="Pick one" /></SelectTrigger>
+                      <SelectContent>
+                        {heardAboutOptions.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FieldError message={errors.heardAbout?.message} />
+                  </div>
+                )} />
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {serverError && (
+          <p role="alert" className="mt-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 font-medium">
+            {serverError}
+          </p>
         )}
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="mt-10 flex flex-col-reverse sm:flex-row items-center justify-between gap-4">
           {step > 1 ? (
-            <button
-              type="button"
-              onClick={back}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
+            <Button type="button" variant="outline" size="lg" onClick={goBack} disabled={submitting}>
+              <ArrowLeft className="h-5 w-5" aria-hidden /> Back
+            </Button>
           ) : (
-            <div />
+            <Button asChild variant="ghost" size="lg">
+              <Link href={`/courses/${course.slug}`}>
+                <ArrowLeft className="h-5 w-5" aria-hidden /> Cancel
+              </Link>
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={next}
-            disabled={submitting}
-            className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-maxxed-blue text-white rounded-lg font-semibold text-sm hover:bg-maxxed-blue-dark disabled:opacity-50"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Submitting…
-              </>
-            ) : step === 4 ? (
-              <>
-                Submit application <ArrowRight className="w-4 h-4" />
-              </>
-            ) : (
-              <>
-                Continue <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+
+          {step < 4 ? (
+            <Button key="continue-btn" type="button" variant="primary" size="lg" onClick={goNext} className="w-full sm:w-auto">
+              Continue <ArrowRight className="h-5 w-5" aria-hidden />
+            </Button>
+          ) : (
+            <Button key="submit-btn" type="submit" variant="primary" size="lg" disabled={!submitArmed || submitting} className="w-full sm:w-auto">
+              {submitting ? (
+                <><Loader2 className="h-5 w-5 animate-spin" aria-hidden />Submitting&hellip;</>
+              ) : (
+                <>Submit Application <ArrowRight className="h-5 w-5" aria-hidden /></>
+              )}
+            </Button>
+          )}
         </div>
-      </div>
+      </form>
     </div>
   );
 }
 
-function fieldClass() {
-  return 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue';
-}
-
-function Step1({
-  data,
-  patch,
-}: {
-  data: FormState;
-  patch: (p: Partial<FormState>) => void;
-}) {
+function Intro({ title, body }: { title: string; body: string }) {
   return (
-    <>
-      <div>
-        <h2 className="text-xl font-bold text-text-dark mb-1">Tell us about you</h2>
-        <p className="text-sm text-text-body">
-          Required fields only — everything else is optional.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Full name *">
-          <input
-            type="text"
-            className={fieldClass()}
-            value={data.name}
-            onChange={(e) => patch({ name: e.target.value })}
-            autoComplete="name"
-          />
-        </Field>
-        <Field label="Email *">
-          <input
-            type="email"
-            className={fieldClass()}
-            value={data.email}
-            onChange={(e) => patch({ email: e.target.value })}
-            autoComplete="email"
-          />
-        </Field>
-        <Field label="Phone *">
-          <input
-            type="tel"
-            className={fieldClass()}
-            value={data.phone}
-            onChange={(e) => patch({ phone: e.target.value })}
-            autoComplete="tel"
-          />
-        </Field>
-        <Field label="Business name">
-          <input
-            type="text"
-            className={fieldClass()}
-            value={data.businessName ?? ''}
-            onChange={(e) => patch({ businessName: e.target.value })}
-            autoComplete="organization"
-          />
-        </Field>
-        <Field label="Website" className="md:col-span-2">
-          <input
-            type="text"
-            className={fieldClass()}
-            value={data.website ?? ''}
-            onChange={(e) => patch({ website: e.target.value })}
-            placeholder="example.com"
-          />
-        </Field>
-      </div>
-    </>
-  );
-}
-
-function Step2({
-  data,
-  patch,
-}: {
-  data: FormState;
-  patch: (p: Partial<FormState>) => void;
-}) {
-  return (
-    <>
-      <div>
-        <h2 className="text-xl font-bold text-text-dark mb-1">Your business</h2>
-        <p className="text-sm text-text-body">All optional — helps Todd tailor the conversation.</p>
-      </div>
-      <Field label="Real estate income">
-        <select
-          className={fieldClass()}
-          value={data.revenue ?? ''}
-          onChange={(e) =>
-            patch({ revenue: (e.target.value as FormState['revenue']) || undefined })
-          }
-        >
-          <option value="">— Choose —</option>
-          {revenueOptions.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Team size">
-        <select
-          className={fieldClass()}
-          value={data.teamSize ?? ''}
-          onChange={(e) =>
-            patch({ teamSize: (e.target.value as FormState['teamSize']) || undefined })
-          }
-        >
-          <option value="">— Choose —</option>
-          {teamSizeOptions.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Real estate focus">
-        <select
-          className={fieldClass()}
-          value={data.industry ?? ''}
-          onChange={(e) =>
-            patch({ industry: (e.target.value as FormState['industry']) || undefined })
-          }
-        >
-          <option value="">— Choose —</option>
-          {industryOptions.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      </Field>
-    </>
-  );
-}
-
-function Step3({
-  data,
-  patch,
-}: {
-  data: FormState;
-  patch: (p: Partial<FormState>) => void;
-}) {
-  return (
-    <>
-      <div>
-        <h2 className="text-xl font-bold text-text-dark mb-1">Your goals</h2>
-        <p className="text-sm text-text-body">
-          What&rsquo;s holding you back? Where do you want to be?
-        </p>
-      </div>
-      <Field label="Biggest bottleneck">
-        <select
-          className={fieldClass()}
-          value={data.bottleneck ?? ''}
-          onChange={(e) =>
-            patch({ bottleneck: (e.target.value as FormState['bottleneck']) || undefined })
-          }
-        >
-          <option value="">— Choose —</option>
-          {bottleneckOptions.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="12-month vision">
-        <textarea
-          className={fieldClass()}
-          rows={4}
-          value={data.vision ?? ''}
-          onChange={(e) => patch({ vision: e.target.value })}
-          placeholder="What does success look like in the next 12 months?"
-          maxLength={1200}
-        />
-      </Field>
-    </>
-  );
-}
-
-function Step4({
-  data,
-  patch,
-  toggleBestTime,
-}: {
-  data: FormState;
-  patch: (p: Partial<FormState>) => void;
-  toggleBestTime: (slot: string) => void;
-}) {
-  return (
-    <>
-      <div>
-        <h2 className="text-xl font-bold text-text-dark mb-1">Your fit</h2>
-        <p className="text-sm text-text-body">A few last details so we can plan the call.</p>
-      </div>
-      <Field label="Timeline to start">
-        <select
-          className={fieldClass()}
-          value={data.commitment ?? ''}
-          onChange={(e) =>
-            patch({ commitment: (e.target.value as FormState['commitment']) || undefined })
-          }
-        >
-          <option value="">— Choose —</option>
-          {commitmentOptions.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <div>
-        <p className="text-xs font-semibold text-gray-700 mb-1.5">Best times to reach you</p>
-        <div className="flex flex-wrap gap-2">
-          {TIME_SLOTS.map((slot) => {
-            const selected = (data.bestTimes ?? []).includes(slot);
-            return (
-              <button
-                key={slot}
-                type="button"
-                onClick={() => toggleBestTime(slot)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors ${
-                  selected
-                    ? 'border-maxxed-blue bg-blue-50 text-maxxed-blue'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {slot}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <Field label="How did you hear about Todd?">
-        <select
-          className={fieldClass()}
-          value={data.heardAbout ?? ''}
-          onChange={(e) =>
-            patch({ heardAbout: (e.target.value as FormState['heardAbout']) || undefined })
-          }
-        >
-          <option value="">— Choose —</option>
-          {heardAboutOptions.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      </Field>
-    </>
-  );
-}
-
-function Field({
-  label,
-  className,
-  children,
-}: {
-  label: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className={`block ${className ?? ''}`}>
-      <span className="block text-xs font-semibold text-gray-700 mb-1">{label}</span>
-      {children}
-    </label>
+    <header>
+      <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-[0.02em] leading-tight text-text-dark">
+        {title}
+      </h2>
+      <p className="mt-2 text-[15px] md:text-base text-text-body">{body}</p>
+    </header>
   );
 }

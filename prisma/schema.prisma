@@ -91,6 +91,12 @@ model Course {
   isBundle     Boolean          @default(false)
   bundleId     String?
   externalUrl  String?
+  // When true, the public course page shows an "Apply Now" button instead
+  // of price+buy. Doesn't require externalUrl — without one, the button
+  // routes to /apply/[slug] (the on-platform 5-step apply flow). With
+  // externalUrl, it redirects there. Independent of `price`, which is
+  // still used for any checkout that happens after the apply form.
+  applyMode    Boolean    @default(false)
   // When true, the on-platform /apply/[slug] flow ends with a checkout
   // step (lead is captured in GHL first, then optional payment).
   // Funnels using this course inherit this default unless their
@@ -113,6 +119,11 @@ model Course {
   // the page falls back to the legacy hardcoded stats (lessons /
   // certificate / lifetime access).
   heroStats         Json              @default("[]")
+  // Bullet list shown under the course thumbnail on the checkout page.
+  // String[] — empty falls back to the legacy hardcoded defaults
+  // (Immediate access / 1-on-1 with Todd / Certificate / Lifetime / 30d
+  // refund). Edit per-course from the admin form.
+  checkoutBullets   Json              @default("[]")
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])

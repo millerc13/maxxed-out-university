@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, ArrowLeft, Upload, X, ImageIcon, Eye, Undo2, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Upload, X, ImageIcon, Eye, Undo2, Plus, Trash2, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import Link from 'next/link';
 import {
   SECTION_ICONS,
@@ -40,9 +40,11 @@ interface Course {
   comingSoon: boolean;
   price: number | null;
   externalUrl?: string | null;
+  applyMode?: boolean;
   checkoutAfterApply?: boolean;
   notifyClosersOnApply?: boolean;
   heroStats?: HeroStat[] | null;
+  checkoutBullets?: string[] | null;
 }
 
 export interface CourseFormDraft {
@@ -72,6 +74,9 @@ export interface CourseFormDraft {
   // falls back to legacy hardcoded stats (lessons / certificate /
   // lifetime access).
   heroStats: HeroStat[];
+  // Editable bullet list in the checkout page's left "What's Included"
+  // panel. Empty array → legacy hardcoded defaults.
+  checkoutBullets: string[];
 }
 
 interface CourseFormProps {
@@ -95,7 +100,9 @@ function initialDraft(course?: Course): CourseFormDraft {
     published: course?.published || false,
     comingSoon: course?.comingSoon || false,
     price: course?.price ? String(course.price / 100) : '',
-    applyMode: !!course?.externalUrl,
+    // applyMode is now its own DB column. Fall back to externalUrl truthiness
+    // for any course saved before the column existed.
+    applyMode: course?.applyMode ?? !!course?.externalUrl,
     externalUrl: course?.externalUrl || '',
     checkoutAfterApply: !!course?.checkoutAfterApply,
     // Default ON when the field is missing (e.g. legacy courses) so we
@@ -107,6 +114,9 @@ function initialDraft(course?: Course): CourseFormDraft {
           iconColor: s.iconColor ?? null,
           label: s.label || '',
         }))
+      : [],
+    checkoutBullets: Array.isArray(course?.checkoutBullets)
+      ? (course!.checkoutBullets as string[]).filter((s) => typeof s === 'string')
       : [],
   };
 }
@@ -126,7 +136,72 @@ function isDraftDirty(course: Course | undefined, draft: CourseFormDraft): boole
     baseline.externalUrl !== draft.externalUrl ||
     baseline.checkoutAfterApply !== draft.checkoutAfterApply ||
     baseline.notifyClosersOnApply !== draft.notifyClosersOnApply ||
-    JSON.stringify(baseline.heroStats) !== JSON.stringify(draft.heroStats)
+    JSON.stringify(baseline.heroStats) !== JSON.stringify(draft.heroStats) ||
+    JSON.stringify(baseline.checkoutBullets) !== JSON.stringify(draft.checkoutBullets)
+  );
+}
+
+/**
+ * Live iframe preview of /checkout?courseId=X with the current draft
+ * checkout bullets passed in via the admin-only `_checkoutBullets`
+ * override param. Debounces URL rebuilds so typing doesn't reload the
+ * iframe on every keystroke.
+ */
+function CheckoutPreview({
+  courseId,
+  bullets,
+}: {
+  courseId: string;
+  bullets: string[];
+}) {
+  const [debounced, setDebounced] = useState(bullets);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(bullets), 350);
+    return () => clearTimeout(t);
+  }, [bullets]);
+
+  const src = useMemo(() => {
+    const params = new URLSearchParams({
+      courseId,
+      _previewAdmin: '1',
+    });
+    const trimmed = debounced.map((b) => b.trim()).filter((b) => b !== '');
+    if (trimmed.length > 0) {
+      params.set('_checkoutBullets', JSON.stringify(trimmed));
+    }
+    return `/checkout?${params.toString()}`;
+  }, [courseId, debounced]);
+
+  return (
+    <div className="pt-3 border-t border-gray-100">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <Eye className="w-3.5 h-3.5 text-gray-400" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
+            Live Checkout Preview
+          </span>
+          <span className="text-[11px] text-gray-400">
+            — exactly what buyers see
+          </span>
+        </div>
+        <a
+          href={src}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[11px] text-maxxed-blue hover:underline"
+        >
+          Open in new tab
+        </a>
+      </div>
+      <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+        <iframe
+          src={src}
+          className="w-full block bg-white"
+          style={{ height: '900px', border: 0 }}
+          title="Checkout preview"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -225,9 +300,8 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
         ? `/api/admin/courses/${course.id}`
         : '/api/admin/courses';
 
-      // Collapse the (applyMode + externalUrl) UI pair into the single
-      // DB column. When apply mode is off we always send null so an
-      // accidentally-typed URL doesn't sneak through.
+      // Submit applyMode + externalUrl independently. When applyMode is OFF
+      // we still send null externalUrl so a stray URL doesn't sneak through.
       const externalUrlPayload = formData.applyMode
         ? formData.externalUrl.trim() || null
         : null;
@@ -238,6 +312,7 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
           ...formData,
           price: formData.price ? Math.round(parseFloat(formData.price) * 100) : null,
           externalUrl: externalUrlPayload,
+          applyMode: formData.applyMode,
         }),
       });
 
@@ -435,15 +510,45 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
                   label={
                     <>
                       Application required &mdash; show{' '}
-                      <span className="font-semibold">Apply Now</span> button instead of price
+                      <span className="font-semibold">Apply Now</span> button instead of buy button
                     </>
                   }
-                  description="When ON, the public course page hides the price and shows an Apply Now button that links to the URL below. Use for high-ticket / call-required offers."
+                  description="When ON, the public course page shows an Apply Now button. The price below is still used for the checkout step that runs after the apply form (when checkout-after-apply is on)."
                 />
 
-                {formData.applyMode ? (
+                {/* Price is always editable. Used for direct checkout when
+                    applyMode is OFF, and for the post-apply checkout when
+                    both applyMode and checkoutAfterApply are ON. */}
+                <div>
+                  <Label htmlFor="price">Price (USD)</Label>
+                  <div className="flex items-center mt-1">
+                    <span className="text-gray-500 mr-2">$</span>
+                    <Input
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.price}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, price: e.target.value }))
+                      }
+                      placeholder="0.00 (free)"
+                      className="bg-white"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Exact amount charged at checkout via FanBasis. Leave empty for free.
+                  </p>
+                </div>
+
+                {/* External URL only matters when applyMode is on. Optional
+                    even then — leave blank to use the on-platform /apply/[slug]
+                    flow instead of redirecting out. */}
+                {formData.applyMode && (
                   <div>
-                    <Label htmlFor="externalUrl">Apply URL</Label>
+                    <Label htmlFor="externalUrl">
+                      Apply URL <span className="text-gray-400 font-normal">(optional)</span>
+                    </Label>
                     <Input
                       id="externalUrl"
                       type="url"
@@ -451,33 +556,11 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
                       onChange={(e) =>
                         setFormData((prev) => ({ ...prev, externalUrl: e.target.value }))
                       }
-                      placeholder="https://..."
+                      placeholder="https://… (leave blank to use the on-platform apply form)"
                       className="mt-1 bg-white"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Where the &ldquo;Apply Now&rdquo; button takes the visitor (opens in a new tab). Required for Apply mode to work.
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <Label htmlFor="price">Price (USD)</Label>
-                    <div className="flex items-center mt-1">
-                      <span className="text-gray-500 mr-2">$</span>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.price}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, price: e.target.value }))
-                        }
-                        placeholder="0.00 (free)"
-                        className="bg-white"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      This is the exact amount charged at checkout via FanBasis. Leave empty for free.
+                      Where the &ldquo;Apply Now&rdquo; button takes the visitor. Leave blank to keep them on-platform — they&apos;ll go through the 5-step apply form instead.
                     </p>
                   </div>
                 )}
@@ -684,6 +767,133 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
               <Plus className="w-4 h-4" />
               Add stat
             </button>
+          </CardContent>
+        </Card>
+
+        {/* Checkout bullets — "What's Included" list shown under the
+            course thumbnail on the checkout page. Live preview alongside. */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <Label>Checkout bullets</Label>
+              <p className="text-xs text-gray-500 mt-1">
+                The &ldquo;What&rsquo;s Included&rdquo; list shown under the course thumbnail
+                on the checkout page. Empty = use the legacy defaults
+                (Immediate access / 1-on-1 with Todd / Certificate / Lifetime
+                access / 30-day refund).
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              {/* Editor list */}
+              <div className="space-y-2">
+                {formData.checkoutBullets.length === 0 && (
+                  <p className="text-sm text-gray-400 italic">
+                    No custom bullets — falling back to defaults.
+                  </p>
+                )}
+                {formData.checkoutBullets.map((bullet, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      value={bullet}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          checkoutBullets: prev.checkoutBullets.map((b, i) =>
+                            i === idx ? e.target.value : b,
+                          ),
+                        }))
+                      }
+                      placeholder="e.g. Lifetime access on all devices"
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          checkoutBullets: prev.checkoutBullets.map((b, i) =>
+                            i === Math.max(0, idx - 1)
+                              ? prev.checkoutBullets[idx]
+                              : i === idx
+                                ? prev.checkoutBullets[Math.max(0, idx - 1)]
+                                : b,
+                          ),
+                        }))
+                      }
+                      disabled={idx === 0}
+                      className="p-1.5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30"
+                      title="Move up"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          checkoutBullets: prev.checkoutBullets.map((b, i) => {
+                            const last = prev.checkoutBullets.length - 1;
+                            const next = Math.min(last, idx + 1);
+                            if (i === idx) return prev.checkoutBullets[next];
+                            if (i === next) return prev.checkoutBullets[idx];
+                            return b;
+                          }),
+                        }))
+                      }
+                      disabled={idx === formData.checkoutBullets.length - 1}
+                      className="p-1.5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30"
+                      title="Move down"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          checkoutBullets: prev.checkoutBullets.filter((_, i) => i !== idx),
+                        }))
+                      }
+                      className="p-1.5 rounded text-red-500 hover:text-red-700"
+                      title="Remove"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      checkoutBullets: [...prev.checkoutBullets, ''],
+                    }))
+                  }
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-maxxed-blue border-2 border-dashed border-maxxed-blue/40 rounded-lg hover:bg-maxxed-blue/5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add bullet
+                </button>
+              </div>
+
+              {/* Live preview — iframe of the real /checkout page with
+                  the current draft bullets passed in as an admin override.
+                  Reflects exactly what buyers see, no mock. */}
+              {course?.id && (
+                <CheckoutPreview
+                  courseId={course.id}
+                  bullets={formData.checkoutBullets}
+                />
+              )}
+              {!course?.id && (
+                <div className="pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 italic">
+                    Save the course first to see a live checkout preview here.
+                  </p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

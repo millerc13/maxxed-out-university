@@ -59,7 +59,19 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, checkoutAfterApply, notifyClosersOnApply, heroStats } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, heroStats, checkoutBullets } = body;
+
+    // Validate checkoutBullets — string array, drop blanks.
+    let checkoutBulletsValidated: string[] | undefined;
+    if (checkoutBullets !== undefined) {
+      if (!Array.isArray(checkoutBullets)) {
+        return NextResponse.json({ error: 'checkoutBullets must be an array' }, { status: 400 });
+      }
+      checkoutBulletsValidated = checkoutBullets
+        .filter((s: unknown) => typeof s === 'string')
+        .map((s: string) => s.trim())
+        .filter((s) => s !== '');
+    }
 
     // Validate heroStats payload — admin-only endpoint, but still defend
     // against bad shape so the JSON column doesn't get corrupted.
@@ -104,9 +116,11 @@ export async function PUT(
         ...(comingSoon !== undefined && { comingSoon }),
         ...(price !== undefined && { price: price ? parseInt(price) : null }),
         ...(externalUrl !== undefined && { externalUrl: externalUrl || null }),
+        ...(applyMode !== undefined && { applyMode: !!applyMode }),
         ...(checkoutAfterApply !== undefined && { checkoutAfterApply: !!checkoutAfterApply }),
         ...(notifyClosersOnApply !== undefined && { notifyClosersOnApply: !!notifyClosersOnApply }),
         ...(heroStatsValidated !== undefined && { heroStats: heroStatsValidated }),
+        ...(checkoutBulletsValidated !== undefined && { checkoutBullets: checkoutBulletsValidated }),
       },
     });
 

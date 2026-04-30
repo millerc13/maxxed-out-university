@@ -105,6 +105,7 @@ export async function CoursesSection() {
                   learningPoints={[]}
                   price={course.price}
                   externalUrl={course.externalUrl ?? undefined}
+                  applyMode={(course as { applyMode?: boolean }).applyMode ?? false}
                   shortDesc={course.shortDesc}
                   enrolled={course.isEnrolled}
                 />
