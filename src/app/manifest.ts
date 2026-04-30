@@ -11,8 +11,8 @@ import type { MetadataRoute } from 'next';
 // OS uses sensible defaults and nothing turns blue.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Maxxed Out University',
-    short_name: 'Maxxed Out University',
+    name: 'Maxxed University',
+    short_name: 'Maxxed University',
     description:
       'Business education and training for serious entrepreneurs. Real estate, mentorship, and growth systems from Todd Pultz.',
     start_url: '/',
