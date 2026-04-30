@@ -54,17 +54,16 @@ export const metadata: Metadata = {
   },
 };
 
-// Viewport for mobile + iOS notch/safe-area handling. We deliberately
-// DO NOT set themeColor here — that would inject a <meta
-// name="theme-color"> tag that tints the browser chrome on every
-// regular page load (a blue bar in Chrome's title bar, blue mobile
-// Safari address bar, etc.), which is not what we want. The manifest
-// already declares theme_color for PWA-standalone mode, which is the
-// only place we actually want the tint.
+// Viewport — width + initialScale only. Deliberately NO themeColor
+// (would inject <meta name="theme-color"> and tint the browser chrome
+// blue on every visit) and NO viewportFit:'cover' (would let content
+// extend into the iOS notch safe area, surfacing the Header's brand
+// border on top of the iOS status bar). The manifest's theme_color
+// still applies in PWA-standalone mode, which is the only place a
+// brand tint is wanted.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  viewportFit: 'cover',
 };
 
 export default function RootLayout({
