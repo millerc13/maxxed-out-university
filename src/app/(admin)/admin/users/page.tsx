@@ -75,8 +75,61 @@ export default async function AdminUsersPage() {
         </Card>
       </div>
 
-      {/* User List */}
-      <Card>
+      {/* Mobile card stack */}
+      <div className="md:hidden space-y-3">
+        {users.map((user) => (
+          <div
+            key={user.id}
+            className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium shrink-0">
+                {(user.name || user.email)?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-gray-900 truncate">
+                  {user.name || 'No name'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
+              <span>
+                <span className="font-semibold text-gray-900">{user._count.enrollments}</span> courses
+              </span>
+              <span className="text-gray-400">
+                Joined {new Date(user.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+            <div className="mb-3">
+              <UserRoleSelect userId={user.id} currentRole={user.role} />
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+              <Link
+                href={`/admin/users/${user.id}`}
+                className="text-maxxed-blue hover:underline text-sm font-semibold"
+              >
+                View Details →
+              </Link>
+              {user.id !== currentUserId && (
+                <UserDeleteButton
+                  userId={user.id}
+                  userLabel={user.email || user.name || user.id}
+                  enrollmentCount={user._count.enrollments}
+                />
+              )}
+            </div>
+          </div>
+        ))}
+        {users.length === 0 && (
+          <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-200">
+            No users found
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">

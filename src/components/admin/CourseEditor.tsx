@@ -187,7 +187,9 @@ export function CourseEditor({ course }: CourseEditorProps) {
               Reload
             </button>
           </div>
-          <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
+          {/* Iframe only renders at lg+; placeholder below since the
+              course-detail page is a desktop layout. */}
+          <div className="hidden lg:block rounded-lg border border-gray-200 overflow-hidden bg-white">
             {/* Re-keying on previewSrc forces the iframe to reload whenever
                 the draft changes. Without this, typing in Settings wouldn't
                 update the Preview tab the next time it's viewed. */}
@@ -198,6 +200,23 @@ export function CourseEditor({ course }: CourseEditorProps) {
               className="w-full block"
               style={{ height: 'calc(100vh - 220px)' }}
             />
+          </div>
+          <div className="lg:hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <Eye className="w-5 h-5 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-gray-700">
+              Preview unavailable on this screen
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              The course page is sized for desktop. Open it in a new tab to view full-width.
+            </p>
+            <a
+              href={previewSrc}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold text-maxxed-blue hover:underline"
+            >
+              Open in new tab →
+            </a>
           </div>
         </div>
       )}

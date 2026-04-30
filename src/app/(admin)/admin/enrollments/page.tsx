@@ -78,8 +78,56 @@ export default async function AdminEnrollmentsPage() {
         </Card>
       </div>
 
-      {/* Enrollments Table */}
-      <Card>
+      {/* Mobile card stack */}
+      <div className="md:hidden space-y-3">
+        {enrollments.map((enrollment) => (
+          <div
+            key={enrollment.id}
+            className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-gray-900 truncate">
+                  {enrollment.user.name || enrollment.user.email}
+                </p>
+                <p className="text-xs text-gray-500 truncate">{enrollment.user.email}</p>
+              </div>
+              <span
+                className={`shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${
+                  enrollment.source === 'ghl'
+                    ? 'bg-blue-100 text-blue-700'
+                    : enrollment.source === 'manual'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {enrollment.source || 'unknown'}
+              </span>
+            </div>
+            <p className="text-sm font-semibold text-gray-700 mb-1">
+              {enrollment.course.title}
+            </p>
+            <p className="text-xs text-gray-400">
+              Enrolled {new Date(enrollment.enrolledAt).toLocaleDateString()}
+            </p>
+            <div className="flex justify-end pt-3 border-t border-gray-100 mt-3">
+              <DeleteEnrollmentButton
+                enrollmentId={enrollment.id}
+                userName={enrollment.user.name || enrollment.user.email}
+                courseName={enrollment.course.title}
+              />
+            </div>
+          </div>
+        ))}
+        {enrollments.length === 0 && (
+          <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-200">
+            No enrollments yet
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">

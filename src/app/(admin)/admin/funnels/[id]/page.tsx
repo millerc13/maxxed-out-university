@@ -1658,8 +1658,27 @@ export default function FunnelEditorPage() {
       {/* ── TAB: Preview ── */}
       {activeTab === 'preview' && (
         <div className="space-y-3 overflow-hidden">
-          {/* Browser frame */}
-          <div className="bg-gray-950 rounded-xl overflow-hidden ring-1 ring-gray-800/30 shadow-lg">
+          {/* Mobile placeholder — the funnel preview is sized for desktop. */}
+          <div className="lg:hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <p className="text-sm font-semibold text-gray-700">
+              Preview unavailable on this screen
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              The funnel preview is sized for desktop. Open the funnel URL in a new tab to view it.
+            </p>
+            {funnel.url && (
+              <a
+                href={funnel.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold text-maxxed-blue hover:underline"
+              >
+                Open funnel in new tab →
+              </a>
+            )}
+          </div>
+          {/* Desktop browser-frame preview */}
+          <div className="hidden lg:block bg-gray-950 rounded-xl overflow-hidden ring-1 ring-gray-800/30 shadow-lg">
             {/* Chrome bar */}
             <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-800 border-b border-gray-700">
               <div className="flex gap-1.5">

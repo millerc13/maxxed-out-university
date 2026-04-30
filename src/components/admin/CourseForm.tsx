@@ -193,13 +193,32 @@ function CheckoutPreview({
           Open in new tab
         </a>
       </div>
-      <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+      {/* Iframe at lg+; placeholder at smaller sizes since the checkout
+          page is a desktop layout that won't fit a phone viewport. */}
+      <div className="hidden lg:block rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
         <iframe
           src={src}
           className="w-full block bg-white"
           style={{ height: '900px', border: 0 }}
           title="Checkout preview"
         />
+      </div>
+      <div className="lg:hidden rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+        <Eye className="w-5 h-5 text-gray-400 mx-auto mb-2" />
+        <p className="text-sm font-semibold text-gray-700">
+          Preview unavailable on this screen
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          The checkout page is sized for desktop. Open it in a new tab to view full-width.
+        </p>
+        <a
+          href={src}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold text-maxxed-blue hover:underline"
+        >
+          Open in new tab →
+        </a>
       </div>
     </div>
   );
