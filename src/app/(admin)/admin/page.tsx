@@ -10,22 +10,28 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AdminDashboardPage() {
-  // Fetch stats
+  // Fetch stats. `totalEnrollments` excludes bundle-child rows: when a
+  // student buys a bundle we auto-create an Enrollment for every child
+  // course, which inflates the raw count by 30-40x. Counting only
+  // top-level courses (`bundleId: null`) gives us "real purchases".
   const [
     totalUsers,
     totalCourses,
     totalEnrollments,
-    totalLessons,
     completedLessons,
+    lessonsStarted,
     recentUsers,
     recentEnrollments,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.course.count(),
-    prisma.enrollment.count(),
-    prisma.lesson.count(),
+    prisma.enrollment.count({ where: { course: { bundleId: null } } }),
     prisma.lessonProgress.count({ where: { completed: true } }),
+    prisma.lessonProgress.count(),
     prisma.user.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -33,6 +39,7 @@ export default async function AdminDashboardPage() {
     }),
     prisma.enrollment.findMany({
       take: 5,
+      where: { course: { bundleId: null } },
       orderBy: { enrolledAt: 'desc' },
       include: {
         user: { select: { email: true, name: true } },
@@ -41,10 +48,10 @@ export default async function AdminDashboardPage() {
     }),
   ]);
 
-  // Calculate engagement rate
-  const totalPossibleCompletions = totalEnrollments * (totalLessons / (await prisma.course.count() || 1));
-  const engagementRate = totalPossibleCompletions > 0
-    ? Math.round((completedLessons / totalPossibleCompletions) * 100)
+  // Completion rate = of lessons students have started, what % did they
+  // finish. (Same formula as /admin/analytics so the two pages agree.)
+  const engagementRate = lessonsStarted > 0
+    ? Math.round((completedLessons / lessonsStarted) * 100)
     : 0;
 
   const stats = [

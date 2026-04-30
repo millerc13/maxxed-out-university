@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent } from '@/components/ui/card';
+import { getSuccessfulFanbasisTransactions } from '@/lib/fanbasis-spend';
 
 // Always render fresh — enrollment and completion data changes constantly;
 // a cached snapshot is worse than a 300ms DB query on every admin visit.
@@ -7,65 +8,9 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 import Link from 'next/link';
 import {
-  Users, DollarSign, TrendingUp, PlayCircle,
-  GraduationCap, Eye, Clock, BarChart2, FileQuestion, UserCheck,
+  Users, DollarSign, TrendingUp,
+  GraduationCap, BarChart2, FileQuestion, UserCheck,
 } from 'lucide-react';
-
-// ── Cloudflare Stream analytics ──────────────────────────────────────────────
-async function fetchStreamAnalytics() {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const token = process.env.CLOUDFLARE_STREAM_TOKEN;
-  if (!accountId || !token) return [];
-
-  const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const to = new Date().toISOString();
-
-  try {
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/analytics/views?metrics[]=totalImpressions&metrics[]=totalTimeViewed&dimensions[]=videoId&from=${from}&to=${to}&limit=20`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 300 },
-      }
-    );
-    const data = await res.json();
-    if (!data.success) return [];
-    return (data.result?.data ?? []) as Array<{
-      dimensions: { videoId: string };
-      metrics: [number, number]; // [impressions, timeViewed seconds]
-    }>;
-  } catch {
-    return [];
-  }
-}
-
-async function fetchStreamVideos() {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const token = process.env.CLOUDFLARE_STREAM_TOKEN;
-  if (!accountId || !token) return [];
-
-  try {
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream?limit=50`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 300 },
-      }
-    );
-    const data = await res.json();
-    return (data.result ?? []) as Array<{ uid: string; meta: { name?: string }; duration: number }>;
-  } catch {
-    return [];
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function formatMinutes(seconds: number) {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  if (hrs > 0) return `${hrs}h ${mins}m`;
-  return `${mins}m`;
-}
 
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cents / 100);
@@ -77,12 +22,20 @@ export default async function AnalyticsPage() {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  // Bundle children inflate every count by 30-40x: when a student buys
+  // the Real Estate Empire Blueprint bundle we auto-enroll them in
+  // every child course, so a single $X purchase shows up as 41 separate
+  // enrollment rows. Filtering to `course.bundleId === null` keeps
+  // top-level courses (standalone + bundle parents) and gives us the
+  // "real purchase" count.
+  const primaryEnrollmentWhere = { course: { bundleId: null } } as const;
+
   const [
     totalUsers,
     newUsersThisMonth,
     totalEnrollments,
     newEnrollmentsThisMonth,
-    stripeEnrollments,
+    paidEnrollments,
     completedLessons,
     totalLessonsWithProgress,
     topCourses,
@@ -91,23 +44,35 @@ export default async function AnalyticsPage() {
     quizStats,
     totalQuizAttempts,
     allQuizAttempts,
-    streamAnalytics,
-    streamVideos,
+    fanbasisTxs,
   ] = await Promise.all([
     prisma.user.count({ where: { role: 'STUDENT' } }),
     prisma.user.count({ where: { role: 'STUDENT', createdAt: { gte: thisMonthStart } } }),
-    prisma.enrollment.count(),
-    prisma.enrollment.count({ where: { enrolledAt: { gte: thisMonthStart } } }),
-    // Revenue: sum prices of stripe-sourced enrollments
+    prisma.enrollment.count({ where: primaryEnrollmentWhere }),
+    prisma.enrollment.count({
+      where: { ...primaryEnrollmentWhere, enrolledAt: { gte: thisMonthStart } },
+    }),
+    // Real purchases — Stripe + Fanbasis only, top-level courses (so a
+    // bundle purchase counts once, not once per child course).
     prisma.enrollment.findMany({
-      where: { source: 'stripe' },
-      include: { course: { select: { price: true } } },
+      where: {
+        source: { in: ['stripe', 'fanbasis'] },
+        course: { bundleId: null },
+      },
+      select: {
+        source: true,
+        transactionId: true,
+        originalPrice: true,
+        course: { select: { price: true, title: true } },
+        user: { select: { email: true } },
+      },
     }),
     prisma.lessonProgress.count({ where: { completed: true } }),
     prisma.lessonProgress.count(),
-    // Top courses by enrollment count
+    // Top courses by enrollment, top-level only — keeps bundle parents
+    // + standalone courses, drops the duplicated child-course rows.
     prisma.course.findMany({
-      where: { published: true },
+      where: { published: true, bundleId: null },
       select: {
         id: true, title: true,
         _count: { select: { enrollments: true } },
@@ -124,13 +89,13 @@ export default async function AnalyticsPage() {
       orderBy: { enrollments: { _count: 'desc' } },
       take: 6,
     }),
-    // Daily enrollments for last 30 days
+    // Daily enrollments for last 30 days, primary-purchase only.
     prisma.enrollment.findMany({
-      where: { enrolledAt: { gte: thirtyDaysAgo } },
+      where: { ...primaryEnrollmentWhere, enrolledAt: { gte: thirtyDaysAgo } },
       select: { enrolledAt: true },
       orderBy: { enrolledAt: 'asc' },
     }),
-    // Per-student activity — enrollments, completions, last active
+    // Per-student activity — enrollments, completions, last active.
     prisma.user.findMany({
       where: { role: 'STUDENT' },
       select: {
@@ -138,9 +103,10 @@ export default async function AnalyticsPage() {
         email: true,
         name: true,
         createdAt: true,
-        _count: { select: { enrollments: true } },
+        _count: { select: { enrollments: { where: primaryEnrollmentWhere } } },
         progress: { select: { completed: true, updatedAt: true } },
         enrollments: {
+          where: primaryEnrollmentWhere,
           select: { course: { select: { title: true, slug: true } } },
           take: 3,
           orderBy: { enrolledAt: 'desc' },
@@ -160,16 +126,54 @@ export default async function AnalyticsPage() {
       },
     }),
     prisma.quizAttempt.count(),
-    // All quiz attempts with userId — grouped in JS below
     prisma.quizAttempt.findMany({
       select: { userId: true, passed: true, completedAt: true, score: true },
     }),
-    fetchStreamAnalytics(),
-    fetchStreamVideos(),
+    // Real successful Fanbasis transactions, sourced from webhook logs.
+    getSuccessfulFanbasisTransactions(),
   ]);
 
-  // Revenue calc
-  const totalRevenue = stripeEnrollments.reduce((sum, e) => sum + (e.course.price ?? 0), 0);
+  // ── Revenue ──────────────────────────────────────────────────────────────
+  // Fanbasis: sum every successful transaction (already deduped by
+  // payment_id in the helper), authoritative because amounts come from
+  // the webhook payloads themselves.
+  const fanbasisRevenue = fanbasisTxs.reduce((sum, t) => sum + t.cents, 0);
+
+  // Stripe: prefer `originalPrice` snapshot; fall back to course list
+  // price (works for old enrollments that pre-date the snapshot column).
+  // Stripe enrollments aren't logged to WebhookLog, so we rely on what
+  // got persisted at checkout.
+  const stripeEnrollmentsForRevenue = paidEnrollments.filter(
+    (e) => e.source === 'stripe'
+  );
+  const stripeRevenue = stripeEnrollmentsForRevenue.reduce(
+    (sum, e) => sum + (e.originalPrice ?? e.course.price ?? 0),
+    0
+  );
+
+  // Fanbasis enrollments dedupe: an enrollment may share its
+  // transactionId with a webhook log row, in which case the webhook
+  // amount is authoritative. Anything not matched in the webhook log
+  // (e.g. a rare race condition) falls back to its `originalPrice`.
+  const matchedFanbasisTxIds = new Set(fanbasisTxs.map((t) => t.paymentId));
+  const fanbasisEnrollmentsMissingFromLog = paidEnrollments.filter(
+    (e) =>
+      e.source === 'fanbasis' &&
+      e.transactionId &&
+      !matchedFanbasisTxIds.has(e.transactionId)
+  );
+  const fanbasisFallbackRevenue = fanbasisEnrollmentsMissingFromLog.reduce(
+    (sum, e) => sum + (e.originalPrice ?? e.course.price ?? 0),
+    0
+  );
+
+  const totalRevenue =
+    stripeRevenue + fanbasisRevenue + fanbasisFallbackRevenue;
+
+  const totalPaidPurchases =
+    stripeEnrollmentsForRevenue.length +
+    paidEnrollments.filter((e) => e.source === 'fanbasis').length;
+
   const completionRate = totalLessonsWithProgress > 0
     ? Math.round((completedLessons / totalLessonsWithProgress) * 100)
     : 0;
@@ -187,18 +191,6 @@ export default async function AnalyticsPage() {
     days.push({ label, count });
   }
   const maxDayCount = Math.max(...days.map(d => d.count), 1);
-
-  // Merge stream analytics with video names
-  const videoMap = new Map(streamVideos.map(v => [v.uid, v]));
-  const videoStats = streamAnalytics.map(a => ({
-    id: a.dimensions.videoId,
-    name: videoMap.get(a.dimensions.videoId)?.meta?.name ?? a.dimensions.videoId,
-    views: a.metrics[0],
-    watchTimeSeconds: a.metrics[1],
-  })).sort((a, b) => b.views - a.views);
-
-  const totalStreamViews = videoStats.reduce((s, v) => s + v.views, 0);
-  const totalStreamWatchSeconds = videoStats.reduce((s, v) => s + v.watchTimeSeconds, 0);
 
   // ── Per-student activity summary ─────────────────────────────────────────────
   // Group quiz attempts by userId since the schema has no User->QuizAttempt back-relation.
@@ -297,7 +289,7 @@ export default async function AnalyticsPage() {
       {/* Top KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Revenue (Stripe)', value: formatCurrency(totalRevenue), icon: DollarSign, color: 'bg-green-500', sub: `${stripeEnrollments.length} paid enrollments` },
+          { label: 'Revenue', value: formatCurrency(totalRevenue), icon: DollarSign, color: 'bg-green-500', sub: `${totalPaidPurchases} paid purchases · Stripe + Fanbasis` },
           { label: 'Total Students', value: totalUsers.toLocaleString(), icon: Users, color: 'bg-blue-500', sub: `+${newUsersThisMonth} this month` },
           { label: 'Total Enrollments', value: totalEnrollments.toLocaleString(), icon: GraduationCap, color: 'bg-purple-500', sub: `+${newEnrollmentsThisMonth} this month` },
           { label: 'Completion Rate', value: `${completionRate}%`, icon: TrendingUp, color: 'bg-orange-500', sub: `${completedLessons.toLocaleString()} lessons done` },
@@ -350,91 +342,41 @@ export default async function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Courses */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="px-6 py-4 border-b">
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                <GraduationCap className="w-5 h-5 text-maxxed-blue" />
-                Top Courses by Enrollment
-              </h2>
-            </div>
-            <div className="divide-y">
-              {topCourses.map((course, i) => {
-                const totalCompleted = course.modules.flatMap(m => m.lessons).flatMap(l => l.progress).length;
-                return (
-                  <div key={course.id} className="px-6 py-4 flex items-center gap-4">
-                    <span className="text-lg font-extrabold text-gray-200 w-6 shrink-0">{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{course.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{totalCompleted} lesson completions</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-lg font-bold text-gray-900">{course._count.enrollments}</span>
-                      <p className="text-xs text-gray-400">students</p>
-                    </div>
+      {/* Top Courses */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-maxxed-blue" />
+              Top Courses by Enrollment
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Top-level purchases only — bundle children aren&apos;t double-counted.
+            </p>
+          </div>
+          <div className="divide-y">
+            {topCourses.map((course, i) => {
+              const totalCompleted = course.modules.flatMap(m => m.lessons).flatMap(l => l.progress).length;
+              return (
+                <div key={course.id} className="px-6 py-4 flex items-center gap-4">
+                  <span className="text-lg font-extrabold text-gray-200 w-6 shrink-0">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{course.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{totalCompleted} lesson completions</p>
                   </div>
-                );
-              })}
-              {topCourses.length === 0 && (
-                <div className="px-6 py-8 text-center text-gray-400 text-sm">No enrollments yet</div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stream Video Analytics */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="px-6 py-4 border-b">
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                <PlayCircle className="w-5 h-5 text-maxxed-blue" />
-                Video Analytics (Stream · 30 days)
-              </h2>
-              {videoStats.length > 0 && (
-                <div className="flex gap-6 mt-3">
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Total Views</p>
-                    <p className="text-xl font-bold text-gray-900">{totalStreamViews.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Watch Time</p>
-                    <p className="text-xl font-bold text-gray-900">{formatMinutes(totalStreamWatchSeconds)}</p>
+                  <div className="text-right shrink-0">
+                    <span className="text-lg font-bold text-gray-900">{course._count.enrollments}</span>
+                    <p className="text-xs text-gray-400">students</p>
                   </div>
                 </div>
-              )}
-            </div>
-            <div className="divide-y">
-              {videoStats.length === 0 ? (
-                <div className="px-6 py-8 text-center text-gray-400 text-sm">
-                  {process.env.CLOUDFLARE_STREAM_TOKEN
-                    ? 'No video data yet — views will appear here once students watch'
-                    : 'Stream not configured'}
-                </div>
-              ) : (
-                videoStats.slice(0, 6).map(video => (
-                  <div key={video.id} className="px-6 py-3 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm truncate">{video.name}</p>
-                    </div>
-                    <div className="flex items-center gap-4 shrink-0 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3.5 h-3.5" />
-                        {video.views.toLocaleString()}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {formatMinutes(video.watchTimeSeconds)}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              );
+            })}
+            {topCourses.length === 0 && (
+              <div className="px-6 py-8 text-center text-gray-400 text-sm">No enrollments yet</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Quiz Performance */}
       <Card>
