@@ -54,11 +54,14 @@ export const metadata: Metadata = {
   },
 };
 
-// Theme color tints the OS chrome when launched as a PWA. Android
-// uses it for the status bar; iOS standalone uses it as the title bar
-// background. Lives on `viewport`, not `metadata`, per Next.js 14+ API.
+// Viewport for mobile + iOS notch/safe-area handling. We deliberately
+// DO NOT set themeColor here — that would inject a <meta
+// name="theme-color"> tag that tints the browser chrome on every
+// regular page load (a blue bar in Chrome's title bar, blue mobile
+// Safari address bar, etc.), which is not what we want. The manifest
+// already declares theme_color for PWA-standalone mode, which is the
+// only place we actually want the tint.
 export const viewport: Viewport = {
-  themeColor: '#0000FF',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
