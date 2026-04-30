@@ -17,6 +17,15 @@ import {
   Briefcase,
   Heart,
   GraduationCap,
+  CheckCircle,
+  Clock,
+  Calendar,
+  Users,
+  Video,
+  Lock,
+  Infinity as InfinityIcon,
+  Phone,
+  MessageCircle,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,6 +45,15 @@ export const SECTION_ICONS: Record<string, LucideIcon> = {
   Briefcase,
   Heart,
   GraduationCap,
+  CheckCircle,
+  Clock,
+  Calendar,
+  Users,
+  Video,
+  Lock,
+  Infinity: InfinityIcon,
+  Phone,
+  MessageCircle,
 };
 
 export const SECTION_ICON_NAMES = Object.keys(SECTION_ICONS);

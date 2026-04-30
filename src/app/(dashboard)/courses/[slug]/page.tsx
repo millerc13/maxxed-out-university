@@ -10,6 +10,7 @@ import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
 import { MarkdownContent } from '@/components/ui/markdown-content';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
 import { getModuleAccess } from '@/lib/gating';
+import { getSectionIcon } from '@/lib/section-icons';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -164,8 +165,18 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
   // High-ticket programs (DWY / Mentorship) are 1:1 coaching, not self-serve
   // course content. The on-platform course page shows a "team will reach out"
   // message in place of the modules list.
-  const HIGH_TICKET_SLUGS = new Set(['done-with-you-real-estate-business', '6-month-mentorship']);
+  const HIGH_TICKET_SLUGS = new Set([
+    'done-with-you-real-estate-business',
+    '6-month-mentorship',
+    'business-mentorship',
+  ]);
   const isHighTicketCoaching = HIGH_TICKET_SLUGS.has(course.slug);
+  // The course's "buy" CTA routes through /apply/[slug] (qualifying
+  // questions, optionally followed by checkout) when either the new
+  // course-level toggle is on OR the slug is in the legacy high-ticket
+  // list. Either path keeps existing courses behaving as they do today.
+  const usesApplyFlow =
+    (course as any).checkoutAfterApply === true || isHighTicketCoaching;
 
   // Bundle gating — module is locked until prior-module quiz is passed.
   // No-op for non-bundle courses and for admins.
@@ -199,12 +210,25 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                 <p className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-3">Maxxed Out University</p>
                 <h1 className="text-3xl md:text-4xl font-extrabold mb-4 leading-tight">{course.title}</h1>
                 <p className="text-lg text-blue-100 mb-6 leading-relaxed">
-                  {course.description?.includes('#') ? (course as any).shortDesc : course.description}
+                  {(course as any).shortDesc || course.description}
                 </p>
 
-                {/* Stats row */}
+                {/* Stats row — admin-editable via course.heroStats. Falls
+                    back to legacy hardcoded stats when not configured. */}
                 <div className="flex flex-wrap gap-5 text-sm mb-8">
-                  {isHighTicketCoaching ? (
+                  {Array.isArray((course as any).heroStats) && (course as any).heroStats.length > 0 ? (
+                    (course as any).heroStats.map(
+                      (stat: { iconName: string; iconColor: string | null; label: string }, i: number) => {
+                        const Icon = getSectionIcon(stat.iconName);
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${stat.iconColor || 'text-blue-300'}`} />
+                            <span>{stat.label}</span>
+                          </div>
+                        );
+                      },
+                    )
+                  ) : isHighTicketCoaching ? (
                     <>
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4 text-maxxed-gold" />
@@ -339,8 +363,17 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                       </>
                     ) : (
                       <div className="space-y-4">
-                        {/* CTA */}
-                        {course.price && course.price > 0 ? (
+                        {/* CTA — routes through /apply/[slug] for high-ticket
+                            coaching programs (and any course with the new
+                            checkoutAfterApply flag), otherwise direct to /checkout. */}
+                        {usesApplyFlow ? (
+                          <Link
+                            href={`/apply/${course.slug}`}
+                            className="flex items-center justify-center w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md"
+                          >
+                            Apply Now
+                          </Link>
+                        ) : course.price && course.price > 0 ? (
                           <Link
                             href={`/checkout?courseId=${course.id}`}
                             className="flex items-center justify-center w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md"
@@ -365,8 +398,9 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
           </div>
         </div>
 
-        {/* Course Description (for markdown-formatted descriptions) */}
-        {course.description && course.description.includes('#') && (
+        {/* Course Description — full body. MarkdownContent handles both
+            markdown-formatted descriptions and plain text gracefully. */}
+        {course.description && (
           <div className="max-w-7xl mx-auto px-5 md:px-10 py-10 border-b">
             <Card className="shadow-card">
               <CardContent className="p-6 md:p-8">

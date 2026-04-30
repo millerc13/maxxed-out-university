@@ -11,6 +11,7 @@ interface Course {
   slug: string;
   price: number | null;
   thumbnail?: string | null;
+  checkoutAfterApply?: boolean;
 }
 
 interface Testimonial {
@@ -50,6 +51,7 @@ interface FunnelData {
     vslVideoUrl: string | null;
     instructorImageUrl: string | null;
     template: string | null;
+    checkoutAfterApplyOverride: boolean | null;
   } | null;
 }
 
@@ -868,6 +870,8 @@ export default function FunnelEditorPage() {
   const [bulletsHeadline, setBulletsHeadline] = useState("What's Inside This Course:");
   const [bulletsSub, setBulletsSub] = useState('Everything you need to find, fund, and close profitable real estate deals.');
   const [template, setTemplate] = useState('classic');
+  // Tri-state: null = inherit from course default, true/false = force.
+  const [checkoutAfterApplyOverride, setCheckoutAfterApplyOverride] = useState<boolean | null>(null);
 
   // Measure preview container width for accurate scaling
   useEffect(() => {
@@ -916,6 +920,11 @@ export default function FunnelEditorPage() {
     setBulletsHeadline(f.config?.bulletsHeadline ?? "What's Inside This Course:");
     setBulletsSub(f.config?.bulletsSub ?? 'Everything you need to find, fund, and close profitable real estate deals.');
     setTemplate(f.config?.template ?? 'classic');
+    setCheckoutAfterApplyOverride(
+      f.config?.checkoutAfterApplyOverride === undefined
+        ? null
+        : f.config.checkoutAfterApplyOverride
+    );
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -1136,6 +1145,43 @@ export default function FunnelEditorPage() {
                     </label>
                   </div>
                 </div>
+
+                {/* Checkout-after-apply: read-only display sourced from
+                    the linked course. Edit on the course's settings page
+                    if you need to change it. */}
+                {(() => {
+                  const linkedCourse = courses.find((c) => c.id === courseId);
+                  const resolved = !!linkedCourse?.checkoutAfterApply;
+                  return (
+                    <div className="pt-2 border-t border-gray-100">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Checkout after qualification questions
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Inherited from the linked course:{' '}
+                        <span
+                          className={`font-semibold ${resolved ? 'text-green-700' : 'text-gray-700'}`}
+                        >
+                          {resolved ? 'ON' : 'OFF'}
+                        </span>{' '}
+                        {linkedCourse ? (
+                          <>
+                            (course: &ldquo;{linkedCourse.title}&rdquo;).{' '}
+                            <a
+                              href={`/admin/courses/${linkedCourse.id}`}
+                              className="text-maxxed-blue underline"
+                            >
+                              Edit on the course
+                            </a>
+                            .
+                          </>
+                        ) : (
+                          <>(no course linked)</>
+                        )}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>

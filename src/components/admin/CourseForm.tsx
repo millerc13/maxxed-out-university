@@ -5,8 +5,29 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Save, ArrowLeft, Upload, X, ImageIcon, Eye, Undo2 } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Upload, X, ImageIcon, Eye, Undo2, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import Link from 'next/link';
+import {
+  SECTION_ICONS,
+  SECTION_ICON_NAMES,
+  getSectionIcon,
+} from '@/lib/section-icons';
+import { Toggle } from './Toggle';
+
+export interface HeroStat {
+  iconName: string;
+  iconColor: string | null;
+  label: string;
+}
+
+const STAT_COLOR_OPTIONS: { name: string; className: string }[] = [
+  { name: 'Blue', className: 'text-blue-300' },
+  { name: 'Gold', className: 'text-maxxed-gold' },
+  { name: 'Green', className: 'text-green-400' },
+  { name: 'Red', className: 'text-red-400' },
+  { name: 'Purple', className: 'text-purple-400' },
+  { name: 'White', className: 'text-white' },
+];
 
 interface Course {
   id?: string;
@@ -18,6 +39,10 @@ interface Course {
   published: boolean;
   comingSoon: boolean;
   price: number | null;
+  externalUrl?: string | null;
+  checkoutAfterApply?: boolean;
+  notifyClosersOnApply?: boolean;
+  heroStats?: HeroStat[] | null;
 }
 
 export interface CourseFormDraft {
@@ -29,6 +54,24 @@ export interface CourseFormDraft {
   published: boolean;
   comingSoon: boolean;
   price: string;
+  // applyMode flips the course from "show price + Get Access" to
+  // "show Apply Now button". On save, the toggle plus the URL field
+  // collapses into the single `externalUrl` DB column (set when
+  // applyMode is on, null otherwise).
+  applyMode: boolean;
+  externalUrl: string;
+  // When true, the on-platform /apply flow ends with a checkout step
+  // instead of the "we'll reach out" thank-you. Funnels using this
+  // course inherit this default unless they override per-deployment.
+  checkoutAfterApply: boolean;
+  // When true (default), /api/apply creates a GHL opportunity which
+  // triggers the closer-notify webhook. Flip OFF for QA / testing a
+  // course without firing closer texts.
+  notifyClosersOnApply: boolean;
+  // Editable stats row in the course-detail hero. When empty, the page
+  // falls back to legacy hardcoded stats (lessons / certificate /
+  // lifetime access).
+  heroStats: HeroStat[];
 }
 
 interface CourseFormProps {
@@ -52,6 +95,19 @@ function initialDraft(course?: Course): CourseFormDraft {
     published: course?.published || false,
     comingSoon: course?.comingSoon || false,
     price: course?.price ? String(course.price / 100) : '',
+    applyMode: !!course?.externalUrl,
+    externalUrl: course?.externalUrl || '',
+    checkoutAfterApply: !!course?.checkoutAfterApply,
+    // Default ON when the field is missing (e.g. legacy courses) so we
+    // never silently disable the existing closer-notify behavior.
+    notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
+    heroStats: Array.isArray(course?.heroStats)
+      ? course!.heroStats!.map((s) => ({
+          iconName: s.iconName || 'BookOpen',
+          iconColor: s.iconColor ?? null,
+          label: s.label || '',
+        }))
+      : [],
   };
 }
 
@@ -65,7 +121,12 @@ function isDraftDirty(course: Course | undefined, draft: CourseFormDraft): boole
     baseline.thumbnail !== draft.thumbnail ||
     baseline.published !== draft.published ||
     baseline.comingSoon !== draft.comingSoon ||
-    baseline.price !== draft.price
+    baseline.price !== draft.price ||
+    baseline.applyMode !== draft.applyMode ||
+    baseline.externalUrl !== draft.externalUrl ||
+    baseline.checkoutAfterApply !== draft.checkoutAfterApply ||
+    baseline.notifyClosersOnApply !== draft.notifyClosersOnApply ||
+    JSON.stringify(baseline.heroStats) !== JSON.stringify(draft.heroStats)
   );
 }
 
@@ -86,6 +147,37 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
   useEffect(() => {
     onDraftChange?.(formData);
   }, [formData, onDraftChange]);
+
+  const updateStat = (idx: number, patch: Partial<HeroStat>) => {
+    setFormData((prev) => ({
+      ...prev,
+      heroStats: prev.heroStats.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
+    }));
+  };
+  const addStat = () => {
+    setFormData((prev) => ({
+      ...prev,
+      heroStats: [
+        ...prev.heroStats,
+        { iconName: 'BookOpen', iconColor: 'text-blue-300', label: '' },
+      ],
+    }));
+  };
+  const removeStat = (idx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      heroStats: prev.heroStats.filter((_, i) => i !== idx),
+    }));
+  };
+  const moveStat = (idx: number, dir: -1 | 1) => {
+    setFormData((prev) => {
+      const next = [...prev.heroStats];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return { ...prev, heroStats: next };
+    });
+  };
 
   const generateSlug = (title: string) => {
     return title
@@ -133,12 +225,19 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
         ? `/api/admin/courses/${course.id}`
         : '/api/admin/courses';
 
+      // Collapse the (applyMode + externalUrl) UI pair into the single
+      // DB column. When apply mode is off we always send null so an
+      // accidentally-typed URL doesn't sneak through.
+      const externalUrlPayload = formData.applyMode
+        ? formData.externalUrl.trim() || null
+        : null;
       const response = await fetch(url, {
         method: course?.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
           price: formData.price ? Math.round(parseFloat(formData.price) * 100) : null,
+          externalUrl: externalUrlPayload,
         }),
       });
 
@@ -321,61 +420,270 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
                 </div>
               </div>
 
-              {/* Price */}
-              <div>
-                <Label htmlFor="price">Price (USD)</Label>
-                <div className="flex items-center mt-1">
-                  <span className="text-gray-500 mr-2">$</span>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, price: e.target.value }))
-                    }
-                    placeholder="0.00 (free)"
-                  />
+              {/* Pricing & Access — Apply Mode toggle and Price/External URL
+                  field grouped into one card so they read as a single unit. */}
+              <div className="md:col-span-2 space-y-5 rounded-lg border border-gray-200 bg-gray-50/40 p-5">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                  Pricing &amp; Access
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  This is the exact amount charged at checkout via FanBasis. Leave empty for free.
-                </p>
+                <Toggle
+                  id="applyMode"
+                  checked={formData.applyMode}
+                  onChange={(next) =>
+                    setFormData((prev) => ({ ...prev, applyMode: next }))
+                  }
+                  label={
+                    <>
+                      Application required &mdash; show{' '}
+                      <span className="font-semibold">Apply Now</span> button instead of price
+                    </>
+                  }
+                  description="When ON, the public course page hides the price and shows an Apply Now button that links to the URL below. Use for high-ticket / call-required offers."
+                />
+
+                {formData.applyMode ? (
+                  <div>
+                    <Label htmlFor="externalUrl">Apply URL</Label>
+                    <Input
+                      id="externalUrl"
+                      type="url"
+                      value={formData.externalUrl}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, externalUrl: e.target.value }))
+                      }
+                      placeholder="https://..."
+                      className="mt-1 bg-white"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Where the &ldquo;Apply Now&rdquo; button takes the visitor (opens in a new tab). Required for Apply mode to work.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label htmlFor="price">Price (USD)</Label>
+                    <div className="flex items-center mt-1">
+                      <span className="text-gray-500 mr-2">$</span>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.price}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, price: e.target.value }))
+                        }
+                        placeholder="0.00 (free)"
+                        className="bg-white"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      This is the exact amount charged at checkout via FanBasis. Leave empty for free.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Toggles */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="published"
-                    checked={formData.published}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, published: e.target.checked }))
-                    }
-                    className="w-4 h-4 text-maxxed-blue rounded"
-                  />
-                  <Label htmlFor="published" className="cursor-pointer">
-                    Published (visible to students)
-                  </Label>
+              {/* Visibility group — spans the full row so descriptive
+                  text uses the whole container width, not a single grid
+                  column. */}
+              <div className="md:col-span-2 space-y-5 rounded-lg border border-gray-200 bg-gray-50/40 p-5">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                  Visibility &amp; Status
                 </div>
+                <Toggle
+                  id="published"
+                  checked={formData.published}
+                  onChange={(next) =>
+                    setFormData((prev) => ({ ...prev, published: next }))
+                  }
+                  label="Published"
+                  description="Visible to students. Unpublished courses are hidden from the public catalog and the dashboard."
+                />
+                <Toggle
+                  id="comingSoon"
+                  checked={formData.comingSoon}
+                  onChange={(next) =>
+                    setFormData((prev) => ({ ...prev, comingSoon: next }))
+                  }
+                  label="Coming Soon"
+                  description="Surfaces the course in a dedicated Coming Soon section instead of the main catalog."
+                />
+              </div>
 
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="comingSoon"
-                    checked={formData.comingSoon}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, comingSoon: e.target.checked }))
-                    }
-                    className="w-4 h-4 text-maxxed-blue rounded"
-                  />
-                  <Label htmlFor="comingSoon" className="cursor-pointer">
-                    Coming Soon (shown in Coming Soon section)
-                  </Label>
+              {/* Application flow group */}
+              <div className="md:col-span-2 space-y-5 rounded-lg border border-gray-200 bg-gray-50/40 p-5">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                  Application Flow
                 </div>
+                <Toggle
+                  id="checkoutAfterApply"
+                  checked={formData.checkoutAfterApply}
+                  onChange={(next) =>
+                    setFormData((prev) => ({ ...prev, checkoutAfterApply: next }))
+                  }
+                  label="Show checkout after qualification questions"
+                  description={
+                    <>
+                      When this course uses the on-platform{' '}
+                      <span className="font-mono text-gray-700">/apply</span> flow, adding a
+                      payment step at the end lets qualified buyers pay immediately instead of
+                      waiting for the team to reach out. Funnels using this course inherit this
+                      setting unless they override it.
+                    </>
+                  }
+                />
+                <Toggle
+                  id="notifyClosersOnApply"
+                  checked={formData.notifyClosersOnApply}
+                  onChange={(next) =>
+                    setFormData((prev) => ({ ...prev, notifyClosersOnApply: next }))
+                  }
+                  label="Notify closers when someone applies"
+                  description="When ON, applications create a GHL opportunity which fires the closer-notify automation (texts the team a heads-up). Turn OFF when QA-testing a course so you don't spam the team. Default: ON."
+                />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Hero stats — editable badge row shown above the description on
+            /courses/[slug]. Leave empty to use the legacy default. */}
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <Label>Hero stats</Label>
+              <p className="text-xs text-gray-500 mt-1">
+                Badge row shown above the description on the course-detail page.
+                Pick an icon, set a color, and write the label. Leave the list
+                empty to use the legacy defaults (lessons / certificate /
+                lifetime access).
+              </p>
+            </div>
+
+            {formData.heroStats.length === 0 && (
+              <p className="text-sm text-gray-400 italic">
+                No custom stats — falling back to defaults.
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {formData.heroStats.map((stat, idx) => {
+                const SelectedIcon = getSectionIcon(stat.iconName);
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-9 h-9 flex-shrink-0 rounded-md bg-white border flex items-center justify-center"
+                        title="Preview"
+                      >
+                        <SelectedIcon
+                          className={`w-4 h-4 ${stat.iconColor || 'text-gray-600'}`}
+                        />
+                      </div>
+                      <Input
+                        value={stat.label}
+                        onChange={(e) => updateStat(idx, { label: e.target.value })}
+                        placeholder="e.g. 6 monthly 1-on-1 calls"
+                        className="flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => moveStat(idx, -1)}
+                        disabled={idx === 0}
+                        className="p-1.5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30"
+                        title="Move up"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStat(idx, 1)}
+                        disabled={idx === formData.heroStats.length - 1}
+                        className="p-1.5 rounded text-gray-500 hover:text-gray-800 disabled:opacity-30"
+                        title="Move down"
+                      >
+                        <ArrowDown className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeStat(idx)}
+                        className="p-1.5 rounded text-red-500 hover:text-red-700"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Icon</Label>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {SECTION_ICON_NAMES.map((name) => {
+                          const I = SECTION_ICONS[name];
+                          const selected = name === stat.iconName;
+                          return (
+                            <button
+                              key={name}
+                              type="button"
+                              onClick={() => updateStat(idx, { iconName: name })}
+                              className={`w-8 h-8 flex items-center justify-center rounded-lg border-2 transition-colors ${
+                                selected
+                                  ? 'border-maxxed-blue bg-blue-50'
+                                  : 'border-gray-200 bg-white hover:border-gray-300'
+                              }`}
+                              title={name}
+                            >
+                              <I
+                                className={`w-4 h-4 ${
+                                  selected
+                                    ? stat.iconColor || 'text-maxxed-blue'
+                                    : 'text-gray-600'
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Color</Label>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {STAT_COLOR_OPTIONS.map((c) => {
+                          const selected = c.className === stat.iconColor;
+                          return (
+                            <button
+                              key={c.name}
+                              type="button"
+                              onClick={() => updateStat(idx, { iconColor: c.className })}
+                              className={`px-3 py-1 text-xs font-semibold rounded-md border-2 transition-colors ${
+                                selected
+                                  ? 'border-maxxed-blue bg-blue-50'
+                                  : 'border-gray-200 bg-white hover:border-gray-300'
+                              }`}
+                            >
+                              <span className={c.className}>●</span>{' '}
+                              <span className="text-gray-700">{c.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={addStat}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-maxxed-blue border-2 border-dashed border-maxxed-blue/40 rounded-lg hover:bg-maxxed-blue/5"
+            >
+              <Plus className="w-4 h-4" />
+              Add stat
+            </button>
           </CardContent>
         </Card>
 

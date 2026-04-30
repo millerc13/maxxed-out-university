@@ -29,7 +29,17 @@ export function CourseEditor({ course }: CourseEditorProps) {
     published: course?.published || false,
     comingSoon: course?.comingSoon || false,
     price: course?.price ? String(course.price / 100) : '',
+    applyMode: !!course?.externalUrl,
+    externalUrl: course?.externalUrl || '',
+    checkoutAfterApply: !!course?.checkoutAfterApply,
+    notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
+    heroStats: Array.isArray(course?.heroStats) ? course.heroStats : [],
   });
+
+  // Whether the *draft* (not the saved course) is in apply-only mode.
+  // Drives which preview component renders so the toggle in Settings
+  // updates the Preview tab live.
+  const draftIsApplyOnly = draft.applyMode && !!draft.externalUrl.trim();
 
   // Build the iframe src with admin-only override params reflecting the
   // current draft. /courses/[slug]/page.tsx merges these on top of the
@@ -128,19 +138,19 @@ export function CourseEditor({ course }: CourseEditorProps) {
           the catalog card preview (the only on-platform UI students see for
           partner programs).
           For normal courses, iframe the real page in customer-preview mode. */}
-      {course.externalUrl && (
+      {draftIsApplyOnly && (
         <div className={`space-y-3 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
           <p className="text-sm text-gray-500">
-            This course redirects to{' '}
+            Apply mode is on — clicking the card sends visitors to{' '}
             <a
-              href={course.externalUrl}
+              href={draft.externalUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono text-maxxed-blue hover:underline"
             >
-              {course.externalUrl}
+              {draft.externalUrl}
             </a>
-            {' '}when clicked, so the only on-platform view is the catalog card below.
+            {' '}in a new tab. The on-platform view is the catalog card below.
           </p>
           <div className="max-w-md">
             {/* Render the catalog card with the live draft values so the
@@ -159,7 +169,7 @@ export function CourseEditor({ course }: CourseEditorProps) {
         </div>
       )}
 
-      {!course.externalUrl && (
+      {!draftIsApplyOnly && (
         <div className={`space-y-3 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">

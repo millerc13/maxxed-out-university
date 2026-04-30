@@ -59,7 +59,21 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, checkoutAfterApply, notifyClosersOnApply, heroStats } = body;
+
+    // Validate heroStats payload — admin-only endpoint, but still defend
+    // against bad shape so the JSON column doesn't get corrupted.
+    let heroStatsValidated: { iconName: string; iconColor: string | null; label: string }[] | undefined;
+    if (heroStats !== undefined) {
+      if (!Array.isArray(heroStats)) {
+        return NextResponse.json({ error: 'heroStats must be an array' }, { status: 400 });
+      }
+      heroStatsValidated = heroStats.map((s: any) => ({
+        iconName: typeof s?.iconName === 'string' && s.iconName ? s.iconName : 'BookOpen',
+        iconColor: typeof s?.iconColor === 'string' ? s.iconColor : null,
+        label: typeof s?.label === 'string' ? s.label : '',
+      })).filter((s) => s.label.trim() !== '');
+    }
 
     // Check if course exists
     const existing = await prisma.course.findUnique({ where: { id } });
@@ -89,6 +103,10 @@ export async function PUT(
         ...(published !== undefined && { published }),
         ...(comingSoon !== undefined && { comingSoon }),
         ...(price !== undefined && { price: price ? parseInt(price) : null }),
+        ...(externalUrl !== undefined && { externalUrl: externalUrl || null }),
+        ...(checkoutAfterApply !== undefined && { checkoutAfterApply: !!checkoutAfterApply }),
+        ...(notifyClosersOnApply !== undefined && { notifyClosersOnApply: !!notifyClosersOnApply }),
+        ...(heroStatsValidated !== undefined && { heroStats: heroStatsValidated }),
       },
     });
 

@@ -91,12 +91,28 @@ model Course {
   isBundle     Boolean          @default(false)
   bundleId     String?
   externalUrl  String?
+  // When true, the on-platform /apply/[slug] flow ends with a checkout
+  // step (lead is captured in GHL first, then optional payment).
+  // Funnels using this course inherit this default unless their
+  // FunnelConfig.checkoutAfterApplyOverride is set.
+  checkoutAfterApply Boolean    @default(false)
+  // When true, /api/apply creates a GHL opportunity for this course's
+  // submissions (which triggers the closer-notify automation in GHL ->
+  // dashboard.maxxedout.com webhook -> closer SMS). Default true to
+  // preserve current behavior; admin flips to false for QA / testing
+  // a course without spamming closers.
+  notifyClosersOnApply Boolean  @default(true)
   order        Int              @default(0)
   // Catalog section + position. Null section means the course doesn't appear
   // on / or /courses (admin-only / hidden product). Both pages render from
   // these fields; the legacy price-tier classifier was removed.
   homepageSectionId String?
   homepageOrder     Int               @default(0)
+  // Editable hero stat row shown on /courses/[slug]. Each entry:
+  // { iconName: string, iconColor?: string, label: string }. When empty
+  // the page falls back to the legacy hardcoded stats (lessons /
+  // certificate / lifetime access).
+  heroStats         Json              @default("[]")
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])
@@ -251,6 +267,29 @@ model ProductMapping {
   @@index([ghlProductId])
 }
 
+// Recipient list for lead/sale SMS notifications. Replaces the legacy
+// path of "create GHL opportunity → mastermind webhook → closer SMS"
+// for university applications. Admin manages this list at
+// /admin/notifications. Set to a test number while doing QA.
+model NotificationRecipient {
+  id            String   @id @default(cuid())
+  phone         String   // E.164 (e.g. "+19375551234")
+  label         String?  // human-friendly tag, e.g. "CJ (test)" / "Closer A"
+  notifyOnLead  Boolean  @default(true)
+  notifyOnSale  Boolean  @default(true)
+  active        Boolean  @default(true)
+  // Source filter — which traffic source this recipient gets alerts for.
+  // Slugs: "blueprint" | "mentorship" | "donewithyou" | "university".
+  // Empty array (default) = receive from ALL sources. Non-empty = only
+  // listed sources fan out to this recipient.
+  sources       String[] @default([])
+  // Cached after the first successful send so we don't have to
+  // re-upsert the GHL contact on every notification.
+  ghlContactId  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model WebhookLog {
   id           String   @id @default(cuid())
   source       String
@@ -366,6 +405,9 @@ model FunnelConfig {
   bulletsHeadline       String?                            // e.g. "What's Inside This Course:"
   bulletsSub            String?                            // e.g. "Everything you need to find..."
   template              String           @default("classic") // "classic" | "dark" | "bold"
+  // Per-funnel override of the linked Course.checkoutAfterApply default.
+  // null = inherit from course; true/false = force this funnel one way.
+  checkoutAfterApplyOverride Boolean?
   updatedAt             DateTime         @updatedAt
   deployment            FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }

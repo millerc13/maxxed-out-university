@@ -7,6 +7,7 @@ import {
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { UserRoleSelect } from '@/components/admin/UserRoleSelect';
+import { ConversationViewer } from '@/components/admin/ConversationViewer';
 
 // Always fresh — progress rows change as students work through content.
 export const dynamic = 'force-dynamic';
@@ -317,6 +318,27 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* GHL conversation thread — read-only viewer for confirming
+          welcome / magic-link messages were actually delivered. Renders
+          its own empty state when no GHL contact can be resolved, so we
+          mount it unconditionally. */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b">
+            <h2 className="font-bold text-gray-900">GHL Conversation</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Live SMS + email thread from GoHighLevel. Auto-refreshes every 10 seconds.
+            </p>
+          </div>
+          <div className="p-6">
+            <ConversationViewer
+              contactId={user.ghlContactId ?? undefined}
+              email={user.email ?? undefined}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

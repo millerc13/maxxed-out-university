@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, checkoutAfterApply, notifyClosersOnApply } = body;
 
     if (!title || !slug) {
       return NextResponse.json(
@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
         published: published ?? false,
         comingSoon: comingSoon ?? false,
         price: price ? parseInt(price) : null,
+        externalUrl: externalUrl ?? null,
+        checkoutAfterApply: checkoutAfterApply ?? false,
+        notifyClosersOnApply: notifyClosersOnApply ?? true,
       },
     });
 

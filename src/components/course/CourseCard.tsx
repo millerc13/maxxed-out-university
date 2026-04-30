@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronRight, Check, ExternalLink, CheckCircle, Play } from 'lucide-react';
 import { formatPrice, getPriceTier } from '@/lib/utils';
@@ -49,22 +48,29 @@ export function CourseCard({
       {/* Thumbnail */}
       <div className="relative">
         {thumbnail ? (
-          <div className={`w-full aspect-video relative bg-gradient-to-br from-[#1a3a4a] to-[#0d1f29] ${
-            comingSoon ? 'grayscale' : ''
-          }`}>
-            <Image
+          <div
+            className={`w-full relative bg-gradient-to-br from-[#1a3a4a] to-[#0d1f29] overflow-hidden ${
+              comingSoon ? 'grayscale' : ''
+            }`}
+          >
+            {/* Plain <img> so the card height adapts to each thumbnail's
+                natural aspect ratio. Mixed-ratio sources (16:9 + 3:2) all
+                render full-bleed without cropping. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={thumbnail}
               alt={title}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              quality={85}
-              className="object-cover"
+              loading="lazy"
+              decoding="async"
+              className="w-full h-auto block"
             />
           </div>
         ) : (
-          <div className={`w-full aspect-video bg-gradient-to-br from-[#1a3a4a] to-[#0d1f29] flex flex-col items-center justify-center text-white text-center p-5 ${
-            comingSoon ? 'grayscale' : ''
-          }`}>
+          <div
+            className={`w-full bg-gradient-to-br from-[#1a3a4a] to-[#0d1f29] flex flex-col items-center justify-center text-white text-center p-5 aspect-video ${
+              comingSoon ? 'grayscale' : ''
+            }`}
+          >
             <h3 className="text-lg font-extrabold uppercase leading-tight mb-2.5">
               {title}
             </h3>
