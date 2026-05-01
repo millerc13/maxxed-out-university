@@ -4,7 +4,7 @@
 // bundle when pulled into a 'use client' component.
 
 import { marked } from 'marked';
-import DOMPurify from 'isomorphic-dompurify';
+import sanitizeHtml from 'sanitize-html';
 
 export type TokenValues = Record<string, string | number>;
 
@@ -43,9 +43,25 @@ export function renderMarkdown(template: string, tokens: TokenValues): string {
 export function markdownToHtml(md: string): string {
   marked.setOptions({ gfm: true, breaks: false });
   const raw = marked.parse(md, { async: false }) as string;
-  return DOMPurify.sanitize(raw, {
-    USE_PROFILES: { html: true },
-    ADD_ATTR: ['class', 'data-callout'],
+  // sanitize-html is no-DOM (htmlparser2 under the hood) so it works
+  // in Lambda/Vercel without dragging jsdom in. Whitelist mirrors the
+  // tags marked emits for our markdown contracts plus our own
+  // data-callout attribute on <li>/<p> from decorateContractHtml.
+  return sanitizeHtml(raw, {
+    allowedTags: [
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'p', 'br', 'hr',
+      'strong', 'em', 'b', 'i', 'u', 'sub', 'sup', 'code',
+      'ul', 'ol', 'li',
+      'blockquote', 'pre',
+      'a', 'span', 'div',
+      'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    ],
+    allowedAttributes: {
+      a: ['href', 'name', 'target', 'rel'],
+      '*': ['class', 'data-callout'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto'],
   });
 }
 
