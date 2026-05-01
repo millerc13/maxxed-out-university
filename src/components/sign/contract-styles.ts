@@ -111,7 +111,10 @@ export const CONTRACT_STYLES = `
     margin: 0 0 14px;
   }
   .contract-display strong {
-    color: ${COLORS.ink};
+    /* Match strong to body color so emphasis comes from weight only.
+       Coloring strong darker than body created a wall-of-bold effect
+       in the intro paragraphs where every defined term is a <strong>. */
+    color: inherit;
     font-weight: 600;
   }
   .contract-display ul,
@@ -145,26 +148,13 @@ export const CONTRACT_STYLES = `
     text-underline-offset: 2px;
   }
 
-  /* Important callouts. Restrained — no loud red boxes; just a quiet
-     left border + faint tint so the legally-charged terms (no refunds,
-     no chargebacks, etc.) read as emphatic without shouting. */
-  .contract-display [data-callout="warning"] {
-    background: ${COLORS.warningTint};
-    border-left: 3px solid ${COLORS.warningRule};
-    padding: 10px 14px;
-    border-radius: 0 6px 6px 0;
-    margin: 8px 0;
-    list-style: none;
-  }
-  .contract-display [data-callout="warning"] strong {
-    color: ${COLORS.warningInk};
-    font-weight: 700;
-  }
-  .contract-display ul [data-callout="warning"],
-  .contract-display ol [data-callout="warning"] {
-    margin-left: -22px;
-    padding-left: 14px;
-  }
+  /* Callouts intentionally render the same as any other list item or
+     paragraph. The previous treatment (red tint + red border + red
+     ink on strong) made the no-refunds / no-chargebacks lines pop
+     out visually — owner asked for them to read as ordinary contract
+     terms. The data-callout="warning" attribute is still applied by
+     decorateContractHtml so we can re-introduce styling later
+     without changing the source markdown.  */
 
   /* ── Signature block ─────────────────────────────────────────
      Two-column row: company on the left, client on the right. Each
