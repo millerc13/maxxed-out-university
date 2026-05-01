@@ -10,6 +10,22 @@ const nextConfig: NextConfig = {
   // which calls it) as external so Vercel includes the package on
   // disk and our require() resolves the binary path.
   serverExternalPackages: ['pdfkit', '@sparticuz/chromium', 'puppeteer-core'],
+  // serverExternalPackages keeps the JS unbundled, but Next's file-
+  // tracing still won't include the .br binaries inside
+  // @sparticuz/chromium/bin (they aren't a static `require()`). Force
+  // them into each PDF route's deployment bundle. Without this, the
+  // function ships without the Chromium binary and chromium.executablePath()
+  // throws "input directory ... does not exist" on Vercel.
+  outputFileTracingIncludes: {
+    // Only the routes that use puppeteer/chromium need the bin trace.
+    // /api/certificates/* uses pdfkit directly so it's not listed here.
+    '/api/admin/documents/[id]/pdf': [
+      './node_modules/@sparticuz/chromium/bin/**/*',
+    ],
+    '/api/sign/[token]/pdf': [
+      './node_modules/@sparticuz/chromium/bin/**/*',
+    ],
+  },
   // Proxy PostHog through /ph so ad-blockers don't kill analytics.
   async rewrites() {
     return [
