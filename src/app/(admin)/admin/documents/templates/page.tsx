@@ -34,12 +34,9 @@ export default async function TemplatesListPage() {
           </nav>
           <h1 className="text-2xl font-bold text-gray-900">Contract Templates</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Each template is a markdown contract with{' '}
-            <code className="px-1.5 py-0.5 rounded bg-gray-100 text-xs font-mono">
-              {`{{Token}}`}
-            </code>{' '}
-            placeholders. Only one is active at a time — that's the one auto-fired
-            on self-checkout. Others are still available to send manually from the
+            One template is marked as the <strong className="text-gray-700">default</strong> —
+            that's the one auto-fired on self-checkout. Everything else is a
+            manual-only variant the admin picks for one-off sends from the
             Compose form.
           </p>
         </div>

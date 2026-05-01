@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowLeft, Mail, Calendar, Shield, GraduationCap, CheckCircle2, FileQuestion,
-  TrendingUp, BookOpen, XCircle,
+  TrendingUp, BookOpen, XCircle, FileSignature, Download, ExternalLink, Send,
 } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -80,6 +80,31 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
 
   if (!user) notFound();
 
+  // Signed documents tied to this user. We match on userId AND
+  // recipientEmail so a contract sent before the User row was linked
+  // (e.g. via off-list compose) still surfaces here.
+  const documents = await prisma.documentSignature.findMany({
+    where: {
+      OR: [
+        { userId: user.id },
+        { recipientEmail: user.email },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      status: true,
+      origin: true,
+      courseTitle: true,
+      paymentTotalCents: true,
+      createdAt: true,
+      sentAt: true,
+      signedAt: true,
+      cancelledAt: true,
+      contractTemplate: { select: { name: true } },
+    },
+  });
+
   // Quiz attempts (no back-relation from User, so fetch separately)
   const quizAttempts = await prisma.quizAttempt.findMany({
     where: { userId: id },
@@ -154,9 +179,25 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
                 Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-gray-400" />
-              <UserRoleSelect userId={user.id} currentRole={user.role} />
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <Link
+                href={
+                  '/admin/documents?' +
+                  new URLSearchParams({
+                    prefillUserId: user.id,
+                    prefillEmail: user.email,
+                    prefillName: user.name ?? '',
+                  }).toString()
+                }
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-maxxed-blue text-white text-xs sm:text-sm font-bold shadow-sm hover:bg-maxxed-blue-dark transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" strokeWidth={2.5} />
+                Send Contract
+              </Link>
+              <span className="inline-flex items-center gap-2">
+                <Shield className="w-4 h-4 text-gray-400" />
+                <UserRoleSelect userId={user.id} currentRole={user.role} />
+              </span>
             </div>
           </div>
         </CardContent>
@@ -318,6 +359,110 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Signed contracts / e-sign documents tied to this user. Includes
+          docs sent by userId AND any sent off-list to the same email so
+          the audit trail follows the person, not the link. */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b flex items-center justify-between gap-3">
+            <h2 className="font-bold text-gray-900 flex items-center gap-2">
+              <FileSignature className="w-5 h-5 text-maxxed-blue" />
+              Signed Documents
+            </h2>
+            <span className="text-xs text-gray-400">{documents.length} total</span>
+          </div>
+          {documents.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">
+              No contracts sent to this student yet.
+            </div>
+          ) : (
+            <div className="divide-y">
+              {documents.map((d) => {
+                const statusBadge = (() => {
+                  switch (d.status) {
+                    case 'completed':
+                      return { label: 'Signed', cls: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' };
+                    case 'sent':
+                      return { label: 'Sent', cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' };
+                    case 'viewed':
+                      return { label: 'Viewed', cls: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' };
+                    case 'cancelled':
+                      return { label: 'Cancelled', cls: 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' };
+                    case 'declined':
+                      return { label: 'Declined', cls: 'bg-red-50 text-red-700 ring-1 ring-red-200' };
+                    default:
+                      return { label: d.status, cls: 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' };
+                  }
+                })();
+                const when = d.signedAt ?? d.sentAt ?? d.createdAt;
+                const whenLabel = (() => {
+                  if (d.status === 'completed' && d.signedAt) return `Signed ${relative(d.signedAt)}`;
+                  if (d.status === 'cancelled' && d.cancelledAt) return `Cancelled ${relative(d.cancelledAt)}`;
+                  if (d.sentAt) return `Sent ${relative(d.sentAt)}`;
+                  return relative(when);
+                })();
+                return (
+                  <div
+                    key={d.id}
+                    className="px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {d.courseTitle}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {d.contractTemplate?.name ?? 'Template'}
+                        {d.paymentTotalCents != null && (
+                          <>
+                            {' · '}
+                            <span className="font-medium text-gray-700">
+                              {new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: 'USD',
+                                maximumFractionDigits: 0,
+                              }).format(d.paymentTotalCents / 100)}
+                            </span>
+                          </>
+                        )}
+                        {d.origin === 'manual_admin' && ' · admin send'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                      <span className="text-xs text-gray-500 hidden sm:inline">{whenLabel}</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${statusBadge.cls}`}
+                      >
+                        {statusBadge.label}
+                      </span>
+                      {d.status === 'completed' && (
+                        <a
+                          href={`/api/admin/documents/${d.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-400 hover:text-maxxed-blue p-1 rounded-md hover:bg-gray-50"
+                          aria-label="Download signed PDF"
+                          title="Download signed PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="px-6 py-3 border-t bg-gray-50/60 text-right">
+            <Link
+              href="/admin/documents"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-maxxed-blue"
+            >
+              View all documents <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
         </CardContent>
       </Card>
 

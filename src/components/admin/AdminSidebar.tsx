@@ -7,6 +7,7 @@ import {
   BookOpen,
   Users,
   FileText,
+  FileSignature,
   GraduationCap,
   FileQuestion,
   Upload,
@@ -32,6 +33,7 @@ const navItems = [
   { href: '/admin/messages', label: 'Messages', icon: MessageCircle },
   { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
+  { href: '/admin/documents', label: 'Documents', icon: FileSignature },
   { href: '/admin/import', label: 'CSV Import', icon: Upload },
   { href: '/admin/webhooks', label: 'Webhook Logs', icon: FileText },
 ];

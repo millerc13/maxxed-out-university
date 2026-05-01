@@ -200,9 +200,9 @@ export function TemplatesListClient({ initialTemplates }: Props) {
 
 function ActiveBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-      Active
+    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+      <span className="w-1.5 h-1.5 rounded-full bg-maxxed-blue" />
+      Default
     </span>
   );
 }
@@ -250,7 +250,7 @@ function RowActions({
           disabled={busy}
           className={btn + ' text-maxxed-blue border-maxxed-blue/40 hover:bg-blue-50'}
         >
-          Set active
+          Set as default
         </button>
       )}
       {!row.active && row.signatureCount === 0 && (

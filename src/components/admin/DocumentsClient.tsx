@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   FileSignature,
   Search,
@@ -17,8 +18,12 @@ import {
   Eye,
   AlertCircle,
   Inbox,
+  User as UserIcon,
+  ChevronDown,
   X,
 } from 'lucide-react';
+
+type PickedUser = { id: string; email: string; name: string | null; phone?: string | null };
 
 type PaymentPlan = {
   installments: number;
@@ -102,6 +107,23 @@ export function DocumentsClient({ initialRows, courses, activeTemplate, template
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [prefillUser, setPrefillUser] = useState<PickedUser | null>(null);
+
+  // Open Compose pre-filled when arriving from a user detail page's
+  // "Send Contract" button. The user detail page passes the recipient
+  // metadata directly via query params so we don't need a roundtrip.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const id = searchParams?.get('prefillUserId');
+    if (!id) return;
+    const email = searchParams?.get('prefillEmail') ?? '';
+    const name = searchParams?.get('prefillName') ?? '';
+    if (!email) return;
+    setPrefillUser({ id, email, name: name || null });
+    setComposeOpen(true);
+    // intentional one-shot — only on initial mount with these params
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // KPI counts derived from the unfiltered list so totals don't shift
   // as the admin types in the search box.
@@ -290,7 +312,11 @@ export function DocumentsClient({ initialRows, courses, activeTemplate, template
         <ComposeForm
           courses={courses}
           templates={templates}
-          onClose={() => setComposeOpen(false)}
+          prefillUser={prefillUser}
+          onClose={() => {
+            setComposeOpen(false);
+            setPrefillUser(null);
+          }}
           onCreated={() => {
             setComposeOpen(false);
             void refresh();
@@ -672,17 +698,20 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 function ComposeForm({
   courses,
   templates,
+  prefillUser,
   onClose,
   onCreated,
 }: {
   courses: Course[];
   templates: TemplateOption[];
+  prefillUser?: PickedUser | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState(prefillUser?.email ?? '');
+  const [recipientName, setRecipientName] = useState(prefillUser?.name ?? '');
+  const [recipientPhone, setRecipientPhone] = useState(prefillUser?.phone ?? '');
+  const [pickedUserId, setPickedUserId] = useState<string | null>(prefillUser?.id ?? null);
   const [courseId, setCourseId] = useState<string>('');
   const [customCourseTitle, setCustomCourseTitle] = useState('');
   const [paymentTotalDollars, setPaymentTotalDollars] = useState('');
@@ -691,13 +720,26 @@ function ComposeForm({
   const [frequency, setFrequency] = useState<'monthly' | 'quarterly'>('monthly');
   const [firstDueAt, setFirstDueAt] = useState('');
   const [notes, setNotes] = useState('');
-  // Template picker — defaults to the active template's id (or empty
-  // if there's only one). Falls through to the active row server-side
-  // when empty.
-  const activeId = templates.find((t) => t.active)?.id ?? '';
-  const [templateId, setTemplateId] = useState<string>(activeId);
+  // Template picker — defaults to the default template's id. Falls
+  // through to whichever template has active=true server-side when
+  // empty.
+  const defaultId = templates.find((t) => t.active)?.id ?? '';
+  const [templateId, setTemplateId] = useState<string>(defaultId);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // Preview-document state. Click Preview → POST current form values
+  // to /api/admin/documents/preview → render the returned HTML in a
+  // dedicated modal so the admin can see exactly what the recipient
+  // will see before firing the send.
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [previewTemplateName, setPreviewTemplateName] = useState<string>('');
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const selectedTemplate = templates.find((t) => t.id === templateId) ?? templates.find((t) => t.active) ?? templates[0];
 
   const selectedCourse = courses.find((c) => c.id === courseId) ?? null;
   const courseTitle = selectedCourse?.title || customCourseTitle.trim();
@@ -728,30 +770,59 @@ function ComposeForm({
     totalCents >= 0 &&
     (scheduleType === 'full' || (installmentsN >= 2 && firstDueAt.length > 0));
 
+  function buildPayload(): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+      recipientEmail: recipientEmail.trim(),
+      recipientName: recipientName.trim(),
+      recipientPhone: recipientPhone.trim() || undefined,
+      courseTitle,
+      paymentTotalCents: totalCents,
+      notes: notes.trim() || undefined,
+    };
+    if (selectedCourse) payload.courseId = selectedCourse.id;
+    if (templateId) payload.templateId = templateId;
+    if (pickedUserId) payload.userId = pickedUserId;
+    if (scheduleType === 'plan') {
+      payload.paymentPlan = {
+        installments: installmentsN,
+        perInstallmentCents,
+        frequency,
+        firstDueAt,
+      };
+    }
+    return payload;
+  }
+
+  async function handlePreview() {
+    if (!canSubmit) return;
+    setPreviewError(null);
+    setPreviewLoading(true);
+    setPreviewOpen(true);
+    setPreviewHtml('');
+    try {
+      const res = await fetch('/api/admin/documents/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload()),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Preview failed');
+      setPreviewHtml(json.html ?? '');
+      setPreviewTemplateName(json.templateName ?? selectedTemplate?.name ?? '');
+    } catch (e) {
+      setPreviewError((e as Error).message);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setErr(null);
     setSubmitting(true);
     try {
-      const payload: Record<string, unknown> = {
-        recipientEmail: recipientEmail.trim(),
-        recipientName: recipientName.trim(),
-        recipientPhone: recipientPhone.trim() || undefined,
-        courseTitle,
-        paymentTotalCents: totalCents,
-        notes: notes.trim() || undefined,
-      };
-      if (selectedCourse) payload.courseId = selectedCourse.id;
-      if (templateId) payload.templateId = templateId;
-      if (scheduleType === 'plan') {
-        payload.paymentPlan = {
-          installments: installmentsN,
-          perInstallmentCents,
-          frequency,
-          firstDueAt,
-        };
-      }
+      const payload = buildPayload();
       const res = await fetch('/api/admin/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -772,29 +843,121 @@ function ComposeForm({
       onSubmit={handleSubmit}
       className="bg-white border-2 border-maxxed-blue/30 ring-2 ring-maxxed-blue/10 rounded-xl shadow-sm overflow-hidden"
     >
-      <div className="px-4 py-3 border-b border-gray-100 bg-maxxed-blue/[0.04] flex items-center justify-between">
-        <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-          <Plus className="w-4 h-4 text-maxxed-blue" strokeWidth={2.5} />
-          New document
-        </h3>
+      {/* Brand-block header — anchors the modal on the template
+          being sent. Single full-bleed maxxed-blue strip; the title
+          row, eyebrow + name, and Change picker all live inside. */}
+      <header className="bg-maxxed-blue text-white px-4 sm:px-5 pt-4 pb-3 relative">
         <button
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors"
+          className="absolute top-3 right-3 p-1 rounded-md text-white/70 hover:text-white hover:bg-white/15 cursor-pointer transition-colors"
           aria-label="Cancel"
         >
           <X className="w-4 h-4" />
         </button>
-      </div>
+        <div className="flex items-start gap-3 sm:gap-4 pr-7">
+          <span
+            aria-hidden
+            className="shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white/15 text-white ring-1 ring-white/25"
+          >
+            <FileSignature className="h-5 w-5" strokeWidth={2.25} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">
+              Sending Template
+            </p>
+            <h3 className="text-base sm:text-lg font-bold text-white truncate mt-0.5">
+              {selectedTemplate?.name ?? 'No template'}
+            </h3>
+            <p className="text-xs text-white/75 mt-0.5">
+              {selectedTemplate?.active
+                ? 'Default for self-checkout'
+                : 'Manual variant'}
+            </p>
+          </div>
+          {templates.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowTemplatePicker((v) => !v)}
+              className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 text-xs font-semibold text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              aria-expanded={showTemplatePicker}
+            >
+              Change
+              <ChevronDown
+                className={
+                  'h-3 w-3 transition-transform ' +
+                  (showTemplatePicker ? 'rotate-180' : '')
+                }
+              />
+            </button>
+          )}
+        </div>
+        {showTemplatePicker && templates.length > 1 && (
+          <ul className="mt-3 rounded-lg bg-white/10 ring-1 ring-white/20 divide-y divide-white/10 overflow-hidden">
+            {templates.map((t) => {
+              const isSelected = t.id === templateId;
+              return (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateId(t.id);
+                      setShowTemplatePicker(false);
+                    }}
+                    className={
+                      'w-full text-left px-3 py-2 text-sm font-medium transition-colors flex items-center justify-between gap-2 ' +
+                      (isSelected
+                        ? 'bg-white/20 text-white'
+                        : 'text-white/85 hover:bg-white/15')
+                    }
+                  >
+                    <span className="truncate">
+                      {t.name}
+                      {t.active && (
+                        <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-white/70">
+                          default
+                        </span>
+                      )}
+                    </span>
+                    {isSelected && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </header>
 
       <div className="p-4 space-y-4">
+        <UserPickerField
+          pickedUserId={pickedUserId}
+          recipientName={recipientName}
+          recipientEmail={recipientEmail}
+          onPick={(u) => {
+            setPickedUserId(u.id);
+            setRecipientName(u.name ?? '');
+            setRecipientEmail(u.email);
+            if (u.phone) setRecipientPhone(u.phone);
+          }}
+          onClear={() => {
+            setPickedUserId(null);
+            setRecipientName('');
+            setRecipientEmail('');
+          }}
+          disabled={submitting}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Recipient name" required>
             <input
               type="text"
               value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
+              onChange={(e) => {
+                setRecipientName(e.target.value);
+                if (pickedUserId) setPickedUserId(null);
+              }}
               placeholder="Brian Johnson"
               autoComplete="name"
               required
@@ -805,7 +968,10 @@ function ComposeForm({
             <input
               type="email"
               value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
+              onChange={(e) => {
+                setRecipientEmail(e.target.value);
+                if (pickedUserId) setPickedUserId(null);
+              }}
               placeholder="brian@example.com"
               autoComplete="email"
               required
@@ -813,26 +979,6 @@ function ComposeForm({
             />
           </Field>
         </div>
-
-        {templates.length > 1 && (
-          <Field
-            label="Template"
-            hint="Active template is used by default. Pick a different one to send a variant without flipping the active flag."
-          >
-            <select
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
-            >
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.active ? ' · active' : ''}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Course">
@@ -948,7 +1094,7 @@ function ComposeForm({
         )}
       </div>
 
-      <div className="bg-gray-50/70 border-t border-gray-100 px-4 py-3 flex items-center justify-end gap-2">
+      <div className="bg-gray-50/70 border-t border-gray-100 px-4 py-3 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
         <button
           type="button"
           onClick={onClose}
@@ -957,15 +1103,38 @@ function ComposeForm({
         >
           Cancel
         </button>
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-maxxed-blue text-white text-xs sm:text-sm font-semibold shadow-sm hover:bg-maxxed-blue-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-        >
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-          Send agreement
-        </button>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={handlePreview}
+            disabled={!canSubmit || previewLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs sm:text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          >
+            {previewLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+            Preview
+          </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-maxxed-blue text-white text-xs sm:text-sm font-semibold shadow-sm hover:bg-maxxed-blue-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            Send agreement
+          </button>
+        </div>
       </div>
+
+      {previewOpen && (
+        <PreviewModal
+          html={previewHtml}
+          templateName={previewTemplateName || selectedTemplate?.name || ''}
+          loading={previewLoading}
+          error={previewError}
+          recipientName={recipientName}
+          courseTitle={courseTitle}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </form>
   );
 }
@@ -1027,5 +1196,299 @@ function ScheduleOption({
         {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
       </span>
     </button>
+  );
+}
+
+
+/* ─── User picker (for Compose recipient) ─────────────────────── */
+
+function UserPickerField({
+  pickedUserId,
+  recipientName,
+  recipientEmail,
+  onPick,
+  onClear,
+  disabled,
+}: {
+  pickedUserId: string | null;
+  recipientName: string;
+  recipientEmail: string;
+  onPick: (u: PickedUser) => void;
+  onClear: () => void;
+  disabled?: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [matches, setMatches] = useState<PickedUser[]>([]);
+  const [searching, setSearching] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Debounced search — fires 250ms after the last keystroke.
+  useEffect(() => {
+    if (pickedUserId) return; // already matched, skip
+    const q = query.trim();
+    if (q.length < 2) {
+      setMatches([]);
+      return;
+    }
+    setSearching(true);
+    const ctl = new AbortController();
+    const t = setTimeout(() => {
+      fetch(`/api/admin/users/search?q=${encodeURIComponent(q)}`, {
+        signal: ctl.signal,
+      })
+        .then((r) => r.json())
+        .then((data: { users?: PickedUser[] }) => setMatches(data.users ?? []))
+        .catch(() => {})
+        .finally(() => setSearching(false));
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      ctl.abort();
+    };
+  }, [query, pickedUserId]);
+
+  // Close dropdown on outside click.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  // When a user is locked in via picker, show a chip instead of the
+  // search box. Click X to detach + free up manual editing.
+  if (pickedUserId) {
+    return (
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+          <UserIcon className="w-4.5 h-4.5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+            Linked to existing student
+          </p>
+          <p className="text-sm font-semibold text-gray-900 truncate">
+            {recipientName || "—"}{" "}
+            <span className="text-gray-500 font-normal">·</span>{" "}
+            <span className="text-gray-600">{recipientEmail}</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={disabled}
+          className="text-emerald-700 hover:text-emerald-900 p-1 rounded-md hover:bg-emerald-100 disabled:opacity-50"
+          aria-label="Detach"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+        Send to existing student
+      </span>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Search by name or email…"
+          disabled={disabled}
+          className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
+        />
+        {searching && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 animate-spin pointer-events-none" />
+        )}
+      </div>
+      <p className="text-[11px] text-gray-400 mt-1">
+        Or fill the recipient fields below for an off-platform send.
+      </p>
+      {open && query.trim().length >= 2 && (
+        <ul className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+          {matches.length === 0 && !searching && (
+            <li className="px-3 py-3 text-sm text-gray-500">
+              No students match "{query}". Use the fields below to send
+              to a non-student email.
+            </li>
+          )}
+          {matches.map((u) => (
+            <li key={u.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  onPick(u);
+                  setQuery("");
+                  setOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold shrink-0">
+                  {(u.name || u.email)[0]?.toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {u.name || "(no name)"}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+
+/* ─── Preview modal ─────────────────────────────────────────── */
+
+function PreviewModal({
+  html,
+  templateName,
+  loading,
+  error,
+  recipientName,
+  courseTitle,
+  onClose,
+}: {
+  html: string;
+  templateName: string;
+  loading: boolean;
+  error: string | null;
+  recipientName: string;
+  courseTitle: string;
+  onClose: () => void;
+}) {
+  // Lock body scroll while open + close on Escape.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Document preview"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 px-0 sm:px-6 sm:py-6"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full max-w-3xl flex flex-col sm:rounded-2xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="bg-maxxed-blue text-white px-4 sm:px-5 py-3 sm:py-4 flex items-start justify-between gap-3 shrink-0">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">
+              Preview &middot; not yet sent
+            </p>
+            <h2 className="text-base sm:text-lg font-bold text-white truncate mt-0.5">
+              {templateName || 'Contract'}
+            </h2>
+            <p className="text-xs text-white/80 mt-0.5 truncate">
+              {recipientName ? `For ${recipientName}` : 'No recipient yet'}
+              {courseTitle && (
+                <>
+                  {' '}
+                  <span className="text-white/60">·</span> {courseTitle}
+                </>
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 p-1 rounded-md text-white/80 hover:text-white hover:bg-white/15 cursor-pointer"
+            aria-label="Close preview"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          {loading && (
+            <div className="flex items-center justify-center py-20 text-gray-500 gap-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Rendering preview…</span>
+            </div>
+          )}
+          {!loading && error && (
+            <div className="m-4 sm:m-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Preview failed</p>
+                <p className="mt-0.5">{error}</p>
+              </div>
+            </div>
+          )}
+          {!loading && !error && html && (
+            <PreviewContent html={html} />
+          )}
+        </div>
+        <footer className="border-t border-gray-100 bg-white px-4 sm:px-5 py-3 flex items-center justify-between gap-3 shrink-0">
+          <p className="text-xs text-gray-500">
+            This is what the recipient will see. Hit{' '}
+            <span className="font-semibold text-gray-700">Send agreement</span>{' '}
+            on the form to actually fire it.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-maxxed-blue text-white text-xs sm:text-sm font-semibold shadow-sm hover:bg-maxxed-blue-dark cursor-pointer transition-colors"
+          >
+            Close preview
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function PreviewContent({ html }: { html: string }) {
+  // Lazy-load ContractDisplay so its style/font payload isn't pulled
+  // into the main bundle for admins who never click Preview.
+  const [ContractDisplayMod, setMod] = useState<typeof import('@/components/sign/ContractDisplay') | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import('@/components/sign/ContractDisplay').then((mod) => {
+      if (!cancelled) setMod(mod);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!ContractDisplayMod) {
+    return (
+      <div className="flex items-center justify-center py-20 text-gray-400">
+        <Loader2 className="w-5 h-5 animate-spin" />
+      </div>
+    );
+  }
+  const { ContractDisplay } = ContractDisplayMod;
+  return (
+    <div className="py-6 sm:py-10 px-3 sm:px-6">
+      <ContractDisplay renderedHtml={html} />
+    </div>
   );
 }

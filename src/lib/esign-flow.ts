@@ -99,15 +99,19 @@ type CreateInput = {
   templateId?: string | null;
 };
 
-async function createAndSendDocument(input: CreateInput): Promise<{ documentId: string }> {
-  const tpl = await loadTemplate(input.templateId);
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
+// Builds the canonical token map for a recipient's enrollment doc.
+// Shared between createAndSendDocument (the actual send) and the
+// admin /preview endpoint so a preview always matches what gets
+// rendered into the snapshotted renderedHtml on send.
+function buildEnrollmentTokens(
+  input: Pick<
+    CreateInput,
+    'recipientName' | 'recipientEmail' | 'courseTitle' | 'paymentTotalCents'
+    | 'paymentPlan' | 'notes' | 'enrollmentTransactionId'
+  >,
+  now: Date,
+): TokenValues {
   const { first, last } = splitName(input.recipientName);
-
-  // Compose the canonical token map. We always supply the full superset;
-  // renderMarkdown only complains about tokens the template uses that we
-  // didn't provide.
   const initialCents = input.paymentPlan
     ? input.paymentPlan.perInstallmentCents
     : input.paymentTotalCents;
@@ -117,8 +121,7 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
   const scheduleNarrative = input.paymentPlan
     ? describePaymentPlan(input.paymentPlan)
     : 'Paid in full';
-
-  const tokens: TokenValues = {
+  return {
     ...STATIC_TOKEN_DEFAULTS,
     'Agreement.EffectiveDate': formatDateLong(now),
     'Customer.FullName': input.recipientName,
@@ -140,6 +143,45 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
     'Notes': input.notes ?? '',
     'Company.SignatureDate': formatDateLong(now),
   };
+}
+
+// Render-only entrypoint used by the admin preview endpoint. Same
+// token-build pipeline as the live send, but doesn't touch the
+// database — returns the HTML so the admin can eyeball the contract
+// before they actually fire it.
+export async function previewEnrollmentDocument(input: {
+  recipientEmail: string;
+  recipientName: string;
+  courseTitle: string;
+  paymentTotalCents: number;
+  paymentPlan?: PaymentPlan | null;
+  notes?: string | null;
+  templateId?: string | null;
+}): Promise<{ html: string; templateName: string }> {
+  const tpl = await loadTemplate(input.templateId);
+  const tokens = buildEnrollmentTokens(
+    {
+      recipientName: input.recipientName,
+      recipientEmail: input.recipientEmail,
+      courseTitle: input.courseTitle,
+      paymentTotalCents: input.paymentTotalCents,
+      paymentPlan: input.paymentPlan ?? null,
+      notes: input.notes ?? null,
+      enrollmentTransactionId: null,
+    },
+    new Date(),
+  );
+  const md = renderMarkdown(tpl.body, tokens);
+  const html = markdownToHtml(md);
+  return { html, templateName: tpl.name };
+}
+
+async function createAndSendDocument(input: CreateInput): Promise<{ documentId: string }> {
+  const tpl = await loadTemplate(input.templateId);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  const tokens = buildEnrollmentTokens(input, now);
 
   const renderedMarkdown = renderMarkdown(tpl.body, tokens);
   const renderedHtml = markdownToHtml(renderedMarkdown);
