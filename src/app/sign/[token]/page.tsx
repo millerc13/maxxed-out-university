@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { ContractDisplay } from '@/components/sign/ContractDisplay';
 import { SigningPageClient } from '@/components/sign/SigningPageClient';
+import { fillClientSignature } from '@/lib/esign-render';
+import { signDownloadToken } from '@/lib/esign-tokens';
 
 // Public, no-auth signing page. The signingToken in the URL is the
 // only credential — it's a 32-byte random hex value that's revoked
@@ -21,6 +23,9 @@ export default async function SignPage({ params }: PageProps) {
   const { token } = await params;
   if (!token) notFound();
 
+  // Try the active signing-token path first. Falls back to looking up
+  // ANY doc (regardless of token state) further down for completed
+  // recipients revisiting their sign URL after the token was revoked.
   const doc = await prisma.documentSignature.findUnique({
     where: { signingToken: token },
     select: {
@@ -33,16 +38,13 @@ export default async function SignPage({ params }: PageProps) {
       signingTokenExpiresAt: true,
       firstViewedAt: true,
       auditEvents: true,
+      signedName: true,
+      signedAt: true,
     },
   });
 
-  // Token revoked, doc cancelled, or expired — show a soft state
-  // instead of a hard 404 so the recipient knows what happened.
   if (!doc) {
     return <ExpiredOrSignedState reason="not-found" />;
-  }
-  if (doc.status === 'completed') {
-    return <ExpiredOrSignedState reason="already-signed" />;
   }
   if (doc.status === 'cancelled') {
     return <ExpiredOrSignedState reason="cancelled" />;
@@ -50,6 +52,38 @@ export default async function SignPage({ params }: PageProps) {
   if (doc.status === 'declined') {
     return <ExpiredOrSignedState reason="declined" />;
   }
+
+  // Already-signed: render the FILLED contract + a download CTA.
+  // No more "you already signed" dead-end — the recipient sees their
+  // own signed copy. Safe because they have the original signing-URL
+  // (now revoked but still in their email) which is functionally a
+  // shared secret tied to their email address.
+  if (doc.status === 'completed' && doc.signedName && doc.signedAt) {
+    const signedDateStr = doc.signedAt.toLocaleDateString('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    });
+    const filledHtml = fillClientSignature(doc.renderedHtml, {
+      name: doc.signedName,
+      date: signedDateStr,
+    });
+    const downloadToken = signDownloadToken(doc.id, 60 * 60 * 24 * 365);
+    return (
+      <main className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-6">
+        <div className="max-w-3xl mx-auto">
+          <SignedBanner
+            signedName={doc.signedName}
+            signedDateStr={signedDateStr}
+            downloadUrl={`/api/sign/${encodeURIComponent(downloadToken)}/pdf`}
+          />
+          <ContractDisplay
+            renderedHtml={filledHtml}
+            letterheadMeta={doc.courseTitle}
+          />
+        </div>
+      </main>
+    );
+  }
+
   if (doc.signingTokenExpiresAt && doc.signingTokenExpiresAt < new Date()) {
     return <ExpiredOrSignedState reason="expired" />;
   }
@@ -92,6 +126,52 @@ export default async function SignPage({ params }: PageProps) {
         />
       </div>
     </main>
+  );
+}
+
+function SignedBanner({
+  signedName,
+  signedDateStr,
+  downloadUrl,
+}: {
+  signedName: string;
+  signedDateStr: string;
+  downloadUrl: string;
+}) {
+  return (
+    <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-green-900">
+            Signed by {signedName}
+          </p>
+          <p className="text-xs text-green-700">on {signedDateStr}</p>
+        </div>
+      </div>
+      <a
+        href={downloadUrl}
+        download
+        className="inline-flex items-center justify-center rounded-lg bg-maxxed-blue px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition-colors"
+      >
+        Download PDF
+      </a>
+    </div>
   );
 }
 

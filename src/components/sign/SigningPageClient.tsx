@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/apply/ui/Button';
 import { Input, Label } from '@/components/apply/ui/Input';
 
@@ -27,6 +28,7 @@ export function SigningPageClient({
   recipientName,
   courseTitle,
 }: Props) {
+  const router = useRouter();
   const [typedName, setTypedName] = useState(recipientName);
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -72,6 +74,11 @@ export function SigningPageClient({
         return;
       }
       setSuccess(data);
+      // Pull a fresh server render — the page handler now sees
+      // status='completed' and re-renders the contract with the
+      // CLIENT signature spans filled in (NAME/SIGNATURE/DATE).
+      // The form below is replaced by the success card we set above.
+      router.refresh();
     } catch (err) {
       console.error('[sign] submit failed', err);
       setErrorMsg(

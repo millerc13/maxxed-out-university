@@ -84,3 +84,39 @@ export function decorateContractHtml(html: string): string {
     return full;
   });
 }
+
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Replaces the empty CLIENT signature spans in the immutable
+// renderedHtml with the customer's typed name + signed date. Source
+// template intentionally leaves these blank — `<span class="sig-blank-name"></span>`
+// etc. — so the live page (pre-sign) and the snapshot stored in the DB
+// stay clean. We layer the signed values on at display + PDF time so
+// the `renderedHtml` snapshot remains canonical for the signatureHash.
+export function fillClientSignature(
+  html: string,
+  filled: { name: string; date: string },
+): string {
+  const safeName = escapeHtml(filled.name);
+  const safeDate = escapeHtml(filled.date);
+  return html
+    .replace(
+      /<span class="([^"]*\bsig-blank-name\b[^"]*)"><\/span>/g,
+      (_, cls) => `<span class="${cls}">${safeName}</span>`,
+    )
+    .replace(
+      /<span class="([^"]*\bsig-blank-signature\b[^"]*)"><\/span>/g,
+      (_, cls) => `<span class="${cls}">${safeName}</span>`,
+    )
+    .replace(
+      /<span class="([^"]*\bsig-blank-date\b[^"]*)"><\/span>/g,
+      (_, cls) => `<span class="${cls}">${safeDate}</span>`,
+    );
+}

@@ -147,7 +147,12 @@ export async function POST(
       signedScreenW: screenW,
       signedScreenH: screenH,
       signatureHash,
-      signingToken: null, // one-time-use; revoke on sign
+      // We deliberately do NOT null signingToken here. The status
+      // gate above already enforces one-time-use (any future POST
+      // for this token is rejected with 409). Keeping the token
+      // attached lets the recipient revisit /sign/[token] later
+      // and see their FILLED signed copy + download link instead
+      // of a "this link is no longer valid" dead-end.
       auditEvents,
     },
   });

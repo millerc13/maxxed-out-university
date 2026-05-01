@@ -1,7 +1,11 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { Readable } from 'stream';
 import { prisma } from '@/lib/prisma';
-import { decorateContractHtml } from '@/lib/esign-tokens';
+import {
+  decorateContractHtml,
+  escapeHtml,
+  fillClientSignature,
+} from '@/lib/esign-render';
 import {
   CONTRACT_STYLES,
   CONTRACT_FONT_LINKS,
@@ -174,40 +178,6 @@ ${fontLinks}
   </section>
 </body>
 </html>`;
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// Replaces the empty CLIENT signature spans in the immutable renderedHtml
-// with the customer's typed name + signed date. The renderedHtml stays
-// canonical; this fill is purely a PDF-render decoration so the downloaded
-// signed copy shows the values where the source template left blanks.
-function fillClientSignature(
-  html: string,
-  filled: { name: string; date: string },
-): string {
-  const safeName = escapeHtml(filled.name);
-  const safeDate = escapeHtml(filled.date);
-  return html
-    .replace(
-      /<span class="([^"]*\bsig-blank-name\b[^"]*)"><\/span>/g,
-      (_, cls) => `<span class="${cls}">${safeName}</span>`,
-    )
-    .replace(
-      /<span class="([^"]*\bsig-blank-signature\b[^"]*)"><\/span>/g,
-      (_, cls) => `<span class="${cls}">${safeName}</span>`,
-    )
-    .replace(
-      /<span class="([^"]*\bsig-blank-date\b[^"]*)"><\/span>/g,
-      (_, cls) => `<span class="${cls}">${safeDate}</span>`,
-    );
 }
 
 // Resolves a Chromium executable path for puppeteer-core. On Vercel /
