@@ -24,7 +24,7 @@ import { useAdminDrawer } from './AdminShell';
 
 const navItems = [
   { href: '/admin/quick-links', label: 'Quick Links', icon: Zap },
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
   { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
   { href: '/admin/funnels/promo-codes', label: 'Promo Codes', icon: Tag },
@@ -50,7 +50,7 @@ function useActiveHref(): string | null {
   return navItems.reduce<string | null>((best, item) => {
     const matches =
       pathname === item.href ||
-      (item.href !== '/admin' && pathname.startsWith(item.href + '/'));
+      pathname.startsWith(item.href + '/');
     if (!matches) return best;
     if (best === null || item.href.length > best.length) return item.href;
     return best;

@@ -49,12 +49,24 @@ type AccentKey = 'blue' | 'amber' | 'emerald' | 'violet' | 'gray';
 
 // Funnel subdomains are static — same in dev/prod, just owned at GoDaddy
 // → Vercel. Hardcoding the production URLs because that's what gets
-// printed on cards / texted to leads at the event.
+// printed on cards / texted to leads at the event. Order is the
+// canonical "what Todd reaches for first" sequence (apply-flow programs
+// surface above the direct-buy Blueprint).
 const FUNNEL_URLS: Card[] = [
-  { id: 'blueprint', title: 'Real Estate Empire Blueprint', url: 'https://blueprint.maxxedout.com', icon: Building2, accent: 'blue' },
   { id: 'mentorship', title: '6-Month Mentorship', url: 'https://mentorship.maxxedout.com', icon: Rocket, accent: 'amber' },
   { id: 'business-mentorship', title: 'Business Accelerator & Mentorship', url: 'https://business-mentorship.maxxedout.com', icon: TrendingUp, accent: 'emerald' },
   { id: 'accelerator', title: 'Business Accelerator', url: 'https://accelerator.maxxedout.com', icon: ZapIcon, accent: 'violet' },
+  { id: 'blueprint', title: 'Real Estate Empire Blueprint', url: 'https://blueprint.maxxedout.com', icon: Building2, accent: 'blue' },
+];
+
+// Display order for the Payments tab — matches the funnel order above
+// using course slugs. Anything not in this list falls to the end,
+// then sorted by price desc (existing behavior for new courses).
+const PAYMENT_SLUG_ORDER: string[] = [
+  '6-month-mentorship',
+  'business-accelerator-mentorship',
+  'business-accelerator',
+  'real-estate-empire-blueprint',
 ];
 
 export function QuickLinksClient({ universityOrigin, courses }: QuickLinksClientProps) {
@@ -67,14 +79,26 @@ export function QuickLinksClient({ universityOrigin, courses }: QuickLinksClient
     { id: 'login', title: 'Login', url: `${universityOrigin}/login`, icon: LogIn, accent: 'blue' },
   ];
 
-  const paymentCards: Card[] = courses.map((c) => ({
-    id: c.id,
-    title: c.title,
-    url: `${universityOrigin}/pay/${c.slug}`,
-    icon: CreditCard,
-    accent: 'emerald' as AccentKey,
-    badge: c.price ? formatUsd(c.price) : undefined,
-  }));
+  const paymentCards: Card[] = [...courses]
+    .sort((a, b) => {
+      // Slugs in PAYMENT_SLUG_ORDER come first in that exact order;
+      // unlisted slugs slot in after, ordered as the server query
+      // returned them (price desc).
+      const ai = PAYMENT_SLUG_ORDER.indexOf(a.slug);
+      const bi = PAYMENT_SLUG_ORDER.indexOf(b.slug);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    })
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      url: `${universityOrigin}/pay/${c.slug}`,
+      icon: CreditCard,
+      accent: 'emerald' as AccentKey,
+      badge: c.price ? formatUsd(c.price) : undefined,
+    }));
 
   const counts = { funnels: FUNNEL_URLS.length, university: universityCards.length, payments: paymentCards.length };
   const cards = tab === 'funnels' ? FUNNEL_URLS : tab === 'university' ? universityCards : paymentCards;
@@ -206,18 +230,22 @@ function QuickCard({ card, onEnlarge }: { card: Card; onEnlarge: () => void }) {
           />
         </button>
 
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${accentBg(card.accent)} ring-1 ${accentRing(card.accent)}`}>
+        <div className="flex items-start gap-2.5">
+          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5 ${accentBg(card.accent)} ring-1 ${accentRing(card.accent)}`}>
             <Icon className={`w-4 h-4 ${accentText(card.accent)}`} strokeWidth={2.5} />
           </div>
-          {card.badge && (
-            <span className="text-[11px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full ring-1 ring-emerald-200">
-              {card.badge}
-            </span>
-          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[15px] font-bold text-gray-900 leading-tight">{card.title}</p>
+              {card.badge && (
+                <span className="shrink-0 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full ring-1 ring-emerald-200 mt-0.5">
+                  {card.badge}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1.5 truncate font-mono select-all">{stripProtocol(card.url)}</p>
+          </div>
         </div>
-        <p className="text-[15px] font-bold text-gray-900 leading-tight">{card.title}</p>
-        <p className="text-[11px] text-gray-500 mt-1.5 truncate font-mono select-all">{stripProtocol(card.url)}</p>
       </div>
 
       <div className="px-4 pb-4 mt-auto space-y-2">

@@ -131,8 +131,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Append buyer pre-fill query params to the Fanbasis hosted-checkout
+    // URL. Per Fanbasis support (2026-05-01): they read first_name,
+    // last_name, email from the URL and pre-fill the corresponding
+    // fields on the hosted page. Saves the buyer from re-typing what
+    // they just entered on /pay or the funnel checkout. Phone is not
+    // a documented param — leaving it out.
+    const buyerEmail = isGuest ? guestEmail : (session?.user?.email ?? '');
+    const buyerName = isGuest ? (guestName ?? '') : (session?.user?.name ?? '');
+    let prefilledLink = checkoutSession.payment_link;
+    if (buyerEmail || buyerName) {
+      try {
+        const url = new URL(checkoutSession.payment_link);
+        if (buyerEmail) url.searchParams.set('email', buyerEmail);
+        if (buyerName) {
+          const trimmed = buyerName.trim();
+          const spaceIdx = trimmed.indexOf(' ');
+          const first = spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx);
+          const last = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
+          if (first) url.searchParams.set('first_name', first);
+          if (last) url.searchParams.set('last_name', last);
+        }
+        prefilledLink = url.toString();
+      } catch {
+        // Malformed payment_link — fall back to the raw URL. Logged so
+        // we notice if Fanbasis ever changes the URL shape.
+        console.warn('[fanbasis-checkout] could not parse payment_link for prefill', {
+          paymentLink: checkoutSession.payment_link,
+        });
+      }
+    }
+
     return NextResponse.json({
-      paymentLink: checkoutSession.payment_link,
+      paymentLink: prefilledLink,
       checkoutSessionId: checkoutSession.checkout_session_id,
       amount: finalAmount,
       originalAmount: course.price,
