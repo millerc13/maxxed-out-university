@@ -57,6 +57,16 @@ interface CourseLite {
 
 interface ApplyWizardOnPlatformProps {
   course: CourseLite;
+  // Optional prefill — when the visitor is logged into the university,
+  // the server hands their account info down so the contact step is
+  // already filled. localStorage hydration still runs after mount, so
+  // a saved draft (if any) will overwrite these defaults — drafts win,
+  // prefill is the seed for fresh applies.
+  prefill?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
 function QualifiedInterstitial() {
@@ -153,7 +163,7 @@ function QualifiedInterstitial() {
   );
 }
 
-export function ApplyWizardOnPlatform({ course }: ApplyWizardOnPlatformProps) {
+export function ApplyWizardOnPlatform({ course, prefill }: ApplyWizardOnPlatformProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -169,9 +179,9 @@ export function ApplyWizardOnPlatform({ course }: ApplyWizardOnPlatformProps) {
     resolver: zodResolver(applicationSchema),
     mode: "onBlur",
     defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
+      name: prefill?.name ?? "",
+      email: prefill?.email ?? "",
+      phone: prefill?.phone ?? "",
       businessName: "",
       website: "",
       bestTimes: [],

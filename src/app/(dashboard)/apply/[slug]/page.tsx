@@ -62,6 +62,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   // re-submitting the form. Unauthenticated visitors fall through
   // and see the form (closer can dedupe on email at review time).
   const session = await auth();
+  let prefill: { name?: string; email?: string; phone?: string } | undefined;
   if (session?.user?.id) {
     const alreadyEnrolled = await isEffectivelyEnrolled(session.user.id, course.id);
     if (alreadyEnrolled) {
@@ -73,6 +74,20 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     });
     if (existingApplication) {
       redirect(`/courses/${course.slug}?applied=1`);
+    }
+    // Pull the user's name + phone + email so the contact step is
+    // pre-filled. Fast path for logged-in users who shouldn't have to
+    // retype info we already have.
+    const u = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true, name: true, phone: true },
+    });
+    if (u) {
+      prefill = {
+        name: u.name ?? undefined,
+        email: u.email ?? undefined,
+        phone: u.phone ?? undefined,
+      };
     }
   }
 
@@ -122,6 +137,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
               price: course.price,
               checkoutAfterApply: course.checkoutAfterApply,
             }}
+            prefill={prefill}
           />
         </div>
       </main>
