@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { prisma } from './prisma';
 
 export function generateToken(): string {
@@ -6,16 +7,47 @@ export function generateToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function createMagicLink(userId: string): Promise<string> {
+// 6-char URL-safe alphanumeric. Same shape as CheckoutLink tokens —
+// short enough for an SMS, ~57B combinations so collisions on a single
+// 5-attempt retry loop are essentially impossible at our volume.
+function generateShortCode(): string {
+  return randomBytes(8).toString('base64url').replace(/[-_]/g, '').slice(0, 6);
+}
+
+export async function createMagicLink(userId: string): Promise<{ token: string; shortCode: string }> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-  await prisma.magicLink.create({
-    data: { token, userId, expiresAt },
-  });
-  console.log('[magiclink] Created', { userId, tokenPrefix: token.slice(0, 8) + '...', expiresAt });
+  // Retry up to 5 times on the off chance of a shortCode collision.
+  let shortCode: string | null = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = generateShortCode();
+    const existing = await prisma.magicLink.findUnique({ where: { shortCode: candidate }, select: { id: true } });
+    if (!existing) {
+      shortCode = candidate;
+      break;
+    }
+  }
+  if (!shortCode) throw new Error('createMagicLink: failed to generate unique shortCode after 5 tries');
 
-  return token;
+  await prisma.magicLink.create({
+    data: { token, shortCode, userId, expiresAt },
+  });
+  console.log('[magiclink] Created', { userId, tokenPrefix: token.slice(0, 8) + '...', shortCode, expiresAt });
+
+  return { token, shortCode };
+}
+
+/**
+ * Look up a magic link by its short code. Used by the /a/[code] short-URL
+ * redirector. Returns the row or null — callers handle the 404. Does NOT
+ * mark the row used (that happens at /auth/activate via verifyMagicLink).
+ */
+export async function findMagicLinkByShortCode(shortCode: string) {
+  return prisma.magicLink.findUnique({
+    where: { shortCode },
+    select: { token: true, expiresAt: true, usedAt: true },
+  });
 }
 
 export async function verifyMagicLink(token: string) {

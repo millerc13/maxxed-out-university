@@ -382,21 +382,25 @@ async function enrollFromFanbasis(params: {
   });
 
   // Bundle unlock — if this course is a bundle, also enroll in every child course.
+  // checkoutAfterApply is loaded so the SMS body can branch high-ticket
+  // (apply→checkout, team will reach out) vs self-serve (Blueprint etc).
   const purchasedCourse = await prisma.course.findUnique({
     where: { id: params.courseId },
-    select: { isBundle: true, thumbnail: true, title: true, slug: true },
+    select: { isBundle: true, thumbnail: true, title: true, slug: true, checkoutAfterApply: true },
   });
 
   // Link buyer to GHL contact + tag with the course they bought, so
   // /admin/messages classifies them as a Sale and the closer-side GHL
   // UI shows what was purchased. Best-effort — won't break the webhook
-  // if GHL is down or unconfigured.
+  // if GHL is down or unconfigured. The resolved contactId is hoisted
+  // out so the SMS send below can reach it.
+  let ghlContactId: string | null = null;
   if (params.email) {
     try {
       const { linkUserToGhlContactByEmail, syncCoursePurchase } = await import('@/lib/ghl');
-      const contactId = await linkUserToGhlContactByEmail(resolvedUserId, params.email);
-      if (contactId && purchasedCourse?.slug) {
-        await syncCoursePurchase(contactId, purchasedCourse.slug);
+      ghlContactId = await linkUserToGhlContactByEmail(resolvedUserId, params.email);
+      if (ghlContactId && purchasedCourse?.slug) {
+        await syncCoursePurchase(ghlContactId, purchasedCourse.slug);
       }
     } catch (err) {
       console.error('[fanbasis-webhook] GHL link/tag failed (non-fatal)', err);
@@ -445,13 +449,25 @@ async function enrollFromFanbasis(params: {
     : null;
   const teamReachOutNote = isHighTicket;
 
+  // Always mint a magic-link token + short code. The full token goes in
+  // the setup-password email; the short code goes in the SMS so buyers
+  // can one-tap into their account from their phone.
+  let activateToken: string | null = null;
+  let activateShortCode: string | null = null;
   try {
-    if (needsPasswordSetup) {
-      const token = await createMagicLink(resolvedUserId);
+    const ml = await createMagicLink(resolvedUserId);
+    activateToken = ml.token;
+    activateShortCode = ml.shortCode;
+  } catch (err) {
+    console.error('[fanbasis-webhook] Magic link create failed (non-fatal)', { error: err instanceof Error ? err.message : err });
+  }
+
+  try {
+    if (needsPasswordSetup && activateToken) {
       await sendMagicLinkEmail({
         to: userEmail,
         name: userName,
-        token,
+        token: activateToken,
         courseName: cName,
         courseThumbnail: purchasedCourse?.thumbnail,
         bonusBox,
@@ -471,6 +487,30 @@ async function enrollFromFanbasis(params: {
     }
   } catch (err) {
     console.error('[fanbasis-webhook] Email send failed', { error: err instanceof Error ? err.message : err });
+  }
+
+  // Magic-link SMS via GHL. Body branches on whether the course is an
+  // apply→checkout high-ticket program (team will reach out — point
+  // them at Blueprint while they wait) vs self-serve (just hand them
+  // the link). Skipped if no GHL contact or no short code. SMS failures
+  // never break the enrollment.
+  if (ghlContactId && activateShortCode) {
+    try {
+      const { sendGhlSms } = await import('@/lib/ghl');
+      const baseUrl = (process.env.NEXTAUTH_URL || 'https://university.maxxedout.com').replace(/\/$/, '');
+      const activateShortUrl = `${baseUrl}/a/${activateShortCode}`;
+      const firstName = (userName || '').trim().split(/\s+/)[0] || 'there';
+      const isHighTicket = !!purchasedCourse?.checkoutAfterApply;
+      const smsBody = isHighTicket
+        ? `Hey ${firstName}, this is Todd's team at Maxxed Out — welcome to ${cName}! While you wait for our team to reach out, you've got full access to the Real Estate Empire Blueprint course. Dive in here: ${activateShortUrl}`
+        : `Hey ${firstName}, this is Todd's team at Maxxed Out. Here's your enrollment link for ${cName}: ${activateShortUrl}`;
+      await sendGhlSms(ghlContactId, smsBody);
+      console.log('[fanbasis-webhook] Magic-link SMS sent', { contactId: ghlContactId, isHighTicket });
+    } catch (err) {
+      console.error('[fanbasis-webhook] Magic-link SMS failed (non-fatal)', { error: err instanceof Error ? err.message : err });
+    }
+  } else {
+    console.log('[fanbasis-webhook] Skipping magic-link SMS', { hasGhlContact: !!ghlContactId, hasShortCode: !!activateShortCode });
   }
 
   // Fire-and-forget notification to mastermind-stripe-dashboard so any open

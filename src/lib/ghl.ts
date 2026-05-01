@@ -1309,3 +1309,54 @@ export async function getConversationHistoryByContactId(contactId: string): Prom
     };
   }
 }
+
+/**
+ * Send an SMS to a GHL contact via the Conversations API. Mirrors the
+ * mastermind-stripe-dashboard pattern so post-checkout magic-link
+ * delivery is identical across both surfaces.
+ *
+ * Env-guarded the same way as Resend: only fires for real when
+ * VERCEL_ENV === 'production' or GHL_SMS_FORCE_SEND === 'true'.
+ * Non-prod calls log the would-be SMS and return a stub id so callers
+ * don't need to special-case dev.
+ */
+export async function sendGhlSms(
+  contactId: string,
+  message: string,
+): Promise<{ messageId: string; skipped?: boolean }> {
+  const apiKey = process.env.GHL_API_KEY?.trim();
+  if (!apiKey) throw new Error('GHL_API_KEY not configured');
+  if (!contactId) throw new Error('sendGhlSms: contactId required');
+
+  const isProd = process.env.VERCEL_ENV === 'production';
+  const forceSend = process.env.GHL_SMS_FORCE_SEND === 'true';
+  if (!isProd && !forceSend) {
+    console.log('[ghl-sms] Skipping send — non-prod env', {
+      vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
+      contactId,
+      messagePreview: message.slice(0, 80),
+    });
+    return { messageId: 'skipped-non-prod', skipped: true };
+  }
+
+  const res = await fetch(`${GHL_API_V2_BASE}/conversations/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Version: GHL_API_VERSION,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ type: 'SMS', contactId, message }),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`GHL SMS send failed (${res.status}): ${text.slice(0, 200)}`);
+  }
+  const json = (await res.json().catch(() => ({}))) as { messageId?: string };
+  if (!json.messageId) {
+    throw new Error(`GHL SMS send returned no messageId: ${JSON.stringify(json).slice(0, 200)}`);
+  }
+  return { messageId: json.messageId };
+}

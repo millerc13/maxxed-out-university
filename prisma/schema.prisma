@@ -66,6 +66,10 @@ model Session {
 model MagicLink {
   id        String    @id @default(cuid())
   token     String    @unique
+  // Short SMS-friendly alias (6-char base64url, generated alongside `token`).
+  // Resolved by the /a/[code] route which 302s to /auth/activate?token=<full>.
+  // Nullable so legacy rows without a shortCode keep working.
+  shortCode String?   @unique
   userId    String
   expiresAt DateTime
   usedAt    DateTime?
