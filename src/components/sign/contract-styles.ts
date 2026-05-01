@@ -207,6 +207,27 @@ export const CONTRACT_STYLES = `
     line-height: 1.1;
     border-bottom: 1.5px solid ${COLORS.brandBlue};
   }
+  /* When the signature is a captured PNG (typed-cursive render OR
+     a finger-drawn canvas), drop the text styling and fit the image
+     to the line height of the signature row. */
+  .contract-display .sig-blank-signature:has(.sig-mark-png),
+  .contract-display .sig-blank-signature .sig-mark-png {
+    line-height: 0;
+  }
+  .contract-display .sig-blank-signature .sig-mark-png {
+    display: inline-block;
+    height: 44px;
+    width: auto;
+    max-width: 240px;
+    vertical-align: bottom;
+    margin: 0 0 -4px;
+  }
+  @media (max-width: 640px) {
+    .contract-display .sig-blank-signature .sig-mark-png {
+      height: 36px;
+      max-width: 180px;
+    }
+  }
 
   /* Block-style signature rows so each label sits on its own line. */
   .contract-display p:has(> .signature-cursive),

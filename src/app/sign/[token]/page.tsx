@@ -40,6 +40,7 @@ export default async function SignPage({ params }: PageProps) {
       auditEvents: true,
       signedName: true,
       signedAt: true,
+      signedSignaturePng: true,
     },
   });
 
@@ -65,6 +66,7 @@ export default async function SignPage({ params }: PageProps) {
     const filledHtml = fillClientSignature(doc.renderedHtml, {
       name: doc.signedName,
       date: signedDateStr,
+      signaturePng: doc.signedSignaturePng,
     });
     const downloadToken = signDownloadToken(doc.id, 60 * 60 * 24 * 365);
     return (

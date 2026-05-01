@@ -13,10 +13,18 @@ import { getOrGenerateDocumentPdfKey } from '@/lib/esign-pdf';
 
 interface PostBody {
   typedName?: unknown;
+  signaturePng?: unknown;
+  signatureMode?: unknown;
   screenW?: unknown;
   screenH?: unknown;
   tz?: unknown;
 }
+
+// Hard cap on the base64 signature blob so a malicious client can't
+// stuff a 50MB image into the row. ~250KB of PNG bytes is roomy for
+// any reasonable canvas signature; base64 inflates ~33%, so we
+// budget 350KB on the data URL string.
+const MAX_SIGNATURE_DATA_URL_BYTES = 350 * 1024;
 
 // POST /api/sign/[token] — completes a signature.
 //
@@ -60,6 +68,31 @@ export async function POST(
       { status: 400 },
     );
   }
+
+  // Optional but expected — the new SignatureCaptureModal always
+  // attaches one (typed → cursive PNG, or drawn → canvas PNG). Older
+  // legacy clients submitting without it still go through; we just
+  // fall back to cursive-name rendering at display time.
+  let signaturePng: string | null = null;
+  if (typeof body.signaturePng === 'string' && body.signaturePng.length > 0) {
+    if (body.signaturePng.length > MAX_SIGNATURE_DATA_URL_BYTES) {
+      return NextResponse.json(
+        { ok: false, error: 'Signature image is too large. Try a smaller drawing.' },
+        { status: 413 },
+      );
+    }
+    if (!body.signaturePng.startsWith('data:image/png;base64,')) {
+      return NextResponse.json(
+        { ok: false, error: 'Signature image must be a PNG data URL.' },
+        { status: 400 },
+      );
+    }
+    signaturePng = body.signaturePng;
+  }
+  const signatureMode =
+    body.signatureMode === 'typed' || body.signatureMode === 'drawn'
+      ? body.signatureMode
+      : null;
 
   const screenW = typeof body.screenW === 'number' ? Math.round(body.screenW) : null;
   const screenH = typeof body.screenH === 'number' ? Math.round(body.screenH) : null;
@@ -118,6 +151,7 @@ export async function POST(
     signedName: typedName,
     signedAt,
     signedFromIp: ip,
+    signedSignaturePng: signaturePng,
   });
 
   const events = Array.isArray(doc.auditEvents) ? doc.auditEvents : [];
@@ -130,6 +164,7 @@ export async function POST(
       ua,
       tz,
       name: typedName,
+      mode: signatureMode,
       screenW,
       screenH,
     },
@@ -146,6 +181,8 @@ export async function POST(
       signedFromTz: tz,
       signedScreenW: screenW,
       signedScreenH: screenH,
+      signedSignaturePng: signaturePng,
+      signedSignatureMode: signatureMode,
       signatureHash,
       // We deliberately do NOT null signingToken here. The status
       // gate above already enforces one-time-use (any future POST

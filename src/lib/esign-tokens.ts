@@ -31,6 +31,11 @@ export function computeSignatureHash(input: {
   signedName: string;
   signedAt: Date;
   signedFromIp: string;
+  // PNG of the actual signature mark (typed-cursive render OR drawn).
+  // Hashed alongside the rest so any future swap of the image bytes
+  // invalidates the hash. Optional — older rows without a PNG still
+  // verify correctly.
+  signedSignaturePng?: string | null;
 }): string {
   const canonical = {
     renderedHtml: input.renderedHtml,
@@ -38,6 +43,7 @@ export function computeSignatureHash(input: {
     signedName: input.signedName,
     signedAt: input.signedAt.toISOString(),
     signedFromIp: input.signedFromIp,
+    signedSignaturePng: input.signedSignaturePng ?? null,
   };
   const payload = JSON.stringify(canonical);
   return createHash('sha256').update(payload).digest('hex');

@@ -630,6 +630,14 @@ model DocumentSignature {
   signedFromTz    String?
   signedScreenW   Int?
   signedScreenH   Int?
+  // PNG data URL of the actual signature mark — either a stylized
+  // type-to-sign render OR a finger/mouse-drawn canvas image. Null
+  // means we fall back to the typed name in cursive font (legacy
+  // path). Included in signatureHash so it's tamper-evident.
+  signedSignaturePng String? @db.Text
+  // 'typed' | 'drawn' — how the signedSignaturePng was produced.
+  // Surfaces in the audit trail and the admin viewer.
+  signedSignatureMode String?
 
   // ── Other lifecycle timestamps ─────────────────────────────
   sentAt          DateTime?

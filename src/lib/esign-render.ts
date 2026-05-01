@@ -100,12 +100,20 @@ export function escapeHtml(s: string): string {
 // etc. — so the live page (pre-sign) and the snapshot stored in the DB
 // stay clean. We layer the signed values on at display + PDF time so
 // the `renderedHtml` snapshot remains canonical for the signatureHash.
+//
+// If `signaturePng` is provided, the signature blank renders as an
+// <img> of the captured PNG (typed-cursive render OR drawn canvas).
+// Otherwise it falls back to the typed name in cursive (legacy path
+// for older rows that pre-date the SignatureCaptureModal).
 export function fillClientSignature(
   html: string,
-  filled: { name: string; date: string },
+  filled: { name: string; date: string; signaturePng?: string | null },
 ): string {
   const safeName = escapeHtml(filled.name);
   const safeDate = escapeHtml(filled.date);
+  const signatureMarkup = filled.signaturePng
+    ? `<img class="sig-mark-png" src="${filled.signaturePng}" alt="Signed by ${safeName}" />`
+    : safeName;
   return html
     .replace(
       /<span class="([^"]*\bsig-blank-name\b[^"]*)"><\/span>/g,
@@ -113,7 +121,7 @@ export function fillClientSignature(
     )
     .replace(
       /<span class="([^"]*\bsig-blank-signature\b[^"]*)"><\/span>/g,
-      (_, cls) => `<span class="${cls}">${safeName}</span>`,
+      (_, cls) => `<span class="${cls}">${signatureMarkup}</span>`,
     )
     .replace(
       /<span class="([^"]*\bsig-blank-date\b[^"]*)"><\/span>/g,

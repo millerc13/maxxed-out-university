@@ -82,6 +82,7 @@ async function main() {
     signedFromIp,
     signedFromUa: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
     signedFromTz: 'America/New_York',
+    signedSignaturePng: null,
     signatureHash,
     auditEvents: [
       { type: 'sent', at: new Date(now.getTime() - 60 * 60 * 1000).toISOString(), by: 'system' },
@@ -112,6 +113,7 @@ async function main() {
     signedFromIp,
     signedFromUa: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
     signedFromTz: 'America/New_York',
+    signedSignaturePng: null,
     signatureHash,
     auditEvents: [
       { type: 'sent', at: new Date(now.getTime() - 60 * 60 * 1000).toISOString(), by: 'system' },

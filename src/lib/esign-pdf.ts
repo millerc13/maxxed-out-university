@@ -55,6 +55,7 @@ type DocSummary = {
   signedFromIp: string;
   signedFromUa: string;
   signedFromTz: string | null;
+  signedSignaturePng: string | null;
   signatureHash: string;
   auditEvents: AuditEvent[];
 };
@@ -97,6 +98,7 @@ export function buildPdfHtml(doc: DocSummary): string {
   const filledHtml = fillClientSignature(doc.renderedHtml, {
     name: doc.signedName,
     date: signedDateStr,
+    signaturePng: doc.signedSignaturePng,
   });
   const decoratedBody = decorateContractHtml(filledHtml);
 
@@ -254,6 +256,7 @@ export async function getOrGenerateDocumentPdfKey(documentId: string): Promise<s
     signedFromIp: doc.signedFromIp,
     signedFromUa: doc.signedFromUa,
     signedFromTz: doc.signedFromTz,
+    signedSignaturePng: doc.signedSignaturePng,
     signatureHash: doc.signatureHash,
     auditEvents: ((doc.auditEvents as unknown) as AuditEvent[]) ?? [],
   });
