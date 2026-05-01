@@ -33,6 +33,7 @@ model User {
   magicLinks         MagicLink[]
   passwordResetTokens PasswordResetToken[]
   sessions           Session[]
+  documentSignatures DocumentSignature[]
 
 }
 
@@ -143,6 +144,7 @@ model Course {
   promoCodes        PromoCode[]        @relation("PromoCodeCourses")
   tools             Tool[]
   homepageSection   HomepageSection? @relation(fields: [homepageSectionId], references: [id], onDelete: SetNull)
+  documentSignatures DocumentSignature[]
 
   @@index([bundleId])
   @@index([homepageSectionId, homepageOrder])
@@ -516,4 +518,141 @@ model CheckoutLink {
   @@index([token])
   @@index([email, courseId])
   @@index([sentOfferId])
+}
+
+// ── E-signature: contract templates + per-recipient signed documents ──
+//
+// `ContractTemplate` is the editable source — admin maintains it via
+// /admin/documents/template. Tokens like {{Course.Name}} get
+// substituted at send time. Only one row is `active` at once; the
+// auto-trigger on self-checkout uses the active template.
+//
+// `DocumentSignature` is one row per recipient. The rendered HTML +
+// markdown are SNAPSHOTTED at send time and never mutated, so a
+// later template edit doesn't rewrite history. signatureHash is a
+// SHA-256 over (renderedHtml + tokens + signedName + signedAt + IP),
+// computed at sign time — anyone can re-derive it from the row data
+// to prove tamper-evidence.
+//
+// Status machine: draft → sent → viewed → completed
+//                              ↘ declined
+//                              ↘ cancelled
+// + 'expired' if signingTokenExpiresAt passes without a sign.
+
+model ContractTemplate {
+  id          String   @id @default(cuid())
+  // Human-friendly name shown in admin (e.g. "Coaching Agreement v1").
+  name        String
+  // Markdown body. Tokens look like {{Course.Name}}, {{Customer.FirstName}},
+  // {{Payment.Total}}, {{Payment.Schedule}}. Admin edits this in the UI.
+  body        String   @db.Text
+  // List of token names used by the body, declared so the admin compose
+  // form knows which fields to expose. Example: ["Course.Name", "Payment.Total"].
+  tokens      Json     @default("[]")
+  // Only one template can be active at a time — the auto-trigger uses it.
+  active      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // For audit — who edited it last.
+  lastEditedById String?
+
+  signatures  DocumentSignature[]
+
+  @@index([active])
+}
+
+model DocumentSignature {
+  id              String   @id @default(cuid())
+
+  // ── Recipient identity ─────────────────────────────────────
+  // userId is nullable so admins can fire docs to non-User emails
+  // (off-list custom deals). recipientEmail is always set.
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recipientEmail  String
+  recipientName   String?
+  recipientPhone  String?
+
+  // ── What the doc is for ────────────────────────────────────
+  // courseId is nullable so admins can fire generic / off-catalog
+  // docs. courseTitle is a snapshot so course renames don't
+  // rewrite history.
+  courseId        String?
+  course          Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  courseTitle     String
+
+  // ── Template + content ─────────────────────────────────────
+  contractTemplateId String
+  contractTemplate ContractTemplate @relation(fields: [contractTemplateId], references: [id])
+  // Token values that were substituted (audit trail / reproducibility).
+  tokens          Json
+  // Verbatim rendered HTML at the moment of send — never mutated, even
+  // if the source template later changes. The canonical "what they signed"
+  // record.
+  renderedHtml    String   @db.Text
+  // Verbatim rendered markdown (for re-rendering / re-export).
+  renderedMarkdown String  @db.Text
+
+  // ── State machine ──────────────────────────────────────────
+  status          String   @default("draft")
+  origin          String   // 'auto_self_checkout' | 'manual_admin'
+
+  // ── Signing security ───────────────────────────────────────
+  // 32-byte hex token used in the /sign/[token] URL. Cleared on
+  // sign / cancel / expire — one-time-use.
+  signingToken    String?  @unique
+  signingTokenExpiresAt DateTime?
+
+  // ── Snapshot of payment context ────────────────────────────
+  paymentTotalCents Int?
+  paymentPlan     Json?
+
+  // ── Free-text admin notes ──────────────────────────────────
+  // Optional context the admin typed in the Compose form (special
+  // terms agreed by phone, why this is being sent, etc.). Surfaced
+  // in /admin/documents and also substituted into the contract via
+  // the {{Notes}} token.
+  notes           String?  @db.Text
+
+  // ── Tamper-evidence hash ───────────────────────────────────
+  // SHA-256 of: renderedHtml + JSON.stringify(tokens) + signedName +
+  // signedAt.toISOString() + signedFromIp. Stored at signing time.
+  signatureHash   String?
+
+  // ── Audit trail (append-only JSON array) ───────────────────
+  auditEvents     Json     @default("[]")
+
+  // ── Captured at signing ────────────────────────────────────
+  signedName      String?
+  signedAt        DateTime?
+  signedFromIp    String?
+  signedFromUa    String?  @db.Text
+  signedFromTz    String?
+  signedScreenW   Int?
+  signedScreenH   Int?
+
+  // ── Other lifecycle timestamps ─────────────────────────────
+  sentAt          DateTime?
+  firstViewedAt   DateTime?
+  declinedAt      DateTime?
+  cancelledAt     DateTime?
+
+  // ── PDF cache pointer ──────────────────────────────────────
+  // R2 object key once generated. null until first download.
+  pdfR2Key        String?
+  pdfGeneratedAt  DateTime?
+
+  // ── Provenance ─────────────────────────────────────────────
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Who triggered a manual send (null for auto).
+  createdByUserId String?
+  // For auto-send, the Enrollment that triggered this.
+  enrollmentTransactionId String?
+
+  @@index([status])
+  @@index([recipientEmail])
+  @@index([userId])
+  @@index([courseId])
+  @@index([createdAt])
 }
