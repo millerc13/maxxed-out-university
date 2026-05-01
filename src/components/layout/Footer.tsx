@@ -54,9 +54,9 @@ export function Footer() {
               MAXXED OUT
             </h3>
             <p className="leading-relaxed mb-5">
-              Empowering real estate investors with the knowledge and strategies
-              needed to build wealth through property investments. Join thousands
-              of successful students.
+              Empowering entrepreneurs with the knowledge and strategies needed
+              to build wealth across real estate, healthcare, coaching, media,
+              and beyond. Join thousands of successful students.
             </p>
             {/* Social Links */}
             <div className="flex gap-4 justify-center md:justify-start">

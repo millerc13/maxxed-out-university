@@ -77,7 +77,7 @@ export function Hero() {
         <p className="text-base md:text-xl font-semibold tracking-[2px] md:tracking-[3px]">
           MAXXED OUT UNIVERSITY
           <span className="block text-sm md:text-base opacity-80 mt-1.5">
-            Real Estate Investment Education
+            Business Education for Serious Entrepreneurs
           </span>
         </p>
       </div>

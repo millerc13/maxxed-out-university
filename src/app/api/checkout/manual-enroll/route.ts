@@ -125,9 +125,10 @@ export async function POST(request: NextRequest) {
   // offline-sale closers want to text a one-click access link to the buyer,
   // and a magic link works for both new (set password) and returning
   // (passwordless one-click sign-in) users.
-  const magicToken = await createMagicLink(userId);
+  const { token: magicToken, shortCode: magicShortCode } = await createMagicLink(userId);
   const baseUrl = process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
   const activateUrl = `${baseUrl}/auth/activate?token=${magicToken}`;
+  const activateShortUrl = `${baseUrl}/a/${magicShortCode}`;
 
   // 5. Email — magic link template for new users, course-added for existing.
   // Same bonus-box + team-reach-out notes the webhook sends for high-ticket programs.
@@ -185,6 +186,7 @@ export async function POST(request: NextRequest) {
     transactionId: txn,
     newUser: needsPasswordSetup,
     emailSentVia: needsPasswordSetup ? 'magic-link' : 'course-added',
-    activateUrl, // caller (mastermind) uses this to SMS a one-click link
+    activateUrl, // legacy long URL — still here so existing callers keep working
+    activateShortUrl, // new SMS-friendly short URL — callers should prefer this
   });
 }

@@ -117,6 +117,53 @@ export function getCourseTag(prefix: string, courseSlug: string): string {
 }
 
 /**
+ * Find a GHL contact by email and link it to a local User row by setting
+ * `User.ghlContactId`. Idempotent — if already linked or no GHL contact
+ * exists for that email, it's a no-op. Used by purchase webhooks +
+ * backfill scripts so every buyer has a linked conversation thread.
+ */
+export async function linkUserToGhlContactByEmail(
+  userId: string,
+  email: string
+): Promise<string | null> {
+  if (!email) return null;
+  // Avoid the cyclic prisma import — use the singleton.
+  const { prisma } = await import('./prisma');
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { ghlContactId: true },
+  });
+  if (u?.ghlContactId) return u.ghlContactId;
+
+  const contact = await searchGhlContactByEmail(email);
+  if (!contact?.id) return null;
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { ghlContactId: contact.id },
+  });
+  return contact.id;
+}
+
+/**
+ * Tag a GHL contact with the course they purchased so closers + ops can
+ * see at a glance what each contact bought. Format: "enrolled-{slug}".
+ * Fire-and-forget — failures shouldn't break the webhook.
+ */
+export async function syncCoursePurchase(
+  ghlContactId: string | null,
+  courseSlug: string
+): Promise<void> {
+  if (!ghlContactId) return;
+  const tag = getCourseTag(GHL_TAGS.ENROLLED_PREFIX, courseSlug);
+  try {
+    await addTagToContact(ghlContactId, tag);
+  } catch (err) {
+    console.error('[GHL] syncCoursePurchase failed', { ghlContactId, tag, err });
+  }
+}
+
+/**
  * Sync course completion to GHL
  * Call this when a student completes a course
  */
@@ -1041,4 +1088,275 @@ export async function deleteGHLProductForCourse(
     console.error(`Error deleting GHL product for course ${courseId}:`, error);
     return { success: false, error: String(error) };
   }
+}
+
+// ============================================================================
+// Conversation history (admin viewer)
+// ============================================================================
+// Read-only helpers used by /api/admin/ghl/conversations to surface a
+// contact's full SMS + email thread in the admin panel. Ported from
+// mastermind-stripe-dashboard/lib/ghl.ts. Uses GHL v2 (leadconnectorhq.com).
+
+interface GHLConversation {
+  id: string;
+  contactId: string;
+  locationId: string;
+  lastMessageBody: string;
+  lastMessageDate: string;
+  type: string;
+  unreadCount: number;
+}
+
+export interface GHLMessage {
+  id: string;
+  conversationId: string;
+  contactId: string;
+  body: string;
+  type: number; // 1 = SMS, 3 = Email, 28 = Activity, etc.
+  direction: 'inbound' | 'outbound';
+  status: string;
+  dateAdded: string;
+  attachments?: string[];
+  userId?: string;
+  messageType?: string;
+  meta?: {
+    email?: {
+      subject?: string;
+      messageType?: string;
+    };
+  };
+}
+
+export interface GHLContactDetail {
+  id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  phone?: string;
+  tags?: string[];
+  dateAdded?: string;
+  dateUpdated?: string;
+}
+
+interface GHLSearchConversationsResponse {
+  conversations: GHLConversation[];
+  total?: number;
+}
+interface GHLMessagesResponse {
+  messages: GHLMessage[] | { messages?: GHLMessage[]; nextPage?: string };
+  nextPage?: string;
+}
+interface GHLSearchContactsResponse {
+  contacts: GHLContactDetail[];
+  total?: number;
+}
+
+async function ghlV2Fetch<T>(endpoint: string): Promise<T> {
+  const apiKey = process.env.GHL_API_KEY?.trim();
+  if (!apiKey) throw new Error('GHL_API_KEY is not configured');
+
+  const res = await fetch(`${GHL_API_V2_BASE}${endpoint}`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Version: GHL_API_VERSION,
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`GHL ${endpoint} → ${res.status} ${text.slice(0, 300)}`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Invalid JSON from GHL ${endpoint}`);
+  }
+}
+
+/** Fetch a contact by GHL contact ID (v2). */
+export async function getGhlContactById(contactId: string): Promise<GHLContactDetail | null> {
+  try {
+    const json = await ghlV2Fetch<{ contact: GHLContactDetail }>(`/contacts/${contactId}`);
+    return json.contact || null;
+  } catch (err) {
+    console.error('[GHL] getGhlContactById failed', err);
+    return null;
+  }
+}
+
+/** List recent GHL contacts for the location, newest first. Used to surface
+ *  leads (people who applied but haven't bought) on the /admin/messages list.
+ *  GHL returns up to 100 per page; we take the most recent page. */
+export async function listRecentGhlContacts(
+  limit = 100
+): Promise<GHLContactDetail[]> {
+  const locationId = process.env.GHL_LOCATION_ID?.trim();
+  if (!locationId) throw new Error('GHL_LOCATION_ID is not configured');
+  try {
+    const params = new URLSearchParams({
+      locationId,
+      limit: String(Math.min(limit, 100)),
+    });
+    const json = await ghlV2Fetch<GHLSearchContactsResponse>(
+      `/contacts/?${params.toString()}`
+    );
+    return Array.isArray(json.contacts) ? json.contacts : [];
+  } catch (err) {
+    console.error('[GHL] listRecentGhlContacts failed', err);
+    return [];
+  }
+}
+
+/** Search for a GHL contact by email. Used as a fallback when User
+ *  has no `ghlContactId` set yet but we know their email. */
+export async function searchGhlContactByEmail(email: string): Promise<GHLContactDetail | null> {
+  const locationId = process.env.GHL_LOCATION_ID?.trim();
+  if (!locationId) throw new Error('GHL_LOCATION_ID is not configured');
+  try {
+    const params = new URLSearchParams({ locationId, query: email });
+    const json = await ghlV2Fetch<GHLSearchContactsResponse>(
+      `/contacts/?${params.toString()}`
+    );
+    if (!Array.isArray(json.contacts)) return null;
+    const exact = json.contacts.find(
+      (c) => c?.email?.toLowerCase() === email.toLowerCase()
+    );
+    return exact ?? json.contacts[0] ?? null;
+  } catch (err) {
+    console.error('[GHL] searchGhlContactByEmail failed', err);
+    return null;
+  }
+}
+
+/** List all conversations for a GHL contact. */
+export async function getConversationsForContact(
+  contactId: string
+): Promise<GHLConversation[]> {
+  const locationId = process.env.GHL_LOCATION_ID?.trim();
+  if (!locationId) throw new Error('GHL_LOCATION_ID is not configured');
+  try {
+    const params = new URLSearchParams({ locationId, contactId });
+    const json = await ghlV2Fetch<GHLSearchConversationsResponse>(
+      `/conversations/search?${params.toString()}`
+    );
+    return Array.isArray(json.conversations) ? json.conversations : [];
+  } catch (err) {
+    console.error('[GHL] getConversationsForContact failed', err);
+    return [];
+  }
+}
+
+/** Pull messages for a conversation. GHL returns either a flat
+ *  `{messages:[...]}` shape or a nested `{messages:{messages:[...]}}` shape
+ *  depending on the conversation type — we handle both. */
+export async function getMessagesFromConversation(
+  conversationId: string,
+  limit: number = 50
+): Promise<GHLMessage[]> {
+  try {
+    const params = new URLSearchParams({ limit: String(limit) });
+    const json = await ghlV2Fetch<GHLMessagesResponse>(
+      `/conversations/${conversationId}/messages?${params.toString()}`
+    );
+    if (Array.isArray(json.messages)) return json.messages;
+    if (json.messages && typeof json.messages === 'object') {
+      const nested = json.messages as { messages?: GHLMessage[] };
+      if (Array.isArray(nested.messages)) return nested.messages;
+    }
+    return [];
+  } catch (err) {
+    console.error('[GHL] getMessagesFromConversation failed', err);
+    return [];
+  }
+}
+
+/** End-to-end: contact → conversations → messages, sorted oldest-to-newest
+ *  so the admin viewer can render in chat order. Returns an empty array
+ *  rather than throwing when the contact has no conversations. */
+export async function getConversationHistoryByContactId(contactId: string): Promise<{
+  contact: GHLContactDetail | null;
+  messages: GHLMessage[];
+  error?: string;
+}> {
+  try {
+    const contact = await getGhlContactById(contactId);
+    if (!contact) {
+      return { contact: null, messages: [], error: 'Contact not found in GHL' };
+    }
+    const conversations = await getConversationsForContact(contact.id);
+    if (conversations.length === 0) {
+      return { contact, messages: [] };
+    }
+    const all: GHLMessage[] = [];
+    for (const conv of conversations) {
+      const msgs = await getMessagesFromConversation(conv.id);
+      for (const m of msgs) all.push(m);
+    }
+    // Oldest → newest so the viewer renders chat-style with the latest
+    // message at the bottom (mirrors mastermind's UX).
+    all.sort(
+      (a, b) =>
+        new Date(a.dateAdded).getTime() - new Date(b.dateAdded).getTime()
+    );
+    return { contact, messages: all };
+  } catch (err) {
+    return {
+      contact: null,
+      messages: [],
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Send an SMS to a GHL contact via the Conversations API. Mirrors the
+ * mastermind-stripe-dashboard pattern so post-checkout magic-link
+ * delivery is identical across both surfaces.
+ *
+ * Env-guarded the same way as Resend: only fires for real when
+ * VERCEL_ENV === 'production' or GHL_SMS_FORCE_SEND === 'true'.
+ * Non-prod calls log the would-be SMS and return a stub id so callers
+ * don't need to special-case dev.
+ */
+export async function sendGhlSms(
+  contactId: string,
+  message: string,
+): Promise<{ messageId: string; skipped?: boolean }> {
+  const apiKey = process.env.GHL_API_KEY?.trim();
+  if (!apiKey) throw new Error('GHL_API_KEY not configured');
+  if (!contactId) throw new Error('sendGhlSms: contactId required');
+
+  const isProd = process.env.VERCEL_ENV === 'production';
+  const forceSend = process.env.GHL_SMS_FORCE_SEND === 'true';
+  if (!isProd && !forceSend) {
+    console.log('[ghl-sms] Skipping send — non-prod env', {
+      vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
+      contactId,
+      messagePreview: message.slice(0, 80),
+    });
+    return { messageId: 'skipped-non-prod', skipped: true };
+  }
+
+  const res = await fetch(`${GHL_API_V2_BASE}/conversations/messages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Version: GHL_API_VERSION,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ type: 'SMS', contactId, message }),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`GHL SMS send failed (${res.status}): ${text.slice(0, 200)}`);
+  }
+  const json = (await res.json().catch(() => ({}))) as { messageId?: string };
+  if (!json.messageId) {
+    throw new Error(`GHL SMS send returned no messageId: ${JSON.stringify(json).slice(0, 200)}`);
+  }
+  return { messageId: json.messageId };
 }

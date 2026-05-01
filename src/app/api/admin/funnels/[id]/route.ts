@@ -72,6 +72,9 @@ export async function PUT(
     vslVideoUrl: vslVideoUrl ?? null,
     instructorImageUrl: instructorImageUrl ?? null,
     template: template ?? 'classic',
+    // Course is the single source of truth for checkoutAfterApply.
+    // Always create with null so the legacy override column is unused.
+    checkoutAfterApplyOverride: null,
   };
 
   const configUpdate: Record<string, unknown> = {};

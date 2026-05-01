@@ -7,25 +7,43 @@ import {
   TrendingUp,
   UserPlus,
   Clock,
+  DollarSign,
+  Wallet,
+  Receipt,
 } from 'lucide-react';
 import Link from 'next/link';
+import { listFanbasisTransactions } from '@/lib/fanbasis-spend';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+function formatCurrency(cents: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
 
 export default async function AdminDashboardPage() {
-  // Fetch stats
+  // Fetch stats. `totalEnrollments` excludes bundle-child rows: when a
+  // student buys a bundle we auto-create an Enrollment for every child
+  // course, which inflates the raw count by 30-40x. Counting only
+  // top-level courses (`bundleId: null`) gives us "real purchases".
   const [
     totalUsers,
-    totalCourses,
     totalEnrollments,
-    totalLessons,
     completedLessons,
+    lessonsStarted,
     recentUsers,
     recentEnrollments,
+    paidEnrollments,
+    fanbasisTxs,
   ] = await Promise.all([
     prisma.user.count(),
-    prisma.course.count(),
-    prisma.enrollment.count(),
-    prisma.lesson.count(),
+    prisma.enrollment.count({ where: { course: { bundleId: null } } }),
     prisma.lessonProgress.count({ where: { completed: true } }),
+    prisma.lessonProgress.count(),
     prisma.user.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -33,19 +51,81 @@ export default async function AdminDashboardPage() {
     }),
     prisma.enrollment.findMany({
       take: 5,
+      where: { course: { bundleId: null } },
       orderBy: { enrolledAt: 'desc' },
       include: {
         user: { select: { email: true, name: true } },
         course: { select: { title: true } },
       },
     }),
+    // Stripe revenue source — uses `originalPrice` snapshot or the
+    // course's current list price as a fallback. Bundle children
+    // excluded so a single purchase counts once.
+    prisma.enrollment.findMany({
+      where: {
+        source: { in: ['stripe', 'fanbasis'] },
+        course: { bundleId: null },
+      },
+      select: {
+        source: true,
+        originalPrice: true,
+        course: { select: { price: true } },
+      },
+    }),
+    // Fanbasis revenue — pulled live from their list API. Authoritative
+    // (matches the Fanbasis dashboard exactly, includes ClarityPay
+    // financing splits the webhook payloads can't see).
+    listFanbasisTransactions(),
   ]);
 
-  // Calculate engagement rate
-  const totalPossibleCompletions = totalEnrollments * (totalLessons / (await prisma.course.count() || 1));
-  const engagementRate = totalPossibleCompletions > 0
-    ? Math.round((completedLessons / totalPossibleCompletions) * 100)
+  // Completion rate = of lessons students have started, what % did they
+  // finish. (Same formula as /admin/analytics so the two pages agree.)
+  const engagementRate = lessonsStarted > 0
+    ? Math.round((completedLessons / lessonsStarted) * 100)
     : 0;
+
+  // ── Revenue ────────────────────────────────────────────────────
+  // Same calc as analytics page: Fanbasis numbers come straight from
+  // their list API (gross + net + fees authoritative). Stripe gross
+  // is treated as net since Stripe webhooks aren't logged for fees.
+  const fanbasisGrossCents = fanbasisTxs.reduce((s, t) => s + t.grossCents, 0);
+  const fanbasisNetCents = fanbasisTxs.reduce((s, t) => s + t.netCents, 0);
+  const stripeEnrollments = paidEnrollments.filter((e) => e.source === 'stripe');
+  const stripeRevenue = stripeEnrollments.reduce(
+    (s, e) => s + (e.originalPrice ?? e.course.price ?? 0),
+    0,
+  );
+  const totalRevenue = fanbasisGrossCents + stripeRevenue;
+  const totalNetRevenue = fanbasisNetCents + stripeRevenue;
+  const totalFeesCents = totalRevenue - totalNetRevenue;
+  const totalPaidPurchases = fanbasisTxs.length + stripeEnrollments.length;
+
+  const revenueCards = [
+    {
+      label: 'Gross Revenue',
+      value: formatCurrency(totalRevenue),
+      icon: DollarSign,
+      color: 'bg-green-500',
+      sub: `${totalPaidPurchases} paid purchases · Stripe + Fanbasis`,
+    },
+    {
+      label: 'Net Revenue',
+      value: formatCurrency(totalNetRevenue),
+      icon: Wallet,
+      color: 'bg-emerald-600',
+      sub: 'Actually credited · per Fanbasis API',
+    },
+    {
+      label: 'Fees',
+      value: formatCurrency(totalFeesCents),
+      icon: Receipt,
+      color: 'bg-rose-500',
+      sub:
+        totalRevenue > 0
+          ? `${((totalFeesCents / totalRevenue) * 100).toFixed(1)}% of gross · processor + ClarityPay`
+          : 'Fanbasis processing fees',
+    },
+  ];
 
   const stats = [
     {
@@ -54,13 +134,6 @@ export default async function AdminDashboardPage() {
       icon: Users,
       color: 'bg-blue-500',
       href: '/admin/users',
-    },
-    {
-      label: 'Courses',
-      value: totalCourses,
-      icon: BookOpen,
-      color: 'bg-purple-500',
-      href: '/admin/courses',
     },
     {
       label: 'Enrollments',
@@ -88,8 +161,32 @@ export default async function AdminDashboardPage() {
         </p>
       </div>
 
+      {/* Revenue cards — gross / net / fees */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {revenueCards.map((stat) => (
+          <Card key={stat.label} className="overflow-hidden">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {stat.label}
+                  </p>
+                  <p className="text-2xl font-extrabold text-gray-900 mt-1 tabular-nums">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">{stat.sub}</p>
+                </div>
+                <div className={`p-2.5 rounded-xl ${stat.color} shrink-0`}>
+                  <stat.icon className="w-5 h-5 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {stats.map((stat) => (
           <Link key={stat.label} href={stat.href}>
             <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer overflow-hidden">

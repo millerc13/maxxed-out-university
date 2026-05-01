@@ -227,9 +227,6 @@ export function Header() {
             <>
               {isAdmin && (
                 <>
-                  <div className="px-5 py-3 border-b border-gray-100">
-                    <AdminViewToggle />
-                  </div>
                   <Link
                     href="/admin"
                     className="px-5 py-4 border-b border-gray-100 text-text-body text-sm font-medium no-underline transition-colors duration-300 hover:text-maxxed-blue flex items-center gap-2"

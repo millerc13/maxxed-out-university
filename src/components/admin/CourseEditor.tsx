@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye } from 'lucide-react';
+import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye, RefreshCw, Handshake, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { CourseForm } from '@/components/admin/CourseForm';
+import { CourseForm, type CourseFormDraft } from '@/components/admin/CourseForm';
 import { ModuleManager } from '@/components/admin/ModuleManager';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface CourseEditorProps {
   course: any;
@@ -14,7 +15,57 @@ interface CourseEditorProps {
 
 export function CourseEditor({ course }: CourseEditorProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'content' | 'quizzes' | 'settings' | 'products'>('content');
+  const [activeTab, setActiveTab] = useState<'settings' | 'preview' | 'content' | 'quizzes' | 'products'>('settings');
+  const [previewKey, setPreviewKey] = useState(0); // bump to force iframe reload
+  // The Settings tab streams its in-progress form values up here so the
+  // Preview tab's iframe can render with those unsaved overrides applied.
+  // Initial value mirrors what CourseForm starts with.
+  const [draft, setDraft] = useState<CourseFormDraft>({
+    title: course?.title || '',
+    slug: course?.slug || '',
+    description: course?.description || '',
+    shortDesc: course?.shortDesc || '',
+    thumbnail: course?.thumbnail || '',
+    published: course?.published || false,
+    comingSoon: course?.comingSoon || false,
+    price: course?.price ? String(course.price / 100) : '',
+    applyMode: course?.applyMode ?? !!course?.externalUrl,
+    externalUrl: course?.externalUrl || '',
+    checkoutAfterApply: !!course?.checkoutAfterApply,
+    notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
+    bookACallEnabled: (course as { bookACallEnabled?: boolean })?.bookACallEnabled ?? true,
+    heroStats: Array.isArray(course?.heroStats) ? course.heroStats : [],
+    checkoutBullets: Array.isArray(course?.checkoutBullets)
+      ? (course.checkoutBullets as string[]).filter((s) => typeof s === 'string')
+      : [],
+  });
+
+  // Whether the *draft* (not the saved course) is in apply-only mode.
+  // Drives which preview component renders so the toggle in Settings
+  // updates the Preview tab live.
+  const draftIsApplyOnly = draft.applyMode && !!draft.externalUrl.trim();
+
+  // Build the iframe src with admin-only override params reflecting the
+  // current draft. /courses/[slug]/page.tsx merges these on top of the
+  // saved course (only when previewAs=customer + admin session).
+  const previewSrc = useMemo(() => {
+    const params = new URLSearchParams({ previewAs: 'customer' });
+    if (draft.title !== course.title) params.set('_title', draft.title);
+    if (draft.description !== (course.description ?? ''))
+      params.set('_description', draft.description);
+    if (draft.shortDesc !== (course.shortDesc ?? ''))
+      params.set('_shortDesc', draft.shortDesc);
+    if (draft.thumbnail !== (course.thumbnail ?? ''))
+      params.set('_thumbnail', draft.thumbnail);
+    const draftPriceCents = draft.price
+      ? Math.round(parseFloat(draft.price) * 100)
+      : null;
+    if (draftPriceCents !== course.price)
+      params.set('_price', draftPriceCents != null ? String(draftPriceCents) : '');
+    if (draft.comingSoon !== course.comingSoon)
+      params.set('_comingSoon', draft.comingSoon ? 'true' : 'false');
+    return `/courses/${course.slug}?${params.toString()}`;
+  }, [draft, course]);
 
   return (
     <div className="space-y-0">
@@ -60,9 +111,10 @@ export function CourseEditor({ course }: CourseEditorProps) {
         {/* Tabs */}
         <div className="flex gap-0 overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
           {([
+            { key: 'settings' as const, label: 'Settings', icon: Settings },
+            { key: 'preview' as const, label: 'Preview', icon: Eye },
             { key: 'content' as const, label: 'Content', icon: Layers },
             { key: 'quizzes' as const, label: 'Quizzes', icon: FileQuestion },
-            { key: 'settings' as const, label: 'Settings', icon: Settings },
             { key: 'products' as const, label: 'GHL Products', icon: Link2 },
           ]).map((tab) => (
             <button
@@ -83,6 +135,92 @@ export function CourseEditor({ course }: CourseEditorProps) {
           ))}
         </div>
       </div>
+
+      {/* ── TAB: Preview ── */}
+      {/* For courses with an externalUrl, the on-platform slug page just
+          redirects off-site, so iframing it would be useless. Instead, show
+          the catalog card preview (the only on-platform UI students see for
+          partner programs).
+          For normal courses, iframe the real page in customer-preview mode. */}
+      {draftIsApplyOnly && (
+        <div className={`space-y-3 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
+          <p className="text-sm text-gray-500">
+            Apply mode is on — clicking the card sends visitors to{' '}
+            <a
+              href={draft.externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-maxxed-blue hover:underline"
+            >
+              {draft.externalUrl}
+            </a>
+            {' '}in a new tab. The on-platform view is the catalog card below.
+          </p>
+          <div className="max-w-md">
+            {/* Render the catalog card with the live draft values so the
+                Preview tab updates as the admin types in Settings. We
+                pass the raw draft (no `|| course.*` fallback) so an
+                empty edit reads as empty here too — WYSIWYG. */}
+            <ExternalCardPreview
+              course={{
+                title: draft.title,
+                shortDesc: draft.shortDesc,
+                description: draft.description,
+                thumbnail: draft.thumbnail,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {!draftIsApplyOnly && (
+        <div className={`space-y-3 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              Reflects your current draft (unsaved). Click <span className="font-semibold">Save Changes</span> on Settings to publish.
+            </p>
+            <button
+              type="button"
+              onClick={() => setPreviewKey((k) => k + 1)}
+              className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reload
+            </button>
+          </div>
+          {/* Iframe only renders at lg+; placeholder below since the
+              course-detail page is a desktop layout. */}
+          <div className="hidden lg:block rounded-lg border border-gray-200 overflow-hidden bg-white">
+            {/* Re-keying on previewSrc forces the iframe to reload whenever
+                the draft changes. Without this, typing in Settings wouldn't
+                update the Preview tab the next time it's viewed. */}
+            <iframe
+              key={`${previewKey}::${previewSrc}`}
+              src={previewSrc}
+              title={`Preview: ${course.title}`}
+              className="w-full block"
+              style={{ height: 'calc(100vh - 220px)' }}
+            />
+          </div>
+          <div className="lg:hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <Eye className="w-5 h-5 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-gray-700">
+              Preview unavailable on this screen
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              The course page is sized for desktop. Open it in a new tab to view full-width.
+            </p>
+            <a
+              href={previewSrc}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold text-maxxed-blue hover:underline"
+            >
+              Open in new tab →
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ── TAB: Content ── */}
       {activeTab === 'content' && (
@@ -155,9 +293,15 @@ export function CourseEditor({ course }: CourseEditorProps) {
       )}
 
       {/* ── TAB: Settings ── */}
-      {activeTab === 'settings' && (
-        <CourseForm course={course} />
-      )}
+      {/* Always mounted so a typed-but-not-yet-saved draft survives a
+          tab switch to Preview. */}
+      <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
+        <CourseForm
+          course={course}
+          onDraftChange={setDraft}
+          onShowPreview={() => setActiveTab('preview')}
+        />
+      </div>
 
       {/* ── TAB: GHL Products ── */}
       {activeTab === 'products' && (
@@ -206,6 +350,53 @@ export function CourseEditor({ course }: CourseEditorProps) {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// Catalog card preview for external/partner courses. 1:1 copy of the
+// FeaturedCard styling from src/app/(dashboard)/courses/page.tsx (the
+// "Partnership Programs" tier) — same Tailwind classes, same Apply Only
+// badge and Apply Now CTA — so the admin sees exactly what visitors see
+// on the courses page.
+function ExternalCardPreview({ course }: { course: any }) {
+  return (
+    <div className="group flex flex-col bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+      <div className="relative aspect-video overflow-hidden">
+        {course.thumbnail ? (
+          <Image
+            src={course.thumbnail}
+            alt={course.title}
+            fill
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#0d1545] to-[#0a1a70] flex items-center justify-center">
+            <Handshake className="w-10 h-10 text-white/20" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+        <div className="absolute bottom-3 left-4">
+          <span className="bg-[#0000CC] text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1">
+            <Handshake className="w-3.5 h-3.5" /> Apply Only
+          </span>
+        </div>
+      </div>
+      <div className="p-5 flex flex-col flex-1">
+        <h3 className="font-bold text-lg text-gray-900 line-clamp-1">
+          {course.title}
+        </h3>
+        <p className="text-sm text-gray-400 line-clamp-2 mt-1.5 flex-1">
+          {course.shortDesc || course.description?.split('\n')[0]}
+        </p>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+          <span className="text-xs text-gray-400">Application required</span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0000CC]/10 text-[#0000CC] text-xs font-bold rounded-lg">
+            Apply Now <ExternalLink className="w-3.5 h-3.5" />
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

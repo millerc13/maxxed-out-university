@@ -1,6 +1,16 @@
+import type { Viewport } from 'next';
 import { requireAdmin } from '@/lib/admin';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { AdminHeader } from '@/components/admin/AdminHeader';
+import { AdminShell } from '@/components/admin/AdminShell';
+
+// Tints the iOS Safari address bar / Android status bar dark on
+// admin routes only — matches AdminHeader's bg-gray-900 (#111827)
+// so the OS chrome blends into the admin shell. Scoped to this
+// route segment by exporting `viewport` from the admin layout;
+// the root layout has no viewport export, so non-admin pages
+// keep the browser's default white chrome.
+export const viewport: Viewport = {
+  themeColor: '#111827',
+};
 
 export default async function AdminLayout({
   children,
@@ -9,13 +19,5 @@ export default async function AdminLayout({
 }) {
   const session = await requireAdmin();
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <AdminHeader user={session.user!} />
-      <div className="flex">
-        <AdminSidebar />
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
-      </div>
-    </div>
-  );
+  return <AdminShell user={session.user!}>{children}</AdminShell>;
 }

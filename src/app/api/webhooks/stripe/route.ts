@@ -142,9 +142,26 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
     });
     console.log('[stripe-webhook] Enrollment upserted', { enrollmentId: enrollment.id, createdAt: enrollment.enrolledAt });
 
+    // Link buyer to GHL contact + tag with the course they bought, so
+    // /admin/messages classifies them as a Sale and the closer-side
+    // GHL UI shows what was purchased. The resolved contactId is hoisted
+    // out so the SMS send below can reach it.
+    let ghlContactId: string | null = null;
+    if (userEmail) {
+      try {
+        const { linkUserToGhlContactByEmail, syncCoursePurchase } = await import('@/lib/ghl');
+        ghlContactId = await linkUserToGhlContactByEmail(resolvedUserId, userEmail);
+        if (ghlContactId && courseSlug) {
+          await syncCoursePurchase(ghlContactId, courseSlug);
+        }
+      } catch (err) {
+        console.error('[stripe-webhook] GHL link/tag failed (non-fatal)', err);
+      }
+    }
+
     const purchasedCourse = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { isBundle: true, thumbnail: true, title: true },
+      select: { isBundle: true, thumbnail: true, title: true, checkoutAfterApply: true },
     });
     console.log('[stripe-webhook] Loaded course', { courseId, isBundle: purchasedCourse?.isBundle, title: purchasedCourse?.title });
 
@@ -181,16 +198,30 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       : null;
     const teamReachOutNote = isHighTicket;
 
-    if (needsPasswordSetup && userEmail) {
-      // User has no password yet — send magic link so they can activate + set password.
-      console.log('[stripe-webhook] Creating magic link — user needs password setup', { userId: resolvedUserId, email: userEmail });
+    // Always mint a magic-link token + short code. The full token goes
+    // in the setup-password email; the short code goes in the SMS for
+    // one-tap login from the buyer's phone.
+    let activateToken: string | null = null;
+    let activateShortCode: string | null = null;
+    if (userEmail) {
       try {
-        const token = await createMagicLink(resolvedUserId);
-        console.log('[stripe-webhook] Magic link created', { userId: resolvedUserId, tokenPrefix: token.slice(0, 8) + '...' });
+        const ml = await createMagicLink(resolvedUserId);
+        activateToken = ml.token;
+        activateShortCode = ml.shortCode;
+        console.log('[stripe-webhook] Magic link created', { userId: resolvedUserId, tokenPrefix: ml.token.slice(0, 8) + '...', shortCode: ml.shortCode });
+      } catch (err) {
+        console.error('[stripe-webhook] Magic link create failed (non-fatal)', { error: err instanceof Error ? err.message : err });
+      }
+    }
+
+    if (needsPasswordSetup && userEmail && activateToken) {
+      // User has no password yet — send magic link so they can activate + set password.
+      console.log('[stripe-webhook] Sending magic-link email — user needs password setup', { userId: resolvedUserId, email: userEmail });
+      try {
         const emailResult = await sendMagicLinkEmail({
           to: userEmail,
           name: userName,
-          token,
+          token: activateToken,
           courseName: cName,
           courseThumbnail: purchasedCourse?.thumbnail,
           bonusBox,
@@ -198,7 +229,7 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
         });
         console.log('[stripe-webhook] Magic link email sent', { emailId: emailResult?.data?.id, error: emailResult?.error });
       } catch (err) {
-        console.error('[stripe-webhook] Magic link / email failed', { error: err instanceof Error ? err.message : err, stack: err instanceof Error ? err.stack : undefined });
+        console.error('[stripe-webhook] Magic link email failed', { error: err instanceof Error ? err.message : err, stack: err instanceof Error ? err.stack : undefined });
         throw err;
       }
     } else if (userEmail) {
@@ -222,6 +253,30 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
       }
     } else {
       console.warn('[stripe-webhook] No email sent — userEmail empty', { needsPasswordSetup, resolvedUserId });
+    }
+
+    // Magic-link SMS via GHL. Body branches on whether the course is an
+    // apply→checkout high-ticket program (team will reach out — point
+    // them at Blueprint while they wait) vs self-serve (just hand them
+    // the link). Sent for every buyer (new + returning) whenever we have
+    // a GHL contact + short code. SMS failure never breaks the enrollment.
+    if (ghlContactId && activateShortCode) {
+      try {
+        const { sendGhlSms } = await import('@/lib/ghl');
+        const baseUrl = (process.env.NEXTAUTH_URL || 'https://university.maxxedout.com').replace(/\/$/, '');
+        const activateShortUrl = `${baseUrl}/a/${activateShortCode}`;
+        const firstName = (userName || '').trim().split(/\s+/)[0] || 'there';
+        const isHighTicket = !!purchasedCourse?.checkoutAfterApply;
+        const smsBody = isHighTicket
+          ? `Hey ${firstName}, this is Todd's team at Maxxed Out — welcome to ${cName}! While you wait for our team to reach out, you've got full access to the Real Estate Empire Blueprint course. Dive in here: ${activateShortUrl}`
+          : `Hey ${firstName}, this is Todd's team at Maxxed Out. Here's your enrollment link for ${cName}: ${activateShortUrl}`;
+        await sendGhlSms(ghlContactId, smsBody);
+        console.log('[stripe-webhook] Magic-link SMS sent', { contactId: ghlContactId, isHighTicket });
+      } catch (err) {
+        console.error('[stripe-webhook] Magic-link SMS failed (non-fatal)', { error: err instanceof Error ? err.message : err });
+      }
+    } else {
+      console.log('[stripe-webhook] Skipping magic-link SMS', { hasGhlContact: !!ghlContactId, hasShortCode: !!activateShortCode });
     }
   } catch (error) {
     console.error('[stripe-webhook] Failed to handle payment', {

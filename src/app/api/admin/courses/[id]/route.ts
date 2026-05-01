@@ -59,7 +59,33 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, featured, comingSoon, price } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, bookACallEnabled, heroStats, checkoutBullets } = body;
+
+    // Validate checkoutBullets — string array, drop blanks.
+    let checkoutBulletsValidated: string[] | undefined;
+    if (checkoutBullets !== undefined) {
+      if (!Array.isArray(checkoutBullets)) {
+        return NextResponse.json({ error: 'checkoutBullets must be an array' }, { status: 400 });
+      }
+      checkoutBulletsValidated = checkoutBullets
+        .filter((s: unknown) => typeof s === 'string')
+        .map((s: string) => s.trim())
+        .filter((s) => s !== '');
+    }
+
+    // Validate heroStats payload — admin-only endpoint, but still defend
+    // against bad shape so the JSON column doesn't get corrupted.
+    let heroStatsValidated: { iconName: string; iconColor: string | null; label: string }[] | undefined;
+    if (heroStats !== undefined) {
+      if (!Array.isArray(heroStats)) {
+        return NextResponse.json({ error: 'heroStats must be an array' }, { status: 400 });
+      }
+      heroStatsValidated = heroStats.map((s: any) => ({
+        iconName: typeof s?.iconName === 'string' && s.iconName ? s.iconName : 'BookOpen',
+        iconColor: typeof s?.iconColor === 'string' ? s.iconColor : null,
+        label: typeof s?.label === 'string' ? s.label : '',
+      })).filter((s) => s.label.trim() !== '');
+    }
 
     // Check if course exists
     const existing = await prisma.course.findUnique({ where: { id } });
@@ -87,9 +113,15 @@ export async function PUT(
         ...(shortDesc !== undefined && { shortDesc }),
         ...(thumbnail !== undefined && { thumbnail }),
         ...(published !== undefined && { published }),
-        ...(featured !== undefined && { featured }),
         ...(comingSoon !== undefined && { comingSoon }),
         ...(price !== undefined && { price: price ? parseInt(price) : null }),
+        ...(externalUrl !== undefined && { externalUrl: externalUrl || null }),
+        ...(applyMode !== undefined && { applyMode: !!applyMode }),
+        ...(checkoutAfterApply !== undefined && { checkoutAfterApply: !!checkoutAfterApply }),
+        ...(notifyClosersOnApply !== undefined && { notifyClosersOnApply: !!notifyClosersOnApply }),
+        ...(bookACallEnabled !== undefined && { bookACallEnabled: !!bookACallEnabled }),
+        ...(heroStatsValidated !== undefined && { heroStats: heroStatsValidated }),
+        ...(checkoutBulletsValidated !== undefined && { checkoutBullets: checkoutBulletsValidated }),
       },
     });
 

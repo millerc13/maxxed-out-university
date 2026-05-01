@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy, Wrench, ArrowRight } from 'lucide-react';
+import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy, Wrench, ArrowRight, Calendar as CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound, redirect } from 'next/navigation';
@@ -10,17 +10,37 @@ import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
 import { MarkdownContent } from '@/components/ui/markdown-content';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
 import { getModuleAccess } from '@/lib/gating';
+import { getSectionIcon } from '@/lib/section-icons';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{
+    previewAs?: string;
+    // Admin-only field overrides used by /admin/courses/[id]'s Preview tab
+    // to render unsaved draft edits without persisting them. Ignored when
+    // the viewer isn't an authenticated admin.
+    _title?: string;
+    _description?: string;
+    _shortDesc?: string;
+    _thumbnail?: string;
+    _price?: string;
+    _comingSoon?: string;
+  }>;
 }
 
-export default async function CoursePage({ params }: CoursePageProps) {
+export default async function CoursePage({ params, searchParams }: CoursePageProps) {
   const { slug } = await params;
+  const search = await searchParams;
+  const { previewAs } = search;
   const session = await auth();
+  // `?previewAs=customer` lets the admin preview tab iframe this page
+  // and see exactly what a non-admin, non-enrolled visitor sees — no
+  // AdminEnrollButton, no auto-unlocked quizzes/lessons, no own progress.
+  const isCustomerPreview =
+    previewAs === 'customer' && (session?.user as any)?.role === 'ADMIN';
 
   // Get the course with all modules, lessons, and quizzes
-  const course = await prisma.course.findUnique({
+  const courseRaw = await prisma.course.findUnique({
     where: { slug, published: true },
     include: {
       modules: {
@@ -41,46 +61,73 @@ export default async function CoursePage({ params }: CoursePageProps) {
     },
   });
 
-  if (!course) {
+  if (!courseRaw) {
     notFound();
   }
 
+  // Apply admin-only field overrides on top of the loaded course so the
+  // Preview tab on /admin/courses/[id] can show unsaved drafts. Restricted
+  // to isCustomerPreview (which already requires an admin session) so
+  // there's no risk of regular visitors spoofing course content via URL.
+  const course = isCustomerPreview
+    ? {
+        ...courseRaw,
+        title: search._title ?? courseRaw.title,
+        description: search._description ?? courseRaw.description,
+        shortDesc: search._shortDesc ?? courseRaw.shortDesc,
+        thumbnail: search._thumbnail ?? courseRaw.thumbnail,
+        price:
+          search._price !== undefined && search._price !== ''
+            ? Number(search._price) || null
+            : courseRaw.price,
+        comingSoon:
+          search._comingSoon !== undefined
+            ? search._comingSoon === 'true'
+            : courseRaw.comingSoon,
+      }
+    : courseRaw;
+
   // External partner programs don't have an on-platform detail view —
-  // redirect straight to the partner's site.
-  if ((course as any).externalUrl) {
+  // redirect straight to the partner's site (skipped in admin preview so
+  // the admin can still see the *would-be* layout while editing fields).
+  if (!isCustomerPreview && (course as any).externalUrl) {
     redirect((course as any).externalUrl);
   }
 
   // Check if user is enrolled (direct or via bundle)
-  const isEnrolled = session?.user?.id
-    ? await isEffectivelyEnrolled(session.user.id, course.id)
-    : false;
+  const isEnrolled =
+    !isCustomerPreview && session?.user?.id
+      ? await isEffectivelyEnrolled(session.user.id, course.id)
+      : false;
 
-  // Check if user is admin
-  const isAdmin = (session?.user as any)?.role === 'ADMIN';
+  // Check if user is admin (forced false in customer preview)
+  const isAdmin =
+    !isCustomerPreview && (session?.user as any)?.role === 'ADMIN';
 
-  // Get user's progress
-  const progress = session?.user?.id
-    ? await prisma.lessonProgress.findMany({
-        where: {
-          userId: session.user.id,
-          lesson: { module: { courseId: course.id } },
-        },
-      })
-    : [];
+  // Get user's progress (skip in customer preview — visitor has none)
+  const progress =
+    !isCustomerPreview && session?.user?.id
+      ? await prisma.lessonProgress.findMany({
+          where: {
+            userId: session.user.id,
+            lesson: { module: { courseId: course.id } },
+          },
+        })
+      : [];
 
   const progressMap = new Map(progress.map((p) => [p.lessonId, p]));
 
-  // Get user's quiz attempts
-  const quizAttempts = session?.user?.id
-    ? await prisma.quizAttempt.findMany({
-        where: {
-          userId: session.user.id,
-          quizId: { in: course.quizzes.map((q) => q.id) },
-        },
-        orderBy: { startedAt: 'desc' },
-      })
-    : [];
+  // Get user's quiz attempts (skip in customer preview)
+  const quizAttempts =
+    !isCustomerPreview && session?.user?.id
+      ? await prisma.quizAttempt.findMany({
+          where: {
+            userId: session.user.id,
+            quizId: { in: course.quizzes.map((q) => q.id) },
+          },
+          orderBy: { startedAt: 'desc' },
+        })
+      : [];
 
   const quizAttemptsMap = new Map<string, typeof quizAttempts>();
   for (const attempt of quizAttempts) {
@@ -96,12 +143,13 @@ export default async function CoursePage({ params }: CoursePageProps) {
   });
 
   // Get this user's certificate for this course (if awarded)
-  const userCertificate = session?.user?.id
-    ? await prisma.certificate.findUnique({
-        where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
-        select: { certificateId: true },
-      })
-    : null;
+  const userCertificate =
+    !isCustomerPreview && session?.user?.id
+      ? await prisma.certificate.findUnique({
+          where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
+          select: { certificateId: true },
+        })
+      : null;
 
   // Calculate stats
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
@@ -117,8 +165,21 @@ export default async function CoursePage({ params }: CoursePageProps) {
   // High-ticket programs (DWY / Mentorship) are 1:1 coaching, not self-serve
   // course content. The on-platform course page shows a "team will reach out"
   // message in place of the modules list.
-  const HIGH_TICKET_SLUGS = new Set(['done-with-you-real-estate-business', '6-month-mentorship']);
+  const HIGH_TICKET_SLUGS = new Set([
+    'done-with-you-real-estate-business',
+    '6-month-mentorship',
+    'business-mentorship',
+  ]);
   const isHighTicketCoaching = HIGH_TICKET_SLUGS.has(course.slug);
+  // The course's "buy" CTA routes through /apply/[slug] (qualifying
+  // questions, optionally followed by checkout) when any of:
+  //   · the new course-level applyMode toggle is on
+  //   · checkoutAfterApply is on (apply form ends in payment)
+  //   · the slug is in the legacy high-ticket list
+  const usesApplyFlow =
+    (course as any).applyMode === true ||
+    (course as any).checkoutAfterApply === true ||
+    isHighTicketCoaching;
 
   // Bundle gating — module is locked until prior-module quiz is passed.
   // No-op for non-bundle courses and for admins.
@@ -152,12 +213,25 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 <p className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-3">Maxxed Out University</p>
                 <h1 className="text-3xl md:text-4xl font-extrabold mb-4 leading-tight">{course.title}</h1>
                 <p className="text-lg text-blue-100 mb-6 leading-relaxed">
-                  {course.description?.includes('#') ? (course as any).shortDesc : course.description}
+                  {(course as any).shortDesc || course.description}
                 </p>
 
-                {/* Stats row */}
+                {/* Stats row — admin-editable via course.heroStats. Falls
+                    back to legacy hardcoded stats when not configured. */}
                 <div className="flex flex-wrap gap-5 text-sm mb-8">
-                  {isHighTicketCoaching ? (
+                  {Array.isArray((course as any).heroStats) && (course as any).heroStats.length > 0 ? (
+                    (course as any).heroStats.map(
+                      (stat: { iconName: string; iconColor: string | null; label: string }, i: number) => {
+                        const Icon = getSectionIcon(stat.iconName);
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${stat.iconColor || 'text-blue-300'}`} />
+                            <span>{stat.label}</span>
+                          </div>
+                        );
+                      },
+                    )
+                  ) : isHighTicketCoaching ? (
                     <>
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4 text-maxxed-gold" />
@@ -292,8 +366,17 @@ export default async function CoursePage({ params }: CoursePageProps) {
                       </>
                     ) : (
                       <div className="space-y-4">
-                        {/* CTA */}
-                        {course.price && course.price > 0 ? (
+                        {/* CTA — routes through /apply/[slug] for high-ticket
+                            coaching programs (and any course with the new
+                            checkoutAfterApply flag), otherwise direct to /checkout. */}
+                        {usesApplyFlow ? (
+                          <Link
+                            href={`/apply/${course.slug}`}
+                            className="flex items-center justify-center w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md"
+                          >
+                            Apply Now
+                          </Link>
+                        ) : course.price && course.price > 0 ? (
                           <Link
                             href={`/checkout?courseId=${course.id}`}
                             className="flex items-center justify-center w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md"
@@ -304,6 +387,21 @@ export default async function CoursePage({ params }: CoursePageProps) {
                           <button className="w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md cursor-default opacity-70">
                             Contact to Enroll
                           </button>
+                        )}
+
+                        {(course as { bookACallEnabled?: boolean }).bookACallEnabled !== false && (
+                          <a
+                            href={
+                              process.env.NEXT_PUBLIC_CALENDLY_URL ||
+                              'https://calendly.com/rebecca-nardi/maxxed-out-todd-pultz-mentorship-healthcare'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full py-3 border-2 border-white/30 text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-white/10 transition-colors"
+                          >
+                            <CalendarIcon className="w-4 h-4" />
+                            Have questions? Book a call
+                          </a>
                         )}
 
                         {isAdmin && (
@@ -318,8 +416,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
           </div>
         </div>
 
-        {/* Course Description (for markdown-formatted descriptions) */}
-        {course.description && course.description.includes('#') && (
+        {/* Course Description — full body. MarkdownContent handles both
+            markdown-formatted descriptions and plain text gracefully. */}
+        {course.description && (
           <div className="max-w-7xl mx-auto px-5 md:px-10 py-10 border-b">
             <Card className="shadow-card">
               <CardContent className="p-6 md:p-8">

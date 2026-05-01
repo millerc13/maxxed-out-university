@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolveCheckoutAfterApply } from '@/lib/checkout-flow';
 
 // Public endpoint — called server-side by funnel deployments on each render.
 // Auth is via the funnel's API key or subdomain lookup.
@@ -25,6 +26,8 @@ export async function GET(request: NextRequest) {
           price: true,
           thumbnail: true,
           shortDesc: true,
+          checkoutAfterApply: true,
+          bookACallEnabled: true,
         },
       },
       featuredCourses: {
@@ -101,6 +104,9 @@ export async function GET(request: NextRequest) {
       bulletsHeadline: deployment.config?.bulletsHeadline ?? null,
       bulletsSub: deployment.config?.bulletsSub ?? null,
       template: deployment.config?.template ?? 'classic',
+      // Resolved boolean — funnel override wins, otherwise course default,
+      // otherwise false. The funnel repo just consumes this directly.
+      checkoutAfterApply: resolveCheckoutAfterApply(deployment.config, deployment.course),
     },
     promoEnabled,
   });

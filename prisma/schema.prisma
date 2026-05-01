@@ -11,6 +11,11 @@ datasource db {
 model User {
   id                 String           @id @default(cuid())
   email              String           @unique
+  // Alternate emails this user can sign in with. Used when the email
+  // on file is wrong (typo from a manual import, etc.) but the user
+  // knows themselves by a different one. The credentials login falls
+  // back to matching here if the primary email lookup misses.
+  emailAliases       String[]         @default([])
   name               String?
   passwordHash       String?
   mustChangePassword Boolean          @default(false)
@@ -28,6 +33,7 @@ model User {
   magicLinks         MagicLink[]
   passwordResetTokens PasswordResetToken[]
   sessions           Session[]
+  documentSignatures DocumentSignature[]
 
 }
 
@@ -60,6 +66,10 @@ model Session {
 model MagicLink {
   id        String    @id @default(cuid())
   token     String    @unique
+  // Short SMS-friendly alias (6-char base64url, generated alongside `token`).
+  // Resolved by the /a/[code] route which 302s to /auth/activate?token=<full>.
+  // Nullable so legacy rows without a shortCode keep working.
+  shortCode String?   @unique
   userId    String
   expiresAt DateTime
   usedAt    DateTime?
@@ -87,12 +97,48 @@ model Course {
   previewVideo String?
   price        Int?
   published    Boolean          @default(false)
-  featured     Boolean          @default(false)
   comingSoon   Boolean          @default(false)
   isBundle     Boolean          @default(false)
   bundleId     String?
   externalUrl  String?
+  // When true, the public course page shows an "Apply Now" button instead
+  // of price+buy. Doesn't require externalUrl — without one, the button
+  // routes to /apply/[slug] (the on-platform 5-step apply flow). With
+  // externalUrl, it redirects there. Independent of `price`, which is
+  // still used for any checkout that happens after the apply form.
+  applyMode    Boolean    @default(false)
+  // When true, the on-platform /apply/[slug] flow ends with a checkout
+  // step (lead is captured in GHL first, then optional payment).
+  // Funnels using this course inherit this default unless their
+  // FunnelConfig.checkoutAfterApplyOverride is set.
+  checkoutAfterApply Boolean    @default(false)
+  // When true, /api/apply creates a GHL opportunity for this course's
+  // submissions (which triggers the closer-notify automation in GHL ->
+  // dashboard.maxxedout.com webhook -> closer SMS). Default true to
+  // preserve current behavior; admin flips to false for QA / testing
+  // a course without spamming closers.
+  notifyClosersOnApply Boolean  @default(true)
+  // When true, every funnel + checkout surface for this course shows a
+  // "Have more questions? Book a call with a team member" CTA pointing
+  // to the Calendly booking link. Default ON for every course; admin
+  // can flip OFF per-course in CourseForm.
+  bookACallEnabled Boolean      @default(true)
   order        Int              @default(0)
+  // Catalog section + position. Null section means the course doesn't appear
+  // on / or /courses (admin-only / hidden product). Both pages render from
+  // these fields; the legacy price-tier classifier was removed.
+  homepageSectionId String?
+  homepageOrder     Int               @default(0)
+  // Editable hero stat row shown on /courses/[slug]. Each entry:
+  // { iconName: string, iconColor?: string, label: string }. When empty
+  // the page falls back to the legacy hardcoded stats (lessons /
+  // certificate / lifetime access).
+  heroStats         Json              @default("[]")
+  // Bullet list shown under the course thumbnail on the checkout page.
+  // String[] — empty falls back to the legacy hardcoded defaults
+  // (Immediate access / 1-on-1 with Todd / Certificate / Lifetime / 30d
+  // refund). Edit per-course from the admin form.
+  checkoutBullets   Json              @default("[]")
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])
@@ -106,8 +152,30 @@ model Course {
   featuredInFunnels FunnelDeployment[] @relation("FunnelFeaturedCourses")
   promoCodes        PromoCode[]        @relation("PromoCodeCourses")
   tools             Tool[]
+  homepageSection   HomepageSection? @relation(fields: [homepageSectionId], references: [id], onDelete: SetNull)
+  documentSignatures DocumentSignature[]
 
   @@index([bundleId])
+  @@index([homepageSectionId, homepageOrder])
+}
+
+// Catalog section shown on / and /courses. Admin-curated: title,
+// description, icon, and which courses belong to it. Order field controls
+// the section's position on the page.
+model HomepageSection {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  iconName    String   @default("BookOpen")
+  // Tailwind color class for the icon (e.g. "text-amber-500"). Optional.
+  iconColor   String?
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  courses     Course[]
+
+  @@index([order])
 }
 
 model Module {
@@ -226,6 +294,29 @@ model ProductMapping {
   @@index([ghlProductId])
 }
 
+// Recipient list for lead/sale SMS notifications. Replaces the legacy
+// path of "create GHL opportunity → mastermind webhook → closer SMS"
+// for university applications. Admin manages this list at
+// /admin/notifications. Set to a test number while doing QA.
+model NotificationRecipient {
+  id            String   @id @default(cuid())
+  phone         String   // E.164 (e.g. "+19375551234")
+  label         String?  // human-friendly tag, e.g. "CJ (test)" / "Closer A"
+  notifyOnLead  Boolean  @default(true)
+  notifyOnSale  Boolean  @default(true)
+  active        Boolean  @default(true)
+  // Source filter — which traffic source this recipient gets alerts for.
+  // Slugs: "blueprint" | "mentorship" | "donewithyou" | "university".
+  // Empty array (default) = receive from ALL sources. Non-empty = only
+  // listed sources fan out to this recipient.
+  sources       String[] @default([])
+  // Cached after the first successful send so we don't have to
+  // re-upsert the GHL contact on every notification.
+  ghlContactId  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model WebhookLog {
   id           String   @id @default(cuid())
   source       String
@@ -341,6 +432,9 @@ model FunnelConfig {
   bulletsHeadline       String?                            // e.g. "What's Inside This Course:"
   bulletsSub            String?                            // e.g. "Everything you need to find..."
   template              String           @default("classic") // "classic" | "dark" | "bold"
+  // Per-funnel override of the linked Course.checkoutAfterApply default.
+  // null = inherit from course; true/false = force this funnel one way.
+  checkoutAfterApplyOverride Boolean?
   updatedAt             DateTime         @updatedAt
   deployment            FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }
@@ -433,4 +527,149 @@ model CheckoutLink {
   @@index([token])
   @@index([email, courseId])
   @@index([sentOfferId])
+}
+
+// ── E-signature: contract templates + per-recipient signed documents ──
+//
+// `ContractTemplate` is the editable source — admin maintains it via
+// /admin/documents/template. Tokens like {{Course.Name}} get
+// substituted at send time. Only one row is `active` at once; the
+// auto-trigger on self-checkout uses the active template.
+//
+// `DocumentSignature` is one row per recipient. The rendered HTML +
+// markdown are SNAPSHOTTED at send time and never mutated, so a
+// later template edit doesn't rewrite history. signatureHash is a
+// SHA-256 over (renderedHtml + tokens + signedName + signedAt + IP),
+// computed at sign time — anyone can re-derive it from the row data
+// to prove tamper-evidence.
+//
+// Status machine: draft → sent → viewed → completed
+//                              ↘ declined
+//                              ↘ cancelled
+// + 'expired' if signingTokenExpiresAt passes without a sign.
+
+model ContractTemplate {
+  id          String   @id @default(cuid())
+  // Human-friendly name shown in admin (e.g. "Coaching Agreement v1").
+  name        String
+  // Markdown body. Tokens look like {{Course.Name}}, {{Customer.FirstName}},
+  // {{Payment.Total}}, {{Payment.Schedule}}. Admin edits this in the UI.
+  body        String   @db.Text
+  // List of token names used by the body, declared so the admin compose
+  // form knows which fields to expose. Example: ["Course.Name", "Payment.Total"].
+  tokens      Json     @default("[]")
+  // Only one template can be active at a time — the auto-trigger uses it.
+  active      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // For audit — who edited it last.
+  lastEditedById String?
+
+  signatures  DocumentSignature[]
+
+  @@index([active])
+}
+
+model DocumentSignature {
+  id              String   @id @default(cuid())
+
+  // ── Recipient identity ─────────────────────────────────────
+  // userId is nullable so admins can fire docs to non-User emails
+  // (off-list custom deals). recipientEmail is always set.
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recipientEmail  String
+  recipientName   String?
+  recipientPhone  String?
+
+  // ── What the doc is for ────────────────────────────────────
+  // courseId is nullable so admins can fire generic / off-catalog
+  // docs. courseTitle is a snapshot so course renames don't
+  // rewrite history.
+  courseId        String?
+  course          Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  courseTitle     String
+
+  // ── Template + content ─────────────────────────────────────
+  contractTemplateId String
+  contractTemplate ContractTemplate @relation(fields: [contractTemplateId], references: [id])
+  // Token values that were substituted (audit trail / reproducibility).
+  tokens          Json
+  // Verbatim rendered HTML at the moment of send — never mutated, even
+  // if the source template later changes. The canonical "what they signed"
+  // record.
+  renderedHtml    String   @db.Text
+  // Verbatim rendered markdown (for re-rendering / re-export).
+  renderedMarkdown String  @db.Text
+
+  // ── State machine ──────────────────────────────────────────
+  status          String   @default("draft")
+  origin          String   // 'auto_self_checkout' | 'manual_admin'
+
+  // ── Signing security ───────────────────────────────────────
+  // 32-byte hex token used in the /sign/[token] URL. Cleared on
+  // sign / cancel / expire — one-time-use.
+  signingToken    String?  @unique
+  signingTokenExpiresAt DateTime?
+
+  // ── Snapshot of payment context ────────────────────────────
+  paymentTotalCents Int?
+  paymentPlan     Json?
+
+  // ── Free-text admin notes ──────────────────────────────────
+  // Optional context the admin typed in the Compose form (special
+  // terms agreed by phone, why this is being sent, etc.). Surfaced
+  // in /admin/documents and also substituted into the contract via
+  // the {{Notes}} token.
+  notes           String?  @db.Text
+
+  // ── Tamper-evidence hash ───────────────────────────────────
+  // SHA-256 of: renderedHtml + JSON.stringify(tokens) + signedName +
+  // signedAt.toISOString() + signedFromIp. Stored at signing time.
+  signatureHash   String?
+
+  // ── Audit trail (append-only JSON array) ───────────────────
+  auditEvents     Json     @default("[]")
+
+  // ── Captured at signing ────────────────────────────────────
+  signedName      String?
+  signedAt        DateTime?
+  signedFromIp    String?
+  signedFromUa    String?  @db.Text
+  signedFromTz    String?
+  signedScreenW   Int?
+  signedScreenH   Int?
+  // PNG data URL of the actual signature mark — either a stylized
+  // type-to-sign render OR a finger/mouse-drawn canvas image. Null
+  // means we fall back to the typed name in cursive font (legacy
+  // path). Included in signatureHash so it's tamper-evident.
+  signedSignaturePng String? @db.Text
+  // 'typed' | 'drawn' — how the signedSignaturePng was produced.
+  // Surfaces in the audit trail and the admin viewer.
+  signedSignatureMode String?
+
+  // ── Other lifecycle timestamps ─────────────────────────────
+  sentAt          DateTime?
+  firstViewedAt   DateTime?
+  declinedAt      DateTime?
+  cancelledAt     DateTime?
+
+  // ── PDF cache pointer ──────────────────────────────────────
+  // R2 object key once generated. null until first download.
+  pdfR2Key        String?
+  pdfGeneratedAt  DateTime?
+
+  // ── Provenance ─────────────────────────────────────────────
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Who triggered a manual send (null for auto).
+  createdByUserId String?
+  // For auto-send, the Enrollment that triggered this.
+  enrollmentTransactionId String?
+
+  @@index([status])
+  @@index([recipientEmail])
+  @@index([userId])
+  @@index([courseId])
+  @@index([createdAt])
 }
