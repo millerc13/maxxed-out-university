@@ -1,24 +1,19 @@
-import { requireAdmin } from '@/lib/admin';
+import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { TemplateEditorClient } from '@/components/admin/TemplateEditorClient';
+import { requireAdmin } from '@/lib/admin';
 
+// Legacy singular route. We've moved to a multi-template setup at
+// /admin/documents/templates. If there's an active template, take the
+// admin straight to that one's edit page — otherwise list all of them.
 export const dynamic = 'force-dynamic';
 
-export default async function AdminContractTemplatePage() {
+export default async function LegacyTemplateRedirect() {
   await requireAdmin();
-  const template = await prisma.contractTemplate.findFirst({
+  const active = await prisma.contractTemplate.findFirst({
     where: { active: true },
+    select: { id: true },
     orderBy: { updatedAt: 'desc' },
   });
-  return (
-    <TemplateEditorClient
-      initial={template ? {
-        id: template.id,
-        name: template.name,
-        body: template.body,
-        tokens: (template.tokens as string[]) ?? [],
-        updatedAt: template.updatedAt.toISOString(),
-      } : null}
-    />
-  );
+  if (active) redirect(`/admin/documents/templates/${active.id}`);
+  redirect('/admin/documents/templates');
 }

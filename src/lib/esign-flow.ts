@@ -67,6 +67,18 @@ async function loadActiveTemplate() {
   return tpl;
 }
 
+// Loads a specific template by id. Falls back to loadActiveTemplate
+// when id is null/undefined so the auto-trigger on self-checkout
+// keeps using the default active template.
+async function loadTemplate(id?: string | null) {
+  if (!id) return loadActiveTemplate();
+  const tpl = await prisma.contractTemplate.findUnique({ where: { id } });
+  if (!tpl) {
+    throw new Error(`ContractTemplate not found: ${id}`);
+  }
+  return tpl;
+}
+
 type CreateInput = {
   recipientEmail: string;
   recipientName: string;
@@ -80,10 +92,15 @@ type CreateInput = {
   origin: 'auto_self_checkout' | 'manual_admin';
   enrollmentTransactionId?: string | null;
   createdByUserId?: string | null;
+  // When set, send using THIS specific template instead of whichever
+  // is currently `active`. Used by the admin Compose modal's
+  // template picker so admins can fire a non-active variant
+  // without flipping the active flag.
+  templateId?: string | null;
 };
 
 async function createAndSendDocument(input: CreateInput): Promise<{ documentId: string }> {
-  const tpl = await loadActiveTemplate();
+  const tpl = await loadTemplate(input.templateId);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
   const { first, last } = splitName(input.recipientName);
@@ -230,7 +247,9 @@ export async function sendStandardEnrollmentDocument(input: {
 }
 
 // Admin Compose entrypoint. Allows custom payment plan + free-text notes,
-// and optional off-list (no userId / no courseId) sends.
+// optional off-list (no userId / no courseId) sends, and an optional
+// templateId so the admin can pick a non-active template variant
+// (e.g. "VIP Coaching") without flipping the active flag.
 export async function sendCustomEnrollmentDocument(input: {
   recipientEmail: string;
   recipientName: string;
@@ -241,6 +260,7 @@ export async function sendCustomEnrollmentDocument(input: {
   paymentTotalCents: number;
   paymentPlan?: PaymentPlan | null;
   notes?: string;
+  templateId?: string;
   createdByUserId: string;
 }): Promise<{ documentId: string }> {
   return createAndSendDocument({
@@ -250,6 +270,7 @@ export async function sendCustomEnrollmentDocument(input: {
     userId: input.userId ?? null,
     courseId: input.courseId ?? null,
     courseTitle: input.courseTitle,
+    templateId: input.templateId ?? null,
     paymentTotalCents: input.paymentTotalCents,
     paymentPlan: input.paymentPlan ?? null,
     notes: input.notes ?? null,

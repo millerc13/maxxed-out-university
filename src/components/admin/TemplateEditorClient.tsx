@@ -136,8 +136,12 @@ export function TemplateEditorClient({ initial }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/documents/template', {
-        method: initial ? 'PUT' : 'POST',
+      const url = initial?.id
+        ? `/api/admin/documents/templates/${initial.id}`
+        : '/api/admin/documents/templates';
+      const method = initial?.id ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, body }),
       });
@@ -146,6 +150,11 @@ export function TemplateEditorClient({ initial }: Props) {
         throw new Error(data.error ?? 'Save failed');
       }
       setSavedAt(data.template?.updatedAt ?? new Date().toISOString());
+      // First save creates a new row — bounce to its dedicated edit
+      // URL so subsequent saves PUT against the persisted id.
+      if (!initial?.id && data.template?.id) {
+        window.location.replace(`/admin/documents/templates/${data.template.id}`);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {

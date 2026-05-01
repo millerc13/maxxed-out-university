@@ -11,7 +11,7 @@ export default async function AdminDocumentsPage() {
   // Pull recent docs + the active template's tokens (for the compose
   // form) + the dropdown of top-level courses so admins can attach
   // a course without typing a title manually.
-  const [rows, courses, activeTemplate] = await Promise.all([
+  const [rows, courses, activeTemplate, allTemplates] = await Promise.all([
     prisma.documentSignature.findMany({
       orderBy: { createdAt: 'desc' },
       take: 200,
@@ -41,6 +41,12 @@ export default async function AdminDocumentsPage() {
     prisma.contractTemplate.findFirst({
       where: { active: true },
       select: { id: true, name: true, updatedAt: true },
+    }),
+    // All templates for the Compose modal's picker — admin can pick a
+    // non-active variant (e.g. "VIP Coaching") for a specific send.
+    prisma.contractTemplate.findMany({
+      orderBy: [{ active: 'desc' }, { updatedAt: 'desc' }],
+      select: { id: true, name: true, active: true },
     }),
   ]);
 
@@ -81,6 +87,7 @@ export default async function AdminDocumentsPage() {
             }
           : null
       }
+      templates={allTemplates}
     />
   );
 }

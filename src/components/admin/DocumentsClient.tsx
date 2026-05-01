@@ -47,10 +47,13 @@ type Row = {
 
 type Course = { id: string; title: string; priceCents: number | null };
 
+type TemplateOption = { id: string; name: string; active: boolean };
+
 type Props = {
   initialRows: Row[];
   courses: Course[];
   activeTemplate: { name: string; updatedAt: string } | null;
+  templates: TemplateOption[];
 };
 
 type FilterKey = 'all' | 'sent' | 'viewed' | 'completed' | 'declined' | 'cancelled';
@@ -92,7 +95,7 @@ function initialOf(row: Row): string {
   return (row.recipientName || row.recipientEmail || '?').trim().charAt(0).toUpperCase();
 }
 
-export function DocumentsClient({ initialRows, courses, activeTemplate }: Props) {
+export function DocumentsClient({ initialRows, courses, activeTemplate, templates }: Props) {
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -227,12 +230,12 @@ export function DocumentsClient({ initialRows, courses, activeTemplate }: Props)
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link
-            href="/admin/documents/template"
+            href="/admin/documents/templates"
             className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 bg-white text-gray-700 rounded-lg text-xs sm:text-sm font-semibold shadow-sm hover:bg-gray-50 cursor-pointer transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-maxxed-blue/40"
           >
             <Pencil className="w-4 h-4" />
-            <span className="hidden sm:inline">Edit template</span>
-            <span className="sm:hidden">Template</span>
+            <span className="hidden sm:inline">Templates</span>
+            <span className="sm:hidden">Templates</span>
           </Link>
           <button
             type="button"
@@ -286,6 +289,7 @@ export function DocumentsClient({ initialRows, courses, activeTemplate }: Props)
       {composeOpen && (
         <ComposeForm
           courses={courses}
+          templates={templates}
           onClose={() => setComposeOpen(false)}
           onCreated={() => {
             setComposeOpen(false);
@@ -667,10 +671,12 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 
 function ComposeForm({
   courses,
+  templates,
   onClose,
   onCreated,
 }: {
   courses: Course[];
+  templates: TemplateOption[];
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -685,6 +691,11 @@ function ComposeForm({
   const [frequency, setFrequency] = useState<'monthly' | 'quarterly'>('monthly');
   const [firstDueAt, setFirstDueAt] = useState('');
   const [notes, setNotes] = useState('');
+  // Template picker — defaults to the active template's id (or empty
+  // if there's only one). Falls through to the active row server-side
+  // when empty.
+  const activeId = templates.find((t) => t.active)?.id ?? '';
+  const [templateId, setTemplateId] = useState<string>(activeId);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -732,6 +743,7 @@ function ComposeForm({
         notes: notes.trim() || undefined,
       };
       if (selectedCourse) payload.courseId = selectedCourse.id;
+      if (templateId) payload.templateId = templateId;
       if (scheduleType === 'plan') {
         payload.paymentPlan = {
           installments: installmentsN,
@@ -801,6 +813,26 @@ function ComposeForm({
             />
           </Field>
         </div>
+
+        {templates.length > 1 && (
+          <Field
+            label="Template"
+            hint="Active template is used by default. Pick a different one to send a variant without flipping the active flag."
+          >
+            <select
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
+            >
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                  {t.active ? ' · active' : ''}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Course">

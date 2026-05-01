@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
       paymentTotalCents,
       paymentPlan,
       notes: typeof body.notes === 'string' ? body.notes : undefined,
+      templateId: typeof body.templateId === 'string' ? body.templateId : undefined,
       createdByUserId: session.user.id,
     });
     return NextResponse.json({ ok: true, documentId: result.documentId });
