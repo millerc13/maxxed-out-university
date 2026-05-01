@@ -277,7 +277,7 @@ export const CONTRACT_STYLES = `
       flex-direction: column;
       margin: 24px 0 12px;
     }
-    /* On mobile (column flex), the desktop `flex: 1 1 240px` becomes
+    /* On mobile (column flex), the desktop "flex: 1 1 240px" becomes
        a 240px HEIGHT basis on each cell, padding-stretching every
        cell to ~240px tall and creating a huge dead gap between
        company + client. Switch to natural sizing on column. */
