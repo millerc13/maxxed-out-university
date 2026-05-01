@@ -97,6 +97,12 @@ type CreateInput = {
   // template picker so admins can fire a non-active variant
   // without flipping the active flag.
   templateId?: string | null;
+  // When set, also fire an SMS with the signing link via GHL after
+  // the email send. Webhook auto-trigger passes the buyer's cached
+  // GHL contact id so we don't have to upsert again at SMS time.
+  // Compose-from-admin doesn't pass this (no contact yet) so the
+  // SMS step is skipped silently.
+  ghlContactId?: string | null;
 };
 
 // Builds the canonical token map for a recipient's enrollment doc.
@@ -222,6 +228,8 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
     },
   });
 
+  const signingUrl = `${BASE_URL}/sign/${signingToken}`;
+
   // Fire the signing-request email. Don't swallow errors silently — let the
   // caller decide whether to retry. But we also don't want a resend failure
   // to leave the row uncreated, so creation happens first.
@@ -230,7 +238,7 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
       to: input.recipientEmail,
       recipientName: input.recipientName,
       courseTitle: input.courseTitle,
-      signingUrl: `${BASE_URL}/sign/${signingToken}`,
+      signingUrl,
       expiresAt,
     });
   } catch (err) {
@@ -246,6 +254,35 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
     });
   }
 
+  // Optional SMS with the signing link. Only fires when caller passed
+  // a GHL contact id (auto-trigger from webhook does; admin Compose
+  // does not). Wrapped — SMS failure must not orphan the row.
+  if (input.ghlContactId) {
+    try {
+      const { sendGhlSms } = await import('@/lib/ghl');
+      const firstName = splitName(input.recipientName).first || 'Hi';
+      const smsBody =
+        `${firstName}, your ${input.courseTitle} enrollment is confirmed. ` +
+        `Please review and sign your agreement: ${signingUrl} ` +
+        `– Todd / Maxxed Out`;
+      await sendGhlSms(input.ghlContactId, smsBody);
+      console.log('[esign-flow] Signing-link SMS sent', { documentId: doc.id, contactId: input.ghlContactId });
+    } catch (err) {
+      console.error('[esign-flow] Signing-link SMS failed (non-fatal)', { documentId: doc.id, err });
+      try {
+        await prisma.documentSignature.update({
+          where: { id: doc.id },
+          data: {
+            auditEvents: [
+              ...((doc.auditEvents as unknown as object[]) ?? []),
+              { type: 'sms_failed', at: new Date().toISOString(), error: String(err) },
+            ] as object[],
+          },
+        });
+      } catch { /* audit-write failure is non-fatal */ }
+    }
+  }
+
   return { documentId: doc.id };
 }
 
@@ -259,6 +296,11 @@ export async function sendStandardEnrollmentDocument(input: {
   courseTitle: string;
   paidCents: number;
   transactionId: string;
+  // Optional — when present, esign-flow also sends an SMS with the
+  // signing link via GHL. Webhook callers pass the buyer's cached
+  // GHL contact id from earlier in the same handler. If null/missing,
+  // only the email goes out.
+  ghlContactId?: string | null;
 }): Promise<{ documentId: string; status: 'created' | 'already_existed' }> {
   const existing = await prisma.documentSignature.findFirst({
     where: {
@@ -284,6 +326,7 @@ export async function sendStandardEnrollmentDocument(input: {
     origin: 'auto_self_checkout',
     enrollmentTransactionId: input.transactionId,
     createdByUserId: null,
+    ghlContactId: input.ghlContactId ?? null,
   });
   return { documentId, status: 'created' };
 }

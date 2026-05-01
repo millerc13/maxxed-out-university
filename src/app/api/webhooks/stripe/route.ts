@@ -341,6 +341,9 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
           courseTitle: cName,
           paidCents: paymentIntent.amount,
           transactionId: paymentIntent.id,
+          // See fanbasis route for context — esign-flow uses this to
+          // also send an SMS with the signing link.
+          ghlContactId,
         });
         console.log('[stripe-webhook] E-sign contract auto-sent', { userId: resolvedUserId, courseId });
       } catch (err) {

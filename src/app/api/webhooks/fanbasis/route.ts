@@ -576,6 +576,11 @@ async function enrollFromFanbasis(params: {
         courseTitle: cName,
         paidCents: params.originalPrice ? parseInt(params.originalPrice) : 0,
         transactionId: params.transactionId,
+        // Reuses the contact id resolved earlier in this handler so
+        // esign-flow can fire the signing-link SMS via GHL without
+        // re-upserting. Null when GHL isn't configured / contact lookup
+        // failed — esign-flow falls back to email-only in that case.
+        ghlContactId,
       });
       console.log('[fanbasis-webhook] E-sign contract auto-sent', { userId: resolvedUserId, courseId: params.courseId });
     } catch (err) {
