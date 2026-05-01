@@ -134,28 +134,20 @@ export async function enrollInBundle(userId: string, bundleCourseId: string, sou
 }
 
 /**
- * Map of "purchased course → additional bundles included for free".
- *
- * DWY ($25k) and Mentorship ($10k) buyers also get full access to the
- * Real Estate Empire Blueprint bundle (the entire $2,497 self-serve
- * curriculum) as part of their package — they study Blueprint between
- * coaching calls.
- *
- * Keyed by the parent course id (stable across rename); values are
- * bundle ids to enroll the buyer into via enrollInBundle().
+ * Real Estate Empire Blueprint — the bundle every buyer gets access to
+ * as a bonus, regardless of which course they actually paid for. The
+ * one exception: if the buyer IS purchasing Blueprint itself (or one of
+ * its child courses), the regular bundle-expansion path already handles
+ * their access, so we skip the bonus grant.
  */
-const INCLUDED_BUNDLES: Record<string, string[]> = {
-  // Done With You ($25k) → also unlock Blueprint bundle
-  ht_done_with_you: ['cmixce0n80000var3z2sguauf'],
-  // 6-Month Mentorship ($10k) → also unlock Blueprint bundle
-  ht_mentorship_12mo: ['cmixce0n80000var3z2sguauf'],
-};
+const BLUEPRINT_BUNDLE_ID = 'cmixce0n80000var3z2sguauf';
 
 /**
- * Idempotently enrolls the buyer into any extra bundles their purchase
- * includes (see INCLUDED_BUNDLES). No-op for purchases that don't bundle
- * other content. Failures are caught + logged so they don't break the
- * primary enrollment flow.
+ * Idempotently grants the buyer the Real Estate Empire Blueprint bundle
+ * as a bonus on every purchase. No-op when the buyer is already
+ * effectively enrolled via the primary purchase (e.g. they bought
+ * Blueprint, or a child course inside Blueprint). Failures are caught
+ * + logged so they don't break the primary enrollment flow.
  */
 export async function enrollIncludedBundles(
   userId: string,
@@ -163,20 +155,22 @@ export async function enrollIncludedBundles(
   source: string,
   transactionId?: string
 ): Promise<void> {
-  const includedBundleIds = INCLUDED_BUNDLES[purchasedCourseId];
-  if (!includedBundleIds || includedBundleIds.length === 0) return;
+  // Skip the bonus grant when the buyer's purchase already covers Blueprint.
+  if (purchasedCourseId === BLUEPRINT_BUNDLE_ID) return;
+  const purchased = await prisma.course.findUnique({
+    where: { id: purchasedCourseId },
+    select: { bundleId: true },
+  });
+  if (purchased?.bundleId === BLUEPRINT_BUNDLE_ID) return;
 
-  for (const bundleId of includedBundleIds) {
-    try {
-      await enrollInBundle(userId, bundleId, source, transactionId);
-      console.log('[enrollIncludedBundles] Granted included bundle', { userId, purchasedCourseId, bundleId, source });
-    } catch (err) {
-      console.error('[enrollIncludedBundles] Failed to grant included bundle', {
-        userId,
-        purchasedCourseId,
-        bundleId,
-        error: err instanceof Error ? err.message : err,
-      });
-    }
+  try {
+    await enrollInBundle(userId, BLUEPRINT_BUNDLE_ID, source, transactionId);
+    console.log('[enrollIncludedBundles] Granted Blueprint bonus', { userId, purchasedCourseId, source });
+  } catch (err) {
+    console.error('[enrollIncludedBundles] Failed to grant Blueprint bonus', {
+      userId,
+      purchasedCourseId,
+      error: err instanceof Error ? err.message : err,
+    });
   }
 }

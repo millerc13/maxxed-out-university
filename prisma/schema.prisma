@@ -139,6 +139,19 @@ model Course {
   // (Immediate access / 1-on-1 with Todd / Certificate / Lifetime / 30d
   // refund). Edit per-course from the admin form.
   checkoutBullets   Json              @default("[]")
+  // ── Delivery (post-purchase messaging) ──────────────────────────────
+  // Admin-editable copy that fires when a buyer completes checkout for
+  // this course. Supports {{firstName}} {{courseTitle}} {{shortUrl}}
+  // {{activateUrl}} tokens. NULL → webhooks fall back to a sensible
+  // default chosen by the course's apply-flow vs self-serve nature.
+  welcomeSmsBody       String?  @db.Text
+  welcomeEmailSubject  String?
+  welcomeEmailBody     String?  @db.Text
+  // When true, every successful checkout for this course also triggers
+  // an automatic e-sign contract send (sendStandardEnrollmentDocument).
+  // OFF by default — closers compose custom contracts for high-ticket
+  // programs; admin enables only on courses where one-size-fits-all is OK.
+  autoSendContract  Boolean          @default(false)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])

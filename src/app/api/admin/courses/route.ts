@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, bookACallEnabled } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, bookACallEnabled, welcomeSmsBody, welcomeEmailSubject, welcomeEmailBody, autoSendContract } = body;
 
     if (!title || !slug) {
       return NextResponse.json(
@@ -79,6 +79,10 @@ export async function POST(request: NextRequest) {
         checkoutAfterApply: checkoutAfterApply ?? false,
         notifyClosersOnApply: notifyClosersOnApply ?? true,
         bookACallEnabled: bookACallEnabled ?? true,
+        welcomeSmsBody: welcomeSmsBody?.trim() ? welcomeSmsBody : null,
+        welcomeEmailSubject: welcomeEmailSubject?.trim() ? welcomeEmailSubject : null,
+        welcomeEmailBody: welcomeEmailBody?.trim() ? welcomeEmailBody : null,
+        autoSendContract: autoSendContract ?? false,
       },
     });
 

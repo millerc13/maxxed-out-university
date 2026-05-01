@@ -382,11 +382,21 @@ async function enrollFromFanbasis(params: {
   });
 
   // Bundle unlock — if this course is a bundle, also enroll in every child course.
-  // checkoutAfterApply is loaded so the SMS body can branch high-ticket
-  // (apply→checkout, team will reach out) vs self-serve (Blueprint etc).
+  // Pulls per-course delivery copy + auto-send-contract toggle so the SMS,
+  // email, and contract trigger all respect admin overrides on the Course row.
   const purchasedCourse = await prisma.course.findUnique({
     where: { id: params.courseId },
-    select: { isBundle: true, thumbnail: true, title: true, slug: true, checkoutAfterApply: true },
+    select: {
+      isBundle: true,
+      thumbnail: true,
+      title: true,
+      slug: true,
+      checkoutAfterApply: true,
+      welcomeSmsBody: true,
+      welcomeEmailSubject: true,
+      welcomeEmailBody: true,
+      autoSendContract: true,
+    },
   });
 
   // Link buyer to GHL contact + tag with the course they bought, so
@@ -462,6 +472,26 @@ async function enrollFromFanbasis(params: {
     console.error('[fanbasis-webhook] Magic link create failed (non-fatal)', { error: err instanceof Error ? err.message : err });
   }
 
+  // Render admin-edited subject/body overrides (if set) using the same
+  // tokens the SMS uses, so {{firstName}}/{{courseTitle}} etc. resolve
+  // consistently across channels.
+  const baseUrlForEmail = (process.env.NEXTAUTH_URL || 'https://university.maxxedout.com').replace(/\/$/, '');
+  const firstNameForEmail = (userName || '').trim().split(/\s+/)[0] || 'there';
+  const emailTokens = {
+    firstName: firstNameForEmail,
+    customerName: userName || firstNameForEmail,
+    courseTitle: cName,
+    shortUrl: activateShortCode ? `${baseUrlForEmail}/a/${activateShortCode}` : '',
+    activateUrl: activateToken ? `${baseUrlForEmail}/auth/activate?token=${activateToken}` : '',
+  };
+  const { renderTokens } = await import('@/lib/delivery');
+  const subjectOverride = purchasedCourse?.welcomeEmailSubject
+    ? renderTokens(purchasedCourse.welcomeEmailSubject, emailTokens)
+    : null;
+  const bodyOverride = purchasedCourse?.welcomeEmailBody
+    ? renderTokens(purchasedCourse.welcomeEmailBody, emailTokens)
+    : null;
+
   try {
     if (needsPasswordSetup && activateToken) {
       await sendMagicLinkEmail({
@@ -472,6 +502,8 @@ async function enrollFromFanbasis(params: {
         courseThumbnail: purchasedCourse?.thumbnail,
         bonusBox,
         teamReachOutNote,
+        subjectOverride,
+        bodyOverride,
       });
     } else {
       const loginUrl = `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/login`;
@@ -483,34 +515,72 @@ async function enrollFromFanbasis(params: {
         courseThumbnail: purchasedCourse?.thumbnail,
         bonusBox,
         teamReachOutNote,
+        subjectOverride,
+        bodyOverride,
       });
     }
   } catch (err) {
     console.error('[fanbasis-webhook] Email send failed', { error: err instanceof Error ? err.message : err });
   }
 
-  // Magic-link SMS via GHL. Body branches on whether the course is an
-  // apply→checkout high-ticket program (team will reach out — point
-  // them at Blueprint while they wait) vs self-serve (just hand them
-  // the link). Skipped if no GHL contact or no short code. SMS failures
-  // never break the enrollment.
-  if (ghlContactId && activateShortCode) {
+  // Magic-link SMS via GHL. Body comes from buildSmsBody() — uses the
+  // course's admin-edited welcomeSmsBody when set, otherwise falls back
+  // to a sensible default chosen by the course's apply-flow vs
+  // self-serve nature. SMS failure never breaks the enrollment.
+  if (ghlContactId && activateShortCode && activateToken) {
     try {
       const { sendGhlSms } = await import('@/lib/ghl');
+      const { buildSmsBody } = await import('@/lib/delivery');
       const baseUrl = (process.env.NEXTAUTH_URL || 'https://university.maxxedout.com').replace(/\/$/, '');
       const activateShortUrl = `${baseUrl}/a/${activateShortCode}`;
+      const activateUrl = `${baseUrl}/auth/activate?token=${activateToken}`;
       const firstName = (userName || '').trim().split(/\s+/)[0] || 'there';
-      const isHighTicket = !!purchasedCourse?.checkoutAfterApply;
-      const smsBody = isHighTicket
-        ? `Hey ${firstName}, this is Todd's team at Maxxed Out — welcome to ${cName}! While you wait for our team to reach out, you've got full access to the Real Estate Empire Blueprint course. Dive in here: ${activateShortUrl}`
-        : `Hey ${firstName}, this is Todd's team at Maxxed Out. Here's your enrollment link for ${cName}: ${activateShortUrl}`;
+      const smsBody = buildSmsBody(
+        {
+          title: cName,
+          checkoutAfterApply: purchasedCourse?.checkoutAfterApply,
+          isBundle: purchasedCourse?.isBundle,
+          welcomeSmsBody: purchasedCourse?.welcomeSmsBody,
+        },
+        {
+          firstName,
+          customerName: userName || firstName,
+          courseTitle: cName,
+          shortUrl: activateShortUrl,
+          activateUrl,
+        },
+      );
       await sendGhlSms(ghlContactId, smsBody);
-      console.log('[fanbasis-webhook] Magic-link SMS sent', { contactId: ghlContactId, isHighTicket });
+      console.log('[fanbasis-webhook] Magic-link SMS sent', { contactId: ghlContactId });
     } catch (err) {
       console.error('[fanbasis-webhook] Magic-link SMS failed (non-fatal)', { error: err instanceof Error ? err.message : err });
     }
   } else {
     console.log('[fanbasis-webhook] Skipping magic-link SMS', { hasGhlContact: !!ghlContactId, hasShortCode: !!activateShortCode });
+  }
+
+  // E-sign contract auto-send. Only fires when the course has the
+  // autoSendContract toggle on (admin enables per-course in the
+  // Delivery tab). Lazy-imported so webhook handler doesn't pay the
+  // import cost on every request. Wrapped — contract failure never
+  // breaks the enrollment.
+  if (purchasedCourse?.autoSendContract) {
+    try {
+      const { sendStandardEnrollmentDocument } = await import('@/lib/esign-flow');
+      await sendStandardEnrollmentDocument({
+        userId: resolvedUserId,
+        email: userEmail,
+        name: userName,
+        courseId: params.courseId,
+        courseSlug: purchasedCourse.slug || '',
+        courseTitle: cName,
+        paidCents: params.originalPrice ? parseInt(params.originalPrice) : 0,
+        transactionId: params.transactionId,
+      });
+      console.log('[fanbasis-webhook] E-sign contract auto-sent', { userId: resolvedUserId, courseId: params.courseId });
+    } catch (err) {
+      console.error('[fanbasis-webhook] E-sign auto-send failed (non-fatal)', { error: err instanceof Error ? err.message : err });
+    }
   }
 
   // Fire-and-forget notification to mastermind-stripe-dashboard so any open

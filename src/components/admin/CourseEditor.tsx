@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye, RefreshCw, Handshake, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye, RefreshCw, Handshake, ExternalLink, Send } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CourseForm, type CourseFormDraft } from '@/components/admin/CourseForm';
+import { CourseDeliveryForm } from '@/components/admin/CourseDeliveryForm';
 import { ModuleManager } from '@/components/admin/ModuleManager';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -15,7 +16,7 @@ interface CourseEditorProps {
 
 export function CourseEditor({ course }: CourseEditorProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'settings' | 'preview' | 'content' | 'quizzes' | 'products'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'delivery' | 'preview' | 'content' | 'quizzes' | 'products'>('settings');
   const [previewKey, setPreviewKey] = useState(0); // bump to force iframe reload
   // The Settings tab streams its in-progress form values up here so the
   // Preview tab's iframe can render with those unsaved overrides applied.
@@ -34,6 +35,10 @@ export function CourseEditor({ course }: CourseEditorProps) {
     checkoutAfterApply: !!course?.checkoutAfterApply,
     notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
     bookACallEnabled: (course as { bookACallEnabled?: boolean })?.bookACallEnabled ?? true,
+    welcomeSmsBody: (course as { welcomeSmsBody?: string | null })?.welcomeSmsBody || '',
+    welcomeEmailSubject: (course as { welcomeEmailSubject?: string | null })?.welcomeEmailSubject || '',
+    welcomeEmailBody: (course as { welcomeEmailBody?: string | null })?.welcomeEmailBody || '',
+    autoSendContract: (course as { autoSendContract?: boolean })?.autoSendContract ?? false,
     heroStats: Array.isArray(course?.heroStats) ? course.heroStats : [],
     checkoutBullets: Array.isArray(course?.checkoutBullets)
       ? (course.checkoutBullets as string[]).filter((s) => typeof s === 'string')
@@ -115,6 +120,7 @@ export function CourseEditor({ course }: CourseEditorProps) {
             { key: 'preview' as const, label: 'Preview', icon: Eye },
             { key: 'content' as const, label: 'Content', icon: Layers },
             { key: 'quizzes' as const, label: 'Quizzes', icon: FileQuestion },
+            { key: 'delivery' as const, label: 'Delivery', icon: Send },
             { key: 'products' as const, label: 'GHL Products', icon: Link2 },
           ]).map((tab) => (
             <button
@@ -302,6 +308,9 @@ export function CourseEditor({ course }: CourseEditorProps) {
           onShowPreview={() => setActiveTab('preview')}
         />
       </div>
+
+      {/* ── TAB: Delivery ── */}
+      {activeTab === 'delivery' && <CourseDeliveryForm course={course} />}
 
       {/* ── TAB: GHL Products ── */}
       {activeTab === 'products' && (

@@ -46,6 +46,11 @@ interface Course {
   bookACallEnabled?: boolean;
   heroStats?: HeroStat[] | null;
   checkoutBullets?: string[] | null;
+  // Delivery (post-purchase messaging) — admin-editable copy with token replacement.
+  welcomeSmsBody?: string | null;
+  welcomeEmailSubject?: string | null;
+  welcomeEmailBody?: string | null;
+  autoSendContract?: boolean;
 }
 
 export interface CourseFormDraft {
@@ -75,6 +80,14 @@ export interface CourseFormDraft {
   // surface for this course shows a "Have more questions? Book a call"
   // CTA pointing to the Calendly booking link.
   bookACallEnabled: boolean;
+  // Delivery — post-purchase SMS + email copy and the auto-send-contract
+  // toggle. All fields optional; webhooks fall back to defaults when
+  // unset. Tokens supported: {{firstName}} {{courseTitle}} {{shortUrl}}
+  // {{activateUrl}} {{customerName}}.
+  welcomeSmsBody: string;
+  welcomeEmailSubject: string;
+  welcomeEmailBody: string;
+  autoSendContract: boolean;
   // Editable stats row in the course-detail hero. When empty, the page
   // falls back to legacy hardcoded stats (lessons / certificate /
   // lifetime access).
@@ -114,6 +127,10 @@ function initialDraft(course?: Course): CourseFormDraft {
     // never silently disable the existing closer-notify behavior.
     notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
     bookACallEnabled: course?.bookACallEnabled ?? true,
+    welcomeSmsBody: course?.welcomeSmsBody || '',
+    welcomeEmailSubject: course?.welcomeEmailSubject || '',
+    welcomeEmailBody: course?.welcomeEmailBody || '',
+    autoSendContract: course?.autoSendContract ?? false,
     heroStats: Array.isArray(course?.heroStats)
       ? course!.heroStats!.map((s) => ({
           iconName: s.iconName || 'BookOpen',
@@ -143,6 +160,10 @@ function isDraftDirty(course: Course | undefined, draft: CourseFormDraft): boole
     baseline.checkoutAfterApply !== draft.checkoutAfterApply ||
     baseline.notifyClosersOnApply !== draft.notifyClosersOnApply ||
     baseline.bookACallEnabled !== draft.bookACallEnabled ||
+    baseline.welcomeSmsBody !== draft.welcomeSmsBody ||
+    baseline.welcomeEmailSubject !== draft.welcomeEmailSubject ||
+    baseline.welcomeEmailBody !== draft.welcomeEmailBody ||
+    baseline.autoSendContract !== draft.autoSendContract ||
     JSON.stringify(baseline.heroStats) !== JSON.stringify(draft.heroStats) ||
     JSON.stringify(baseline.checkoutBullets) !== JSON.stringify(draft.checkoutBullets)
   );

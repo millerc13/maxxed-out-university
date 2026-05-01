@@ -38,6 +38,33 @@ async function safeSend(args: ResendSendArgs): Promise<ResendSendResult> {
   return resend.emails.send(args);
 }
 
+/**
+ * Escape HTML for safe interpolation inside the email template. The
+ * admin-edited body is plain text; we render it as paragraphs in the
+ * branded wrapper, so untrusted/quirky punctuation can't break layout.
+ */
+function escapeHtml(s: string): string {
+  return s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+/** Convert a plain-text body into HTML paragraphs (preserves blank-line splits). */
+function textToParagraphs(s: string): string {
+  return s
+    .split(/\n\s*\n/)
+    .map((para) => para.trim())
+    .filter(Boolean)
+    .map(
+      (para) =>
+        `<p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">${escapeHtml(para).replaceAll('\n', '<br />')}</p>`,
+    )
+    .join('');
+}
+
 export async function sendMagicLinkEmail({
   to,
   name,
@@ -46,6 +73,8 @@ export async function sendMagicLinkEmail({
   courseThumbnail,
   bonusBox,
   teamReachOutNote,
+  subjectOverride,
+  bodyOverride,
 }: {
   to: string;
   name: string;
@@ -56,6 +85,10 @@ export async function sendMagicLinkEmail({
   bonusBox?: { title: string; body: string } | null;
   /** When true, adds a note explaining a team member will reach out separately for onboarding. */
   teamReachOutNote?: boolean;
+  /** Per-course admin override for the subject line (already token-substituted by caller). */
+  subjectOverride?: string | null;
+  /** Per-course admin override for the heading body paragraph (already token-substituted by caller). Plain text — rendered as paragraphs in the branded wrapper. */
+  bodyOverride?: string | null;
 }) {
   const activateUrl = `${BASE_URL}/auth/activate?token=${token}`;
   const logoUrl = `${BASE_URL}/downloads/logo.png`;
@@ -87,11 +120,18 @@ export async function sendMagicLinkEmail({
       </td></tr>`
     : '';
 
-  console.log('[resend] Sending magic link email', { from: FROM, to, subject: `Your ${courseName} access is ready`, activateUrl });
+  const subject = (subjectOverride && subjectOverride.trim())
+    || `Your ${courseName} access is ready`;
+  const headingHtml = `Your course is ready, ${escapeHtml(firstName)}!`;
+  const bodyHtml = (bodyOverride && bodyOverride.trim())
+    ? textToParagraphs(bodyOverride)
+    : `<p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">You've been enrolled in <strong style="color:#111827;">${escapeHtml(courseName)}</strong>. ${bonusBox ? 'Click below to set up your account and start exploring.' : 'Click below to set up your account and start learning.'}</p>`;
+
+  console.log('[resend] Sending magic link email', { from: FROM, to, subject, activateUrl });
   const result = await safeSend({
     from: FROM,
     to,
-    subject: `Your ${courseName} access is ready`,
+    subject,
     html: `
 <!DOCTYPE html>
 <html>
@@ -118,13 +158,10 @@ export async function sendMagicLinkEmail({
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#111827;line-height:1.3;">
-                      Your course is ready, ${firstName}!
+                    <h1 style="margin:0 0 12px;font-size:24px;font-weight:800;color:#111827;line-height:1.3;">
+                      ${headingHtml}
                     </h1>
-                    <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
-                      You've been enrolled in <strong style="color:#111827;">${courseName}</strong>.
-                      ${bonusBox ? `Click below to set up your account and start exploring.` : `Click below to set up your account and start learning.`}
-                    </p>
+                    ${bodyHtml}
                   </td>
                 </tr>
 
@@ -195,6 +232,8 @@ export async function sendCourseAddedEmail({
   courseThumbnail,
   bonusBox,
   teamReachOutNote,
+  subjectOverride,
+  bodyOverride,
 }: {
   to: string;
   name: string;
@@ -203,6 +242,10 @@ export async function sendCourseAddedEmail({
   courseThumbnail?: string | null;
   bonusBox?: { title: string; body: string } | null;
   teamReachOutNote?: boolean;
+  /** Per-course admin override for the subject (already token-substituted by caller). */
+  subjectOverride?: string | null;
+  /** Per-course admin override for the heading body paragraph (already token-substituted by caller). */
+  bodyOverride?: string | null;
 }) {
   const firstName = name.split(' ')[0] || 'there';
   const logoUrl = `${BASE_URL}/downloads/logo.png`;
@@ -233,10 +276,17 @@ export async function sendCourseAddedEmail({
       </td></tr>`
     : '';
 
+  const subject = (subjectOverride && subjectOverride.trim())
+    || `You've been enrolled in ${courseName}`;
+  const headingHtml = `New course unlocked, ${escapeHtml(firstName)}!`;
+  const bodyHtml = (bodyOverride && bodyOverride.trim())
+    ? textToParagraphs(bodyOverride)
+    : `<p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">You've been enrolled in <strong style="color:#111827;">${escapeHtml(courseName)}</strong>. It's ready and waiting in your dashboard.</p>`;
+
   return safeSend({
     from: FROM,
     to,
-    subject: `You've been enrolled in ${courseName}`,
+    subject,
     html: `
 <!DOCTYPE html>
 <html>
@@ -263,12 +313,10 @@ export async function sendCourseAddedEmail({
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#111827;line-height:1.3;">
-                      New course unlocked, ${firstName}!
+                    <h1 style="margin:0 0 12px;font-size:24px;font-weight:800;color:#111827;line-height:1.3;">
+                      ${headingHtml}
                     </h1>
-                    <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
-                      You've been enrolled in <strong style="color:#111827;">${courseName}</strong>. It's ready and waiting in your dashboard.
-                    </p>
+                    ${bodyHtml}
                   </td>
                 </tr>
 
