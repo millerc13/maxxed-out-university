@@ -17,11 +17,13 @@ import {
   MessageCircle,
   Bell,
   Tag,
+  Zap,
   X,
 } from 'lucide-react';
 import { useAdminDrawer } from './AdminShell';
 
 const navItems = [
+  { href: '/admin/quick-links', label: 'Quick Links', icon: Zap },
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
   { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
