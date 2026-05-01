@@ -1328,14 +1328,27 @@ export async function sendGhlSms(
   if (!apiKey) throw new Error('GHL_API_KEY not configured');
   if (!contactId) throw new Error('sendGhlSms: contactId required');
 
-  const isProd = process.env.VERCEL_ENV === 'production';
-  const forceSend = process.env.GHL_SMS_FORCE_SEND === 'true';
-  if (!isProd && !forceSend) {
-    console.log('[ghl-sms] Skipping send — non-prod env', {
-      vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
-      contactId,
-      messagePreview: message.slice(0, 80),
-    });
+  // Trim values defensively — Vercel env values that go in via
+  // `echo "true" | vercel env add` carry a trailing \n that breaks
+  // strict-equality. Match case-insensitively too.
+  const vercelEnv = (process.env.VERCEL_ENV ?? '').trim().toLowerCase();
+  const forceSendRaw = process.env.GHL_SMS_FORCE_SEND ?? '';
+  const forceSend = forceSendRaw.trim().toLowerCase() === 'true';
+  const isProd = vercelEnv === 'production';
+  const willSend = isProd || forceSend;
+
+  console.log('[ghl-sms] sendGhlSms decision', {
+    contactId,
+    messagePreview: message.slice(0, 80),
+    vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
+    rawForceSend: JSON.stringify(forceSendRaw),
+    forceSendParsed: forceSend,
+    isProd,
+    willSend,
+  });
+
+  if (!willSend) {
+    console.log('[ghl-sms] Skipping send — non-prod env (set GHL_SMS_FORCE_SEND=true to override)');
     return { messageId: 'skipped-non-prod', skipped: true };
   }
 

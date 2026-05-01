@@ -19,23 +19,49 @@ type ResendSendArgs = Parameters<typeof resend.emails.send>[0];
 type ResendSendResult = Awaited<ReturnType<typeof resend.emails.send>>;
 
 async function safeSend(args: ResendSendArgs): Promise<ResendSendResult> {
-  const isProd = process.env.VERCEL_ENV === 'production';
-  const forceSend = process.env.RESEND_FORCE_SEND === 'true';
+  // Trim values defensively — Vercel env values that go in via
+  // `echo "true" | vercel env add` end up with a trailing \n that
+  // breaks strict-equality comparison. Match case-insensitively too.
+  const vercelEnv = (process.env.VERCEL_ENV ?? '').trim().toLowerCase();
+  const forceSendRaw = process.env.RESEND_FORCE_SEND ?? '';
+  const forceSend = forceSendRaw.trim().toLowerCase() === 'true';
+  const isProd = vercelEnv === 'production';
+  const willSend = isProd || forceSend;
+  const hasApiKey = !!process.env.RESEND_API_KEY;
 
-  if (!isProd && !forceSend) {
-    console.log('[resend] Skipping send — non-prod env', {
-      vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
-      to: (args as { to?: string | string[] }).to,
-      subject: (args as { subject?: string }).subject,
-      from: (args as { from?: string }).from,
-    });
+  console.log('[resend] safeSend decision', {
+    to: (args as { to?: string | string[] }).to,
+    subject: (args as { subject?: string }).subject,
+    vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
+    rawForceSend: JSON.stringify(forceSendRaw),
+    forceSendParsed: forceSend,
+    isProd,
+    hasApiKey,
+    willSend,
+  });
+
+  if (!willSend) {
+    console.log('[resend] Skipping send — non-prod env (set RESEND_FORCE_SEND=true to override)');
     return {
       data: { id: 'skipped-non-prod' },
       error: null,
     } as ResendSendResult;
   }
 
-  return resend.emails.send(args);
+  if (!hasApiKey) {
+    console.error('[resend] Cannot send — RESEND_API_KEY is missing');
+    return {
+      data: null,
+      error: { name: 'missing_api_key', message: 'RESEND_API_KEY not configured' },
+    } as unknown as ResendSendResult;
+  }
+
+  const result = await resend.emails.send(args);
+  console.log('[resend] send result', {
+    id: result?.data?.id,
+    error: result?.error ? JSON.stringify(result.error) : null,
+  });
+  return result;
 }
 
 /**

@@ -12,16 +12,41 @@ type SendArgs = Parameters<typeof resend.emails.send>[0];
 type SendResult = Awaited<ReturnType<typeof resend.emails.send>>;
 
 async function safeSend(args: SendArgs): Promise<SendResult> {
-  const isProd = process.env.VERCEL_ENV === 'production';
-  const forceSend = process.env.RESEND_FORCE_SEND === 'true';
-  if (!isProd && !forceSend) {
-    console.log('[esign-email] Skipping send — non-prod env', {
-      to: (args as { to?: string | string[] }).to,
-      subject: (args as { subject?: string }).subject,
-    });
+  // Trim values defensively — env vars that go in via
+  // `echo "true" | vercel env add` carry a trailing \n that breaks
+  // strict-equality. Match case-insensitively.
+  const vercelEnv = (process.env.VERCEL_ENV ?? '').trim().toLowerCase();
+  const forceSendRaw = process.env.RESEND_FORCE_SEND ?? '';
+  const forceSend = forceSendRaw.trim().toLowerCase() === 'true';
+  const isProd = vercelEnv === 'production';
+  const willSend = isProd || forceSend;
+  const hasApiKey = !!process.env.RESEND_API_KEY;
+
+  console.log('[esign-email] safeSend decision', {
+    to: (args as { to?: string | string[] }).to,
+    subject: (args as { subject?: string }).subject,
+    vercelEnv: process.env.VERCEL_ENV ?? '(unset)',
+    rawForceSend: JSON.stringify(forceSendRaw),
+    forceSendParsed: forceSend,
+    isProd,
+    hasApiKey,
+    willSend,
+  });
+
+  if (!willSend) {
+    console.log('[esign-email] Skipping send — non-prod env (set RESEND_FORCE_SEND=true to override)');
     return { data: { id: 'skipped-non-prod' }, error: null } as SendResult;
   }
-  return resend.emails.send(args);
+  if (!hasApiKey) {
+    console.error('[esign-email] Cannot send — RESEND_API_KEY is missing');
+    return { data: null, error: { name: 'missing_api_key', message: 'RESEND_API_KEY not configured' } } as unknown as SendResult;
+  }
+  const result = await resend.emails.send(args);
+  console.log('[esign-email] send result', {
+    id: result?.data?.id,
+    error: result?.error ? JSON.stringify(result.error) : null,
+  });
+  return result;
 }
 
 function adminNotifyEmail(): string {
