@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { prisma } from './prisma';
 
 export function generateToken(): string {
@@ -7,11 +6,16 @@ export function generateToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 6-char URL-safe alphanumeric. Same shape as CheckoutLink tokens —
-// short enough for an SMS, ~57B combinations so collisions on a single
-// 5-attempt retry loop are essentially impossible at our volume.
+// 6-char URL-safe alphanumeric — same vibe as CheckoutLink's 6-char
+// token but generated via Web Crypto so this module stays Edge-runtime
+// safe (auth.ts → middleware.ts pulls magiclink.ts onto the edge).
+// 62^6 ≈ 56B combinations; with a 5-attempt collision retry loop the
+// failure rate is effectively zero at our volume.
+const SHORT_CODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 function generateShortCode(): string {
-  return randomBytes(8).toString('base64url').replace(/[-_]/g, '').slice(0, 6);
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => SHORT_CODE_ALPHABET[b % SHORT_CODE_ALPHABET.length]).join('');
 }
 
 export async function createMagicLink(userId: string): Promise<{ token: string; shortCode: string }> {
