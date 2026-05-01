@@ -113,11 +113,21 @@ export default async function SignPage({ params }: PageProps) {
     });
   }
 
+  // Replace the empty CLIENT signature span with an inline "Click to
+  // sign" button so the recipient signs WITHIN Section 18, not below
+  // the contract. Client-side, SigningPageClient mounts a delegated
+  // click listener on [data-cta="sign"] to open the modal.
+  const interactiveHtml = doc.renderedHtml.replace(
+    /<span class="([^"]*\bsig-blank-signature\b[^"]*)"><\/span>/g,
+    (_, cls) =>
+      `<button type="button" class="${cls}" data-cta="sign" aria-label="Click to sign your name">Click to sign</button>`,
+  );
+
   return (
     <main className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-6">
       <div className="max-w-3xl mx-auto">
         <ContractDisplay
-          renderedHtml={doc.renderedHtml}
+          renderedHtml={interactiveHtml}
           letterheadMeta={doc.courseTitle}
         />
         <SigningPageClient

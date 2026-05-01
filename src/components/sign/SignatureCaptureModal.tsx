@@ -12,6 +12,16 @@ interface Props {
   open: boolean;
   initialName: string;
   recipientEmail: string;
+  // When true, modal shows an "I agree to all terms above" checkbox
+  // before the Adopt button is enabled. Adopting then both records
+  // the signature AND submits the agreement (the modal is the entire
+  // signing experience). When false, the modal just captures —
+  // caller is responsible for the agreement step.
+  requireAgreement?: boolean;
+  // Optional: external "submitting" state from the parent so the
+  // adopt button shows a Signing… label and disables while the POST
+  // is in flight after onAdopt is called.
+  submitting?: boolean;
   onCancel: () => void;
   onAdopt: (sig: CapturedSignature) => void;
 }
@@ -28,12 +38,15 @@ export function SignatureCaptureModal({
   open,
   initialName,
   recipientEmail,
+  requireAgreement = false,
+  submitting = false,
   onCancel,
   onAdopt,
 }: Props) {
   const [tab, setTab] = useState<Tab>('type');
   const [typedName, setTypedName] = useState(initialName);
   const [drawnEmpty, setDrawnEmpty] = useState(true);
+  const [agreed, setAgreed] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
@@ -44,6 +57,7 @@ export function SignatureCaptureModal({
       setTab('type');
       setTypedName(initialName);
       setDrawnEmpty(true);
+      setAgreed(false);
     }
   }, [open, initialName]);
 
@@ -188,8 +202,9 @@ export function SignatureCaptureModal({
   if (!open) return null;
 
   const trimmed = typedName.trim();
-  const canAdopt =
+  const sigReady =
     tab === 'type' ? trimmed.length >= 2 : !drawnEmpty && trimmed.length >= 2;
+  const canAdopt = sigReady && (!requireAgreement || agreed) && !submitting;
 
   return (
     <div
@@ -335,22 +350,45 @@ export function SignatureCaptureModal({
           )}
         </div>
 
-        <footer className="px-5 sm:px-6 py-4 border-t border-gray-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 bg-gray-50">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={adopt}
-            disabled={!canAdopt}
-            className="inline-flex items-center justify-center rounded-lg bg-maxxed-blue px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Adopt and sign
-          </button>
+        <footer className="px-5 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 space-y-3">
+          {requireAgreement && (
+            <label className="flex items-start gap-2.5 text-xs sm:text-sm text-gray-700 cursor-pointer leading-snug">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                disabled={submitting}
+                className="mt-0.5 w-4 h-4 accent-maxxed-blue cursor-pointer shrink-0"
+              />
+              <span>
+                I have read and agree to the terms of this agreement above.
+                I understand that adopting this signature is legally
+                binding and equivalent to a handwritten signature.
+              </span>
+            </label>
+          )}
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={adopt}
+              disabled={!canAdopt}
+              className="inline-flex items-center justify-center rounded-lg bg-maxxed-blue px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {submitting
+                ? 'Signing…'
+                : requireAgreement
+                ? 'Adopt and sign agreement'
+                : 'Adopt and sign'}
+            </button>
+          </div>
         </footer>
       </div>
     </div>

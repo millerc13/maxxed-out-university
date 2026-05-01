@@ -59,7 +59,7 @@ export function markdownToHtml(md: string): string {
     ],
     allowedAttributes: {
       a: ['href', 'name', 'target', 'rel'],
-      '*': ['class', 'data-callout'],
+      '*': ['class', 'data-callout', 'data-section'],
     },
     allowedSchemes: ['http', 'https', 'mailto'],
   });

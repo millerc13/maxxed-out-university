@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/apply/ui/Button';
 import {
   SignatureCaptureModal,
   type CapturedSignature,
@@ -25,6 +24,21 @@ interface SignError {
   error: string;
 }
 
+// Thin wrapper. Renders no visible UI of its own — the entire signing
+// flow happens through:
+//
+//   (1) The "Click to sign" button that the server injected into
+//       Section 18's empty client signature span. We listen for
+//       clicks on [data-cta="sign"] and open the modal.
+//
+//   (2) The modal — type or draw the signature + agree to the terms
+//       + tap Adopt. Adopting POSTs to /api/sign/[token] with the
+//       captured PNG, success state inline, then router.refresh()
+//       so the server re-renders Section 18 with the captured
+//       signature image filled in via fillClientSignature.
+//
+// This way Section 18 IS the signing UI — no separate "Sign this
+// agreement" card cluttering the bottom of the page.
 export function SigningPageClient({
   token,
   recipientEmail,
@@ -32,22 +46,29 @@ export function SigningPageClient({
   courseTitle,
 }: Props) {
   const router = useRouter();
-  const [captured, setCaptured] = useState<CapturedSignature | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [success, setSuccess] = useState<SignSuccess | null>(null);
 
-  const todayLabel = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const canSubmit = !!captured && agreed && !submitting;
+  // Delegated click listener for the server-injected "Click to sign"
+  // button inside the contract. Survives DOM rewrites from
+  // dangerouslySetInnerHTML — we listen on document, not on the
+  // node itself.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const cta = target.closest<HTMLElement>('[data-cta="sign"]');
+      if (!cta) return;
+      e.preventDefault();
+      setErrorMsg(null);
+      setModalOpen(true);
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
 
-  async function handleSubmit() {
-    if (!canSubmit || !captured) return;
+  async function handleAdopt(captured: CapturedSignature) {
     setSubmitting(true);
     setErrorMsg(null);
     try {
@@ -75,7 +96,10 @@ export function SigningPageClient({
         setSubmitting(false);
         return;
       }
-      setSuccess(data);
+      // Persisted successfully. Close the modal and re-fetch the page
+      // — the server will re-render with status='completed' which
+      // shows the green "Signed by …" banner + the filled Section 18.
+      setModalOpen(false);
       router.refresh();
     } catch (err) {
       console.error('[sign] submit failed', err);
@@ -86,152 +110,30 @@ export function SigningPageClient({
     }
   }
 
-  if (success) {
-    return (
-      <section className="mt-8 card-solid p-6 sm:p-10 border border-border text-center">
-        <div className="inline-flex w-12 h-12 items-center justify-center rounded-full bg-green-100 text-green-700 mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Signed — thank you, {captured?.typedName.split(' ')[0]}.
-        </h2>
-        <p className="text-gray-600 mb-6 max-w-md mx-auto">
-          A signed copy of your {courseTitle} agreement has been emailed to{' '}
-          <span className="font-medium text-gray-900">{recipientEmail}</span>. You can
-          download it below for your records.
-        </p>
-        <Button asChild variant="primary" size="lg">
-          <a href={success.downloadUrl} download>
-            Download signed copy (PDF)
-          </a>
-        </Button>
-      </section>
-    );
-  }
-
   return (
     <>
-      <section className="mt-8 card-solid p-6 sm:p-10 border border-border">
-        <h2 className="text-xl font-bold text-gray-900 mb-1">Sign this agreement</h2>
-        <p className="text-sm text-gray-500 mb-6">
-          Signing as <span className="font-medium text-gray-700">{recipientEmail}</span>
-        </p>
-
-        <div className="space-y-5">
-          <div>
-            <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-              Your signature
-            </span>
-            {captured ? (
-              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <img
-                  src={captured.pngDataUrl}
-                  alt="Adopted signature preview"
-                  className="h-16 sm:h-20 w-auto bg-white rounded-md border border-gray-100 px-2"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
-                    {captured.typedName}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {captured.mode === 'drawn' ? 'Drawn signature' : 'Typed signature'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(true)}
-                  className="text-sm font-semibold text-maxxed-blue hover:text-blue-700"
-                  disabled={submitting}
-                >
-                  Change
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setModalOpen(true)}
-                disabled={submitting}
-                className="w-full rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center hover:border-maxxed-blue hover:bg-blue-50/40 transition-colors group"
-              >
-                <span className="block font-bold text-gray-900 group-hover:text-maxxed-blue">
-                  Click here to sign
-                </span>
-                <span className="block text-sm text-gray-500 mt-0.5">
-                  Type your name or draw your signature
-                </span>
-              </button>
-            )}
-          </div>
-
-          <div>
-            <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-              Date
-            </span>
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-base text-gray-900">
-              {todayLabel}
-            </div>
-          </div>
-
-          <label className="flex gap-3 items-start text-sm text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              disabled={submitting}
-              className="mt-1 w-4 h-4 accent-maxxed-blue cursor-pointer"
-            />
-            <span>
-              I have read and agree to the terms above. I understand that adopting
-              this signature and clicking <strong>Sign Agreement</strong> constitutes
-              my legal signature.
-            </span>
-          </label>
-
-          {errorMsg && (
-            <div
-              role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-              {errorMsg}
-            </div>
-          )}
-
-          <Button
-            type="button"
-            variant="primary"
-            size="lg"
-            disabled={!canSubmit}
-            onClick={handleSubmit}
-            className="w-full sm:w-auto"
-          >
-            {submitting ? 'Signing…' : 'Sign Agreement'}
-          </Button>
+      {errorMsg && (
+        <div
+          role="alert"
+          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 max-w-3xl mx-auto"
+        >
+          {errorMsg}
         </div>
-      </section>
-
+      )}
       <SignatureCaptureModal
         open={modalOpen}
-        initialName={captured?.typedName || recipientName}
+        initialName={recipientName}
         recipientEmail={recipientEmail}
-        onCancel={() => setModalOpen(false)}
-        onAdopt={(sig) => {
-          setCaptured(sig);
+        requireAgreement
+        submitting={submitting}
+        onCancel={() => {
+          if (submitting) return;
           setModalOpen(false);
         }}
+        onAdopt={handleAdopt}
       />
+      {/* courseTitle prop is reserved for future "Adopting signature for {courseTitle}" copy in the modal. */}
+      <span className="hidden">{courseTitle}</span>
     </>
   );
 }

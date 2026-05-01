@@ -166,93 +166,131 @@ export const CONTRACT_STYLES = `
     padding-left: 14px;
   }
 
-  /* Signature blocks. Two-column on wide; stacks cleanly on mobile.
-     Company signature uses Caveat for the handwritten feel; client
-     signature lines render with the same handwriting style after sign,
-     and read as a clean underlined value field before sign. */
+  /* ── Signature block ─────────────────────────────────────────
+     Two-column row: company on the left, client on the right. Each
+     cell stacks: handwritten mark → underline → role caption →
+     small date line. Stacks single-column on mobile. The same
+     markup is used in the contract template body (raw HTML inside
+     markdown), in the unsigned React block on the live page (so
+     the visual is identical), and in the rendered PDF. */
+  .contract-display .sig-row {
+    display: flex;
+    gap: 32px;
+    margin: 28px 0 16px;
+    flex-wrap: wrap;
+  }
+  .contract-display .sig-cell {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+  .contract-display .sig-mark {
+    display: flex;
+    align-items: flex-end;
+    min-height: 56px;
+    padding: 0 4px 6px;
+    font-family: 'Caveat', 'Brush Script MT', cursive;
+    font-weight: 700;
+    font-size: 32px;
+    color: ${COLORS.ink};
+    line-height: 1;
+  }
+  .contract-display .sig-mark .sig-mark-png {
+    display: block;
+    height: 48px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .contract-display .sig-rule {
+    height: 1.5px;
+    background: ${COLORS.ink};
+    margin: 0;
+  }
+  .contract-display .sig-caption {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: ${COLORS.body};
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+  .contract-display .sig-date {
+    display: block;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: ${COLORS.muted};
+    margin-top: 4px;
+    letter-spacing: 0.01em;
+  }
+
+  /* Empty client signature mark — small visual cue, no text on the
+     live web page (it's replaced by the React block). In the signed
+     PDF it stays as a thin space so the layout doesn't collapse. */
+  .contract-display .sig-blank-signature:empty::before {
+    content: '\\00a0';
+  }
+
+  /* Server-injected interactive button. Replaces the empty client
+     signature span on the live page so the recipient signs WITHIN
+     Section 18. Visually a soft dashed placeholder with a hover
+     state — clicking opens the SignatureCaptureModal. */
+  .contract-display button.sig-blank-signature[data-cta="sign"] {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 2px dashed ${COLORS.rule};
+    background: #f8fafc;
+    border-radius: 10px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 14px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: ${COLORS.muted};
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .contract-display button.sig-blank-signature[data-cta="sign"]:hover,
+  .contract-display button.sig-blank-signature[data-cta="sign"]:focus-visible {
+    border-color: ${COLORS.brandBlue};
+    background: #eff6ff;
+    color: ${COLORS.brandBlue};
+    outline: none;
+  }
+  .contract-display button.sig-blank-signature[data-cta="sign"]:empty::before {
+    content: none;
+  }
+
+  /* Legacy classes still referenced by old (pre-redesign) snapshotted
+     renderedHtml. Keep them rendering reasonably — body text + a thin
+     underline — so old test docs don't look broken. New docs use the
+     sig-row layout above. */
   .contract-display .signature-cursive {
     font-family: 'Caveat', 'Brush Script MT', cursive;
     font-weight: 700;
     font-size: 26px;
     color: ${COLORS.ink};
     line-height: 1.1;
-    display: inline-block;
-    padding: 2px 18px 2px 8px;
-    border-bottom: 1.5px solid ${COLORS.brandBlue};
-    min-width: 240px;
-    vertical-align: bottom;
   }
   .contract-display .sig-line,
-  .contract-display .sig-blank-name,
-  .contract-display .sig-blank-date {
-    display: inline-block;
-    border-bottom: 1px solid ${COLORS.body};
-    min-width: 240px;
-    padding: 2px 12px 4px;
-    margin-left: 6px;
+  .contract-display .sig-blank-name {
     font-family: 'Montserrat', sans-serif;
     font-size: 15px;
     color: ${COLORS.ink};
-    vertical-align: bottom;
-  }
-  .contract-display .sig-blank-signature {
-    border-bottom: 1px solid ${COLORS.body};
-    min-width: 240px;
-  }
-  .contract-display .sig-blank-signature {
-    /* Once filled, the signature still wants the handwriting style. */
-    font-family: 'Caveat', 'Brush Script MT', cursive;
-    font-weight: 700;
-    font-size: 24px;
-    line-height: 1.1;
-    border-bottom: 1.5px solid ${COLORS.brandBlue};
-  }
-  /* When the signature is a captured PNG (typed-cursive render OR
-     a finger-drawn canvas), drop the text styling and fit the image
-     to the line height of the signature row. */
-  .contract-display .sig-blank-signature:has(.sig-mark-png),
-  .contract-display .sig-blank-signature .sig-mark-png {
-    line-height: 0;
-  }
-  .contract-display .sig-blank-signature .sig-mark-png {
-    display: inline-block;
-    height: 44px;
-    width: auto;
-    max-width: 240px;
-    vertical-align: bottom;
-    margin: 0 0 -4px;
-  }
-  @media (max-width: 640px) {
-    .contract-display .sig-blank-signature .sig-mark-png {
-      height: 36px;
-      max-width: 180px;
-    }
   }
 
-  /* Block-style signature rows so each label sits on its own line. */
-  .contract-display p:has(> .signature-cursive),
-  .contract-display p:has(> .sig-line),
-  .contract-display p:has(> .sig-blank-name),
-  .contract-display p:has(> .sig-blank-signature),
-  .contract-display p:has(> .sig-blank-date) {
-    display: flex;
-    align-items: baseline;
-    gap: 14px;
-    margin: 16px 0;
-  }
-  .contract-display p:has(> .signature-cursive) > strong,
-  .contract-display p:has(> .sig-line) > strong,
-  .contract-display p:has(> .sig-blank-name) > strong,
-  .contract-display p:has(> .sig-blank-signature) > strong,
-  .contract-display p:has(> .sig-blank-date) > strong {
-    min-width: 96px;
-    flex-shrink: 0;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: ${COLORS.muted};
+  @media (max-width: 640px) {
+    .contract-display .sig-row {
+      gap: 24px;
+      flex-direction: column;
+      margin: 24px 0 12px;
+    }
+    .contract-display .sig-mark { font-size: 28px; min-height: 50px; }
+    .contract-display .sig-mark .sig-mark-png { height: 40px; }
+    .contract-display .sig-caption { font-size: 12px; }
+    .contract-display .sig-date { font-size: 11px; }
   }
 
   @media (max-width: 640px) {
