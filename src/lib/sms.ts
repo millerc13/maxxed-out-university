@@ -107,7 +107,11 @@ export async function sendSmsToRecipient(recipient: {
   }
 
   // Step 2 — send the SMS through the GHL conversations API.
-  try {
+  // If the cached contactId is stale (GHL returns 400/404 "contact not
+  // found"), invalidate the cache, re-upsert by phone, and retry once.
+  // Without this, every notify-lead silently fails after a contact gets
+  // deleted/merged in GHL.
+  const sendOnce = async (cid: string) => {
     const res = await fetch(`${GHL_API_BASE}/conversations/messages`, {
       method: 'POST',
       headers: {
@@ -116,13 +120,72 @@ export async function sendSmsToRecipient(recipient: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        type: 'SMS',
-        contactId,
-        message: body,
-      }),
+      body: JSON.stringify({ type: 'SMS', contactId: cid, message: body }),
       cache: 'no-store',
     });
+    return res;
+  };
+
+  try {
+    let res = await sendOnce(contactId);
+
+    // Stale-cache recovery — GHL returns 400 with "Contact not found" when
+    // the cached id no longer exists. Drop the cache, re-upsert by phone,
+    // retry the send once.
+    if (!res.ok && (res.status === 400 || res.status === 404)) {
+      const errText = await res.clone().text().catch(() => '');
+      if (/contact not found/i.test(errText) || /not\s+found/i.test(errText)) {
+        console.warn('[sms] Cached ghlContactId stale — re-upserting by phone', {
+          recipientId: recipient.id,
+          staleContactId: contactId,
+        });
+        try {
+          await prisma.notificationRecipient.update({
+            where: { id: recipient.id },
+            data: { ghlContactId: null },
+          });
+        } catch { /* cache clear failure is non-fatal */ }
+
+        // Re-upsert by phone to get a fresh contactId.
+        const upsertRes = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            Version: GHL_API_VERSION,
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            locationId,
+            phone: e164,
+            firstName: recipient.label ?? 'Notification recipient',
+            tags: ['notification-recipient'],
+          }),
+          cache: 'no-store',
+        });
+        const upsertJson = (await upsertRes.json().catch(() => ({}))) as {
+          contact?: { id?: string };
+        };
+        const freshId = upsertJson.contact?.id;
+        if (!upsertRes.ok || !freshId) {
+          return {
+            ok: false,
+            error: `GHL re-upsert after stale cache failed (${upsertRes.status})`,
+          };
+        }
+        contactId = freshId;
+        try {
+          await prisma.notificationRecipient.update({
+            where: { id: recipient.id },
+            data: { ghlContactId: contactId },
+          });
+        } catch { /* re-cache failure is non-fatal */ }
+
+        // Retry the send with the fresh id.
+        res = await sendOnce(contactId);
+      }
+    }
+
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       return {
