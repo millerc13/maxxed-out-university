@@ -101,6 +101,24 @@ function normalizePhone(input: string | undefined | null): string {
 
 export type UpsertOpts = { partial?: boolean };
 
+/**
+ * Map a program slug → display label used in SMS bodies, GHL contact
+ * source field, and note headers. Single source of truth so adding a
+ * new funnel only needs one update here.
+ */
+const PROGRAM_LABELS: Record<string, string> = {
+  'business-mentorship': 'Business Accelerator & Mentorship',
+  donewithyou: 'Done With You',
+  mentorship: '6-Month Mentorship',
+  blueprint: 'Real Estate Empire Blueprint',
+  accelerator: 'Business Accelerator',
+};
+
+function programLabel(program: string | null | undefined): string {
+  if (!program) return 'University';
+  return PROGRAM_LABELS[program] ?? 'University';
+}
+
 export async function upsertContact(
   payload: ApplicationPayload,
   opts: UpsertOpts = {}
@@ -117,15 +135,7 @@ export async function upsertContact(
   if (payload.heardAbout) tags.push(sourceSlug(payload.heardAbout));
 
   const sourceLabel = payload.program
-    ? `Maxxed Out University — ${
-        payload.program === 'donewithyou'
-          ? 'Done With You'
-          : payload.program === 'mentorship'
-            ? '6-Month Mentorship'
-            : payload.program === 'blueprint'
-              ? 'Real Estate Empire Blueprint'
-              : 'University'
-      }`
+    ? `Maxxed Out University — ${programLabel(payload.program)}`
     : 'Maxxed Out University — Apply';
 
   const body: Record<string, unknown> = {
@@ -172,21 +182,15 @@ export function formatNoteBody(
     payload.bestTimes && payload.bestTimes.length > 0
       ? payload.bestTimes.join(', ')
       : '—';
-  const programLabel = context?.courseTitle
+  const headerLabel = context?.courseTitle
     ? `University — ${context.courseTitle}`
     : payload.program
-      ? payload.program === 'donewithyou'
-        ? 'Done With You'
-        : payload.program === 'mentorship'
-          ? '6-Month Mentorship'
-          : payload.program === 'blueprint'
-            ? 'Real Estate Empire Blueprint'
-            : 'University'
+      ? programLabel(payload.program)
       : 'Apply (no program)';
   const now = new Date().toISOString();
 
   return [
-    `New application — ${programLabel}`,
+    `New application — ${headerLabel}`,
     '',
     'Contact',
     `  Name: ${show(payload.name)}`,
