@@ -2,13 +2,19 @@
 // (injected via <style> in ContractDisplay) and the PDF generator
 // (inlined in buildPdfHtml). Keep the two consumers in lockstep — any
 // rule edits affect both surfaces.
+//
+// Design intent: modern SaaS-style agreement (think Stripe/Linear/Notion
+// terms-of-service docs). Not "1990s lawyer's printout." Single
+// font-family (Montserrat — same as the rest of the platform), clean
+// hierarchy via weight + size, no all-caps shouting, restrained
+// callouts. Brand-blue is reserved for one place: the signature
+// dividers below the company countersignature.
 
 export const CONTRACT_FONT_LINKS = [
-  // Inter for headings (brand sans).
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
-  // EB Garamond for body — classical legal-document gravitas.
-  'https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&display=swap',
-  // Caveat for the company countersignature only.
+  // Montserrat: matches the rest of the platform. Body at 400, heavy
+  // headings at 700, signatures at 600 italic.
+  'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap',
+  // Caveat for the actual handwriting-style countersignature only.
   'https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap',
 ];
 
@@ -19,151 +25,189 @@ export const CONTRACT_FONT_LINKS = [
 export const CONTRACT_LOGO_URL = '/downloads/logo.png';
 
 const COLORS = {
-  ink: '#0f172a',           // slate-900 — body text emphasis (used for strong)
-  body: '#1f2937',          // gray-800 — body text
-  muted: '#6b7280',          // gray-500
-  divider: '#d1d5db',        // gray-300
-  rule: '#e5e7eb',           // gray-200
-  brandBlue: '#0000FF',      // maxxed brand blue — ONLY on the brand divider rule
-  accentBar: '#1e40af',      // blue-800 — h2 left accent (more conservative than #0000FF)
-  warningBg: '#fef2f2',      // red-50
-  warningBorder: '#dc2626',  // red-600
-  warningInk: '#991b1b',     // red-800
+  ink: '#0f172a',           // slate-900 — headings + emphasis
+  body: '#334155',          // slate-700 — body text (warmer than gray)
+  muted: '#64748b',          // slate-500 — labels, supporting copy
+  rule: '#e2e8f0',           // slate-200 — section dividers
+  brandBlue: '#0000FF',      // maxxed brand blue — only on signature lines
+  warningInk: '#7f1d1d',     // red-900 — warning text emphasis
+  warningRule: '#fca5a5',    // red-300 — left rule on important callouts
+  warningTint: '#fef2f2',    // red-50 — barely-there callout background
 } as const;
 
 // Both web (signing page) and print (PDF) render through the same class
 // hierarchy so visual changes ship in lockstep.
 export const CONTRACT_STYLES = `
   .contract-wrap {
-    font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+    font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: ${COLORS.body};
-    font-size: 17px;
-    line-height: 1.65;
-    max-width: 760px;
+    font-size: 15.5px;
+    font-weight: 400;
+    line-height: 1.75;
+    max-width: 720px;
     margin: 0 auto;
+    letter-spacing: -0.005em;
   }
   .contract-letterhead {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 0 0 28px;
-    border-bottom: 2px solid ${COLORS.brandBlue};
-    margin: 0 0 36px;
+    padding: 0 0 32px;
+    margin: 0 0 40px;
+    border-bottom: 1px solid ${COLORS.rule};
   }
   .contract-letterhead img {
-    width: 200px;
+    width: 180px;
     height: auto;
     max-width: 60%;
-    margin: 0 0 18px;
+    margin: 0 0 16px;
     display: block;
   }
   .contract-letterhead .lh-meta {
-    font-family: 'Inter', sans-serif;
-    font-size: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: ${COLORS.muted};
     margin: 0;
   }
+
+  .contract-display {
+    /* Slightly narrower readable measure than the wrap so the page
+       breathes a bit — keeps eye-tracking comfortable on long blocks. */
+  }
   .contract-display h1 {
-    font-family: 'Inter', sans-serif;
-    font-size: clamp(20px, 3.6vw, 26px);
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(22px, 3.4vw, 28px);
     font-weight: 800;
     color: ${COLORS.ink};
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
+    letter-spacing: -0.015em;
     text-align: center;
-    margin: 0 0 24px;
-    padding: 0 0 18px;
-    line-height: 1.3;
-    border-bottom: 1px solid ${COLORS.rule};
+    margin: 0 0 36px;
+    padding: 0 0 8px;
+    line-height: 1.2;
   }
   .contract-display h2 {
-    font-family: 'Inter', sans-serif;
-    font-size: 17px;
-    font-weight: 800;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 19px;
+    font-weight: 700;
     color: ${COLORS.ink};
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    border-left: 4px solid ${COLORS.accentBar};
-    padding-left: 14px;
-    margin: 36px 0 12px;
+    letter-spacing: -0.01em;
+    margin: 40px 0 12px;
     line-height: 1.3;
   }
   .contract-display h3 {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
     font-weight: 700;
     color: ${COLORS.ink};
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin: 22px 0 6px;
+    letter-spacing: 0;
+    margin: 24px 0 8px;
+    line-height: 1.4;
   }
-  .contract-display p { margin: 0 0 14px; }
+  .contract-display p {
+    margin: 0 0 14px;
+  }
   .contract-display strong {
     color: ${COLORS.ink};
     font-weight: 600;
   }
-  .contract-display ul {
+  .contract-display ul,
+  .contract-display ol {
     margin: 0 0 16px;
-    padding-left: 24px;
-    list-style-type: disc;
+    padding-left: 22px;
   }
-  .contract-display ul li {
-    margin-bottom: 4px;
+  .contract-display ul { list-style-type: disc; }
+  .contract-display ol { list-style-type: decimal; }
+  .contract-display li {
+    margin-bottom: 6px;
     padding-left: 4px;
   }
-  .contract-display ul li::marker { color: ${COLORS.muted}; }
+  .contract-display li::marker {
+    color: ${COLORS.muted};
+  }
+  .contract-display ul ul,
+  .contract-display ol ol,
+  .contract-display ul ol,
+  .contract-display ol ul {
+    margin: 6px 0 8px;
+  }
   .contract-display hr {
     border: 0;
     border-top: 1px solid ${COLORS.rule};
-    margin: 28px 0;
+    margin: 32px 0;
   }
+  .contract-display a {
+    color: ${COLORS.brandBlue};
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Important callouts. Restrained — no loud red boxes; just a quiet
+     left border + faint tint so the legally-charged terms (no refunds,
+     no chargebacks, etc.) read as emphatic without shouting. */
   .contract-display [data-callout="warning"] {
-    background: ${COLORS.warningBg};
-    border-left: 4px solid ${COLORS.warningBorder};
-    padding: 12px 16px;
-    border-radius: 0 4px 4px 0;
-    margin: 10px 0;
+    background: ${COLORS.warningTint};
+    border-left: 3px solid ${COLORS.warningRule};
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 8px 0;
     list-style: none;
   }
   .contract-display [data-callout="warning"] strong {
     color: ${COLORS.warningInk};
     font-weight: 700;
   }
-  .contract-display ul [data-callout="warning"] {
-    margin-left: -24px;
-    padding-left: 16px;
+  .contract-display ul [data-callout="warning"],
+  .contract-display ol [data-callout="warning"] {
+    margin-left: -22px;
+    padding-left: 14px;
   }
+
+  /* Signature blocks. Two-column on wide; stacks cleanly on mobile.
+     Company signature uses Caveat for the handwritten feel; client
+     signature lines render with the same handwriting style after sign,
+     and read as a clean underlined value field before sign. */
   .contract-display .signature-cursive {
     font-family: 'Caveat', 'Brush Script MT', cursive;
     font-weight: 700;
-    font-size: 32px;
+    font-size: 26px;
     color: ${COLORS.ink};
     line-height: 1.1;
     display: inline-block;
-    padding: 4px 24px 2px 12px;
-    border-bottom: 1px solid ${COLORS.ink};
-    min-width: 280px;
+    padding: 2px 18px 2px 8px;
+    border-bottom: 1.5px solid ${COLORS.brandBlue};
+    min-width: 240px;
+    vertical-align: bottom;
   }
   .contract-display .sig-line,
   .contract-display .sig-blank-name,
   .contract-display .sig-blank-date {
     display: inline-block;
-    border-bottom: 1px solid ${COLORS.ink};
-    min-width: 280px;
-    padding: 2px 12px;
+    border-bottom: 1px solid ${COLORS.body};
+    min-width: 240px;
+    padding: 2px 12px 4px;
     margin-left: 6px;
-    font-family: 'EB Garamond', Georgia, serif;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
     color: ${COLORS.ink};
     vertical-align: bottom;
   }
   .contract-display .sig-blank-signature {
-    border-bottom: 1px solid ${COLORS.ink};
-    min-width: 280px;
+    border-bottom: 1px solid ${COLORS.body};
+    min-width: 240px;
   }
+  .contract-display .sig-blank-signature {
+    /* Once filled, the signature still wants the handwriting style. */
+    font-family: 'Caveat', 'Brush Script MT', cursive;
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 1.1;
+    border-bottom: 1.5px solid ${COLORS.brandBlue};
+  }
+
   /* Block-style signature rows so each label sits on its own line. */
   .contract-display p:has(> .signature-cursive),
   .contract-display p:has(> .sig-line),
@@ -172,34 +216,41 @@ export const CONTRACT_STYLES = `
   .contract-display p:has(> .sig-blank-date) {
     display: flex;
     align-items: baseline;
-    gap: 12px;
-    margin: 14px 0;
+    gap: 14px;
+    margin: 16px 0;
   }
   .contract-display p:has(> .signature-cursive) > strong,
   .contract-display p:has(> .sig-line) > strong,
   .contract-display p:has(> .sig-blank-name) > strong,
   .contract-display p:has(> .sig-blank-signature) > strong,
   .contract-display p:has(> .sig-blank-date) > strong {
-    min-width: 110px;
+    min-width: 96px;
     flex-shrink: 0;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: ${COLORS.muted};
   }
+
   @media (max-width: 640px) {
-    .contract-wrap { font-size: 16px; line-height: 1.6; }
-    .contract-letterhead { padding-bottom: 22px; margin-bottom: 28px; }
-    .contract-letterhead img { width: 160px; }
-    .contract-display h1 { letter-spacing: 0.1em; }
-    .contract-display h2 { font-size: 15px; padding-left: 10px; margin-top: 28px; }
-    .contract-display .signature-cursive { font-size: 26px; min-width: 200px; }
+    .contract-wrap {
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    .contract-letterhead {
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+    }
+    .contract-letterhead img { width: 150px; }
+    .contract-display h2 { font-size: 17px; margin-top: 32px; }
+    .contract-display h3 { font-size: 14px; margin-top: 20px; }
+    .contract-display .signature-cursive,
+    .contract-display .sig-blank-signature { font-size: 22px; min-width: 180px; }
     .contract-display .sig-line,
     .contract-display .sig-blank-name,
-    .contract-display .sig-blank-date,
-    .contract-display .sig-blank-signature { min-width: 200px; }
+    .contract-display .sig-blank-date { min-width: 180px; font-size: 14px; }
     .contract-display p:has(> .signature-cursive),
     .contract-display p:has(> .sig-line),
     .contract-display p:has(> .sig-blank-name),
