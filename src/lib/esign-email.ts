@@ -5,11 +5,7 @@ import { Resend } from 'resend';
 // callout boxes) lands in Phase 6 via the ui-ux-pro-max skill.
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-// Personal sender name + reply-to make Gmail's classifier read this
-// as a transactional 1:1 message instead of marketing — major lever
-// for landing in Inbox vs Promotions.
-const FROM = "Todd's Team at Maxxed Out <learn@maxxedout.com>";
-const REPLY_TO = 'learn@maxxedout.com';
+const FROM = 'Maxxed Out University <learn@maxxedout.com>';
 const BASE_URL = (process.env.NEXTAUTH_URL || 'https://university.maxxedout.com').replace(/\/$/, '');
 
 type SendArgs = Parameters<typeof resend.emails.send>[0];
@@ -101,55 +97,33 @@ export async function sendSigningRequestEmail(args: {
   const expiry = args.expiresAt.toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
   });
-
-  // Plain text first — Gmail uses the presence of a multipart/alternative
-  // text/plain part as a strong "this is a real email, not marketing"
-  // signal. Conversational tone, no marketing-speak.
-  const text = `Hi ${firstName},
-
-Welcome to ${args.courseTitle} — quick housekeeping before we kick things off. Please review and sign your enrollment agreement here:
-
-${args.signingUrl}
-
-Takes about two minutes (read the terms, type your full legal name, click Sign). Link expires ${expiry}.
-
-Reply to this email if anything looks off and I'll sort it out.
-
-— Todd's team`;
-
-  // HTML — kept simple. Inline anchor link instead of a colored CTA
-  // button, no logo banner, no decorative table padding. Reads as a
-  // 1:1 message Todd's team would send, not a marketing blast.
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111827;font-size:15px;line-height:1.6;">
-  <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
-    <p style="margin:0 0 16px;">Hi ${firstName},</p>
-    <p style="margin:0 0 16px;">
-      Welcome to <strong>${args.courseTitle}</strong> — quick housekeeping before we kick things off.
-      Please review and sign your enrollment agreement here:
+  const body = `
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#111827;line-height:1.3;">
+      One last step, ${firstName}
+    </h1>
+    <p style="margin:0 0 12px;font-size:15px;color:#6b7280;line-height:1.6;">
+      Welcome to <strong style="color:#111827;">${args.courseTitle}</strong>. Before we kick things off, please review and sign your enrollment agreement.
     </p>
-    <p style="margin:0 0 16px;">
-      <a href="${args.signingUrl}" style="color:#2563eb;text-decoration:underline;">${args.signingUrl}</a>
+    <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
+      It takes about two minutes — read the terms, type your full legal name, and click Sign.
     </p>
-    <p style="margin:0 0 16px;">
-      Takes about two minutes — read the terms, type your full legal name, click Sign.
-      Link expires ${expiry}.
-    </p>
-    <p style="margin:0 0 16px;">Reply to this email if anything looks off and I'll sort it out.</p>
-    <p style="margin:0;color:#6b7280;">— Todd's team</p>
-  </div>
-</body>
-</html>`;
-
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:0 0 28px;">
+      <table cellpadding="0" cellspacing="0"><tr><td style="background:#2563eb;border-radius:10px;">
+        <a href="${args.signingUrl}" style="display:inline-block;padding:16px 48px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.02em;">
+          Review &amp; Sign
+        </a>
+      </td></tr></table>
+    </td></tr></table>
+    <div style="border-top:1px solid #e5e7eb;padding:20px 0 0;">
+      <p style="margin:0 0 6px;font-size:13px;color:#9ca3af;line-height:1.5;">This link expires ${expiry}. If you have any questions, just reply to this email.</p>
+      <p style="margin:0;font-size:12px;color:#d1d5db;word-break:break-all;">${args.signingUrl}</p>
+    </div>
+  `;
   return safeSend({
     from: FROM,
-    replyTo: REPLY_TO,
     to: args.to,
-    subject: `Quick: sign your enrollment for ${args.courseTitle}`,
-    html,
-    text,
+    subject: `Sign your ${args.courseTitle} enrollment agreement`,
+    html: shellHtml({ title: `Sign your ${args.courseTitle} agreement`, bodyHtml: body }),
   });
 }
 
@@ -160,42 +134,29 @@ export async function sendSigningCompletedEmail(args: {
   pdfDownloadUrl: string;
 }) {
   const firstName = args.recipientName.split(' ')[0] || 'there';
-
-  const text = `Thanks ${firstName} — your ${args.courseTitle} enrollment agreement is signed.
-
-A copy is stored on file. Save the signed PDF here for your records:
-
-${args.pdfDownloadUrl}
-
-Reply to this email if you have any questions about your enrollment.
-
-— Todd's team`;
-
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111827;font-size:15px;line-height:1.6;">
-  <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
-    <p style="margin:0 0 16px;">
-      Thanks ${firstName} — your <strong>${args.courseTitle}</strong> enrollment agreement is signed.
+  const body = `
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#111827;line-height:1.3;">
+      Thanks, ${firstName} — your agreement is signed
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
+      We've stored a copy of your <strong style="color:#111827;">${args.courseTitle}</strong> enrollment agreement. Save the PDF below for your records.
     </p>
-    <p style="margin:0 0 16px;">A copy is stored on file. Save the signed PDF for your records:</p>
-    <p style="margin:0 0 16px;">
-      <a href="${args.pdfDownloadUrl}" style="color:#2563eb;text-decoration:underline;">${args.pdfDownloadUrl}</a>
-    </p>
-    <p style="margin:0 0 16px;">Reply to this email if you have any questions about your enrollment.</p>
-    <p style="margin:0;color:#6b7280;">— Todd's team</p>
-  </div>
-</body>
-</html>`;
-
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:0 0 28px;">
+      <table cellpadding="0" cellspacing="0"><tr><td style="background:#2563eb;border-radius:10px;">
+        <a href="${args.pdfDownloadUrl}" style="display:inline-block;padding:16px 48px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.02em;">
+          Download Signed Agreement
+        </a>
+      </td></tr></table>
+    </td></tr></table>
+    <div style="border-top:1px solid #e5e7eb;padding:20px 0 0;">
+      <p style="margin:0;font-size:13px;color:#9ca3af;line-height:1.5;">If you have any questions about your enrollment, reply to this email and a team member will get back to you.</p>
+    </div>
+  `;
   return safeSend({
     from: FROM,
-    replyTo: REPLY_TO,
     to: args.to,
-    subject: `Signed: your ${args.courseTitle} enrollment agreement`,
-    html,
-    text,
+    subject: `Your ${args.courseTitle} enrollment agreement — signed`,
+    html: shellHtml({ title: 'Agreement signed', bodyHtml: body }),
   });
 }
 
