@@ -27,6 +27,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       slug: true,
       thumbnail: true,
       price: true,
+      applyMode: true,
       checkoutAfterApply: true,
       externalUrl: true,
     },
@@ -42,9 +43,14 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   }
 
   // Don't surface the apply route for arbitrary courses — restrict to
-  // courses that have the toggle ON or are already known high-ticket
-  // coaching programs. Anything else falls back to /courses/[slug].
-  if (!course.checkoutAfterApply && !HIGH_TICKET_SLUGS.has(course.slug)) {
+  // courses where the admin explicitly enabled the apply flow:
+  //   · applyMode toggle ON (the user-facing "show Apply Now button"
+  //     toggle in the admin course form), OR
+  //   · checkoutAfterApply ON, OR
+  //   · grandfathered legacy slug from the high-ticket allowlist.
+  // Without applyMode here the course-detail page renders an Apply Now
+  // button (driven by applyMode) that loops back to itself.
+  if (!course.applyMode && !course.checkoutAfterApply && !HIGH_TICKET_SLUGS.has(course.slug)) {
     redirect(`/courses/${course.slug}`);
   }
 
