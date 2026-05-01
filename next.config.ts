@@ -3,7 +3,13 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   // pdfkit reads its built-in AFM fonts via relative filesystem paths —
   // bundling it into the server build breaks those paths.
-  serverExternalPackages: ['pdfkit'],
+  // @sparticuz/chromium ships a Chromium binary at
+  // node_modules/@sparticuz/chromium/bin — Turbopack relocates it
+  // during bundling and the launch fails on Vercel with "input
+  // directory ... does not exist". Mark it (and puppeteer-core,
+  // which calls it) as external so Vercel includes the package on
+  // disk and our require() resolves the binary path.
+  serverExternalPackages: ['pdfkit', '@sparticuz/chromium', 'puppeteer-core'],
   // Proxy PostHog through /ph so ad-blockers don't kill analytics.
   async rewrites() {
     return [
