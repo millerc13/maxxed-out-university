@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header } from '@/components/layout';
 import Link from 'next/link';
-import { CheckCircle, BookOpen, Mail, ArrowRight, PhoneCall, Calendar } from 'lucide-react';
+import { CheckCircle, BookOpen, Mail, ArrowRight, PhoneCall, Calendar as CalendarIcon } from 'lucide-react';
 
 interface SuccessPageProps {
   searchParams: Promise<{
@@ -120,7 +120,7 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
               {!email && <div className="mb-6" />}
 
               <div className="flex items-center justify-center gap-2 text-[12px] uppercase tracking-[0.15em] font-bold text-gray-400 mb-2">
-                <Calendar className="w-3.5 h-3.5" />
+                <CalendarIcon className="w-3.5 h-3.5" />
                 <span>What to expect</span>
               </div>
               <ul className="text-left text-sm text-gray-600 space-y-1.5 max-w-sm mx-auto mb-8">
@@ -262,6 +262,18 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
               >
                 My Courses
               </Link>
+              <a
+                href={
+                  process.env.NEXT_PUBLIC_CALENDLY_URL ||
+                  'https://calendly.com/rebecca-nardi/maxxed-out-todd-pultz-mentorship-healthcare'
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-gray-200 text-gray-700 font-black text-[12px] tracking-[0.15em] uppercase rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <CalendarIcon className="w-4 h-4" />
+                Book a Call
+              </a>
             </div>
           </div>
         </Card>

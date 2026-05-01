@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
           thumbnail: true,
           shortDesc: true,
           checkoutAfterApply: true,
+          bookACallEnabled: true,
         },
       },
       featuredCourses: {

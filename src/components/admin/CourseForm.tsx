@@ -43,6 +43,7 @@ interface Course {
   applyMode?: boolean;
   checkoutAfterApply?: boolean;
   notifyClosersOnApply?: boolean;
+  bookACallEnabled?: boolean;
   heroStats?: HeroStat[] | null;
   checkoutBullets?: string[] | null;
 }
@@ -70,6 +71,10 @@ export interface CourseFormDraft {
   // triggers the closer-notify webhook. Flip OFF for QA / testing a
   // course without firing closer texts.
   notifyClosersOnApply: boolean;
+  // When true (default), every funnel + university lead/purchase
+  // surface for this course shows a "Have more questions? Book a call"
+  // CTA pointing to the Calendly booking link.
+  bookACallEnabled: boolean;
   // Editable stats row in the course-detail hero. When empty, the page
   // falls back to legacy hardcoded stats (lessons / certificate /
   // lifetime access).
@@ -108,6 +113,7 @@ function initialDraft(course?: Course): CourseFormDraft {
     // Default ON when the field is missing (e.g. legacy courses) so we
     // never silently disable the existing closer-notify behavior.
     notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
+    bookACallEnabled: course?.bookACallEnabled ?? true,
     heroStats: Array.isArray(course?.heroStats)
       ? course!.heroStats!.map((s) => ({
           iconName: s.iconName || 'BookOpen',
@@ -136,6 +142,7 @@ function isDraftDirty(course: Course | undefined, draft: CourseFormDraft): boole
     baseline.externalUrl !== draft.externalUrl ||
     baseline.checkoutAfterApply !== draft.checkoutAfterApply ||
     baseline.notifyClosersOnApply !== draft.notifyClosersOnApply ||
+    baseline.bookACallEnabled !== draft.bookACallEnabled ||
     JSON.stringify(baseline.heroStats) !== JSON.stringify(draft.heroStats) ||
     JSON.stringify(baseline.checkoutBullets) !== JSON.stringify(draft.checkoutBullets)
   );
@@ -642,6 +649,15 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
                   }
                   label="Notify closers when someone applies"
                   description="When ON, applications create a GHL opportunity which fires the closer-notify automation (texts the team a heads-up). Turn OFF when QA-testing a course so you don't spam the team. Default: ON."
+                />
+                <Toggle
+                  id="bookACallEnabled"
+                  checked={formData.bookACallEnabled}
+                  onChange={(next) =>
+                    setFormData((prev) => ({ ...prev, bookACallEnabled: next }))
+                  }
+                  label='"Book a call" CTA'
+                  description='When ON, every funnel + university lead/purchase surface for this course shows a "Have more questions? Book a call with our team" button. Default: ON.'
                 />
               </div>
             </div>

@@ -59,7 +59,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, heroStats, checkoutBullets } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, bookACallEnabled, heroStats, checkoutBullets } = body;
 
     // Validate checkoutBullets — string array, drop blanks.
     let checkoutBulletsValidated: string[] | undefined;
@@ -119,6 +119,7 @@ export async function PUT(
         ...(applyMode !== undefined && { applyMode: !!applyMode }),
         ...(checkoutAfterApply !== undefined && { checkoutAfterApply: !!checkoutAfterApply }),
         ...(notifyClosersOnApply !== undefined && { notifyClosersOnApply: !!notifyClosersOnApply }),
+        ...(bookACallEnabled !== undefined && { bookACallEnabled: !!bookACallEnabled }),
         ...(heroStatsValidated !== undefined && { heroStats: heroStatsValidated }),
         ...(checkoutBulletsValidated !== undefined && { checkoutBullets: checkoutBulletsValidated }),
       },

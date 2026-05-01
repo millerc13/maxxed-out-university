@@ -33,6 +33,7 @@ export function CourseEditor({ course }: CourseEditorProps) {
     externalUrl: course?.externalUrl || '',
     checkoutAfterApply: !!course?.checkoutAfterApply,
     notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
+    bookACallEnabled: (course as { bookACallEnabled?: boolean })?.bookACallEnabled ?? true,
     heroStats: Array.isArray(course?.heroStats) ? course.heroStats : [],
     checkoutBullets: Array.isArray(course?.checkoutBullets)
       ? (course.checkoutBullets as string[]).filter((s) => typeof s === 'string')

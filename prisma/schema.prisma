@@ -114,6 +114,11 @@ model Course {
   // preserve current behavior; admin flips to false for QA / testing
   // a course without spamming closers.
   notifyClosersOnApply Boolean  @default(true)
+  // When true, every funnel + checkout surface for this course shows a
+  // "Have more questions? Book a call with a team member" CTA pointing
+  // to the Calendly booking link. Default ON for every course; admin
+  // can flip OFF per-course in CourseForm.
+  bookACallEnabled Boolean      @default(true)
   order        Int              @default(0)
   // Catalog section + position. Null section means the course doesn't appear
   // on / or /courses (admin-only / hidden product). Both pages render from

@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Header, Footer } from '@/components/layout';
 import { Card, CardContent } from '@/components/ui/card';
-import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy, Wrench, ArrowRight } from 'lucide-react';
+import { BookOpen, Play, Lock, CheckCircle, Clock, ChevronRight, FileQuestion, Trophy, Wrench, ArrowRight, Calendar as CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound, redirect } from 'next/navigation';
@@ -387,6 +387,21 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                           <button className="w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md cursor-default opacity-70">
                             Contact to Enroll
                           </button>
+                        )}
+
+                        {(course as { bookACallEnabled?: boolean }).bookACallEnabled !== false && (
+                          <a
+                            href={
+                              process.env.NEXT_PUBLIC_CALENDLY_URL ||
+                              'https://calendly.com/rebecca-nardi/maxxed-out-todd-pultz-mentorship-healthcare'
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full py-3 border-2 border-white/30 text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-white/10 transition-colors"
+                          >
+                            <CalendarIcon className="w-4 h-4" />
+                            Have questions? Book a call
+                          </a>
                         )}
 
                         {isAdmin && (
