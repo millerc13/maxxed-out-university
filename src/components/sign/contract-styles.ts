@@ -273,12 +273,19 @@ export const CONTRACT_STYLES = `
 
   @media (max-width: 640px) {
     .contract-display .sig-row {
-      gap: 24px;
+      gap: 28px;
       flex-direction: column;
       margin: 24px 0 12px;
     }
+    /* On mobile (column flex), the desktop `flex: 1 1 240px` becomes
+       a 240px HEIGHT basis on each cell, padding-stretching every
+       cell to ~240px tall and creating a huge dead gap between
+       company + client. Switch to natural sizing on column. */
+    .contract-display .sig-cell {
+      flex: 0 0 auto;
+    }
     .contract-display .sig-mark { font-size: 28px; min-height: 50px; }
-    .contract-display .sig-mark .sig-mark-png { height: 40px; }
+    .contract-display .sig-mark .sig-mark-png { height: 44px; }
     .contract-display .sig-caption { font-size: 12px; }
     .contract-display .sig-date { font-size: 11px; }
   }

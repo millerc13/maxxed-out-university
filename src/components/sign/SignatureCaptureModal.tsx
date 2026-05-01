@@ -181,13 +181,12 @@ export function SignatureCaptureModal({
       if (name.length < 2) return;
       const canvas = previewCanvasRef.current;
       if (!canvas) return;
-      const png = canvas.toDataURL('image/png');
+      const png = cropToInkBounds(canvas).toDataURL('image/png');
       onAdopt({ typedName: name, pngDataUrl: png, mode: 'typed' });
     } else {
       if (drawnEmpty) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const png = canvas.toDataURL('image/png');
       const name = typedName.trim();
       if (name.length < 2) {
         // Drawn signature still requires a typed name for the audit
@@ -195,6 +194,7 @@ export function SignatureCaptureModal({
         setTab('type');
         return;
       }
+      const png = cropToInkBounds(canvas).toDataURL('image/png');
       onAdopt({ typedName: name, pngDataUrl: png, mode: 'drawn' });
     }
   }
@@ -393,6 +393,52 @@ export function SignatureCaptureModal({
       </div>
     </div>
   );
+}
+
+// Returns a new canvas containing only the bounding box of opaque
+// pixels in the source canvas. Without this step the saved PNG is
+// the full canvas (mostly transparent space around the actual ink),
+// which renders as a tiny squiggle when scaled into the contract's
+// fixed-height signature line. Tight crop = the saved PNG IS the
+// signature, so it fills the line proportionally.
+function cropToInkBounds(
+  src: HTMLCanvasElement,
+  paddingPx = 6,
+): HTMLCanvasElement {
+  const ctx = src.getContext('2d');
+  if (!ctx) return src;
+  const w = src.width;
+  const h = src.height;
+  if (w === 0 || h === 0) return src;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  let minX = w;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = data[(y * w + x) * 4 + 3];
+      if (a > 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0 || maxY < 0) return src; // canvas was empty
+  const pad = paddingPx;
+  const cropX = Math.max(0, minX - pad);
+  const cropY = Math.max(0, minY - pad);
+  const cropW = Math.min(w - cropX, maxX - cropX + 1 + pad);
+  const cropH = Math.min(h - cropY, maxY - cropY + 1 + pad);
+  const dst = document.createElement('canvas');
+  dst.width = cropW;
+  dst.height = cropH;
+  const dctx = dst.getContext('2d');
+  if (!dctx) return src;
+  dctx.drawImage(src, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+  return dst;
 }
 
 function TabButton({
