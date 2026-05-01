@@ -16,6 +16,10 @@ interface CoursePageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{
     previewAs?: string;
+    // Set to '1' after a successful submit on /apply/[slug] — replaces
+    // the Apply Now CTA with an "Application submitted" success block
+    // so the user isn't invited to re-submit.
+    applied?: string;
     // Admin-only field overrides used by /admin/courses/[id]'s Preview tab
     // to render unsaved draft edits without persisting them. Ignored when
     // the viewer isn't an authenticated admin.
@@ -99,6 +103,20 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
     !isCustomerPreview && session?.user?.id
       ? await isEffectivelyEnrolled(session.user.id, course.id)
       : false;
+
+  // Has the visitor already submitted an apply form for this course?
+  // True when the URL carries `?applied=1` (immediate post-submit
+  // redirect) OR an Application row exists for the logged-in user's
+  // email + this course (durable check on subsequent visits, blocks
+  // re-applying from the same browser/account).
+  const appliedFlag = search.applied === '1';
+  const existingApplication = !isCustomerPreview && session?.user?.email
+    ? await prisma.application.findUnique({
+        where: { email_courseId: { email: session.user.email, courseId: course.id } },
+        select: { id: true, createdAt: true },
+      })
+    : null;
+  const hasApplied = appliedFlag || !!existingApplication;
 
   // Check if user is admin (forced false in customer preview)
   const isAdmin =
@@ -368,8 +386,29 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                       <div className="space-y-4">
                         {/* CTA — routes through /apply/[slug] for high-ticket
                             coaching programs (and any course with the new
-                            checkoutAfterApply flag), otherwise direct to /checkout. */}
-                        {usesApplyFlow ? (
+                            checkoutAfterApply flag), otherwise direct to /checkout.
+                            When the visitor has already applied for this course
+                            (?applied=1 OR an Application row exists for their
+                            email), swap the Apply Now CTA for an "Application
+                            submitted" success block — never invite re-submission. */}
+                        {usesApplyFlow && hasApplied ? (
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+                            <div className="flex items-start gap-3">
+                              <CheckCircle className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="font-bold text-emerald-900 text-sm uppercase tracking-wider">
+                                  Application Submitted
+                                </p>
+                                <p className="mt-1 text-sm text-emerald-800 leading-relaxed">
+                                  Thanks for applying — Todd&apos;s team will reach out within one business day with next steps.
+                                  {(course as { bookACallEnabled?: boolean }).bookACallEnabled !== false && (
+                                    <> Want to skip the line? <strong>Book a call below.</strong></>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : usesApplyFlow ? (
                           <Link
                             href={`/apply/${course.slug}`}
                             className="flex items-center justify-center w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md"

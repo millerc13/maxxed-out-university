@@ -92,8 +92,10 @@ export async function POST(request: Request) {
     `[apply] ${isPartial ? 'Partial' : 'Full'} submission — email=${data.email} course=${courseTitle ?? 'none'}`
   );
 
+  let resolvedContactId: string | null = null;
   try {
     const { id: contactId, isNew } = await upsertContact(data, { partial: isPartial });
+    resolvedContactId = contactId;
     console.info(
       `[apply] ${isPartial ? 'Partial' : 'Full'} GHL contact ${
         isNew ? 'created' : 'updated'
@@ -142,6 +144,52 @@ export async function POST(request: Request) {
       console.warn(`[apply] GHL disabled: ${err.message}`);
     } else {
       console.error('[apply] GHL sync failed', err);
+    }
+  }
+
+  // Persist the Application row on full submissions. Idempotent on
+  // (email, courseId) — re-submitting from the same email + course
+  // updates the same row. Drives:
+  //   · /apply/[slug] redirect-out (already-applied users get sent
+  //     to the course page success state instead of seeing the form
+  //     again)
+  //   · the "Application submitted" success state on /courses/[slug]
+  if (!isPartial && data.courseId) {
+    try {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: data.email },
+        select: { id: true },
+      });
+      // Strip the partial flag from payload — only store the answers.
+      // Casting to satisfy Prisma's JSON input type.
+      const payload = (() => {
+        const { partial: _p, courseId: _c, courseSlug: _cs, program: _pr, name: _n, email: _e, phone: _ph, ...rest } = data;
+        return rest as unknown as Record<string, unknown>;
+      })();
+      await prisma.application.upsert({
+        where: { email_courseId: { email: data.email, courseId: data.courseId } },
+        create: {
+          email: data.email,
+          name: data.name ?? null,
+          phone: data.phone ?? null,
+          courseId: data.courseId,
+          source: data.program ?? 'university',
+          payload: payload as never,
+          ghlContactId: resolvedContactId,
+          userId: existingUser?.id ?? null,
+        },
+        update: {
+          name: data.name ?? undefined,
+          phone: data.phone ?? undefined,
+          source: data.program ?? undefined,
+          payload: payload as never,
+          ghlContactId: resolvedContactId ?? undefined,
+          userId: existingUser?.id ?? undefined,
+        },
+      });
+      console.info(`[apply] Application row upserted for email=${data.email} courseId=${data.courseId}`);
+    } catch (err) {
+      console.error('[apply] Failed to persist Application row (non-fatal)', err);
     }
   }
 

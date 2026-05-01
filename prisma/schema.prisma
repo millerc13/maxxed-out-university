@@ -34,6 +34,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   sessions           Session[]
   documentSignatures DocumentSignature[]
+  applications       Application[]
 
 }
 
@@ -167,6 +168,7 @@ model Course {
   tools             Tool[]
   homepageSection   HomepageSection? @relation(fields: [homepageSectionId], references: [id], onDelete: SetNull)
   documentSignatures DocumentSignature[]
+  applications      Application[]
 
   @@index([bundleId])
   @@index([homepageSectionId, homepageOrder])
@@ -685,4 +687,47 @@ model DocumentSignature {
   @@index([userId])
   @@index([courseId])
   @@index([createdAt])
+}
+
+// Course application — written when a buyer completes the on-platform
+// /apply/[slug] form (or the same form on a funnel subdomain). One row
+// per (email, courseId) — re-submitting from the same email + course
+// updates the existing row instead of creating a duplicate. Drives:
+//   · the "Application submitted" success state on /courses/[slug]
+//   · the apply route gate (already-applied users get redirected to
+//     /courses/[slug]?applied=1 instead of being shown the form again)
+// Lives separately from Enrollment because applying ≠ owning the
+// course — the high-ticket flow has a closer review step in between.
+model Application {
+  id          String   @id @default(cuid())
+  // Linked to the User row when the applicant is logged in or has an
+  // account by the same email. Nullable so funnel applies (where the
+  // user may not exist on the university yet) still write a row.
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email       String
+  name        String?
+  phone       String?
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // Where the apply form lived: "university" (on-platform) or
+  // "blueprint" / "mentorship" / "donewithyou" / "accelerator" / etc.
+  // for funnel subdomains. Useful for analytics + debugging.
+  source      String   @default("university")
+  // Free-form payload of additional fields collected by the wizard
+  // (vision, biggest obstacle, current stage, etc.). Schema is owned
+  // by /lib/apply-schema.ts; we store the raw answers for closer review.
+  payload     Json     @default("{}")
+  // GHL contact id resolved at submit time so we can re-link to the
+  // CRM record without re-querying GHL.
+  ghlContactId String?
+  // Lifecycle: submitted → reviewed → enrolled → declined / cancelled
+  status      String   @default("submitted")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([email, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([status])
 }

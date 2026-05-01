@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { Header, Footer } from '@/components/layout';
 import { ApplyWizardOnPlatform } from '@/components/apply/ApplyWizardOnPlatform';
+import { auth } from '@/lib/auth';
+import { isEffectivelyEnrolled } from '@/lib/enrollment';
 
 interface ApplyPageProps {
   params: Promise<{ slug: string }>;
@@ -52,6 +54,26 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
   // button (driven by applyMode) that loops back to itself.
   if (!course.applyMode && !course.checkoutAfterApply && !HIGH_TICKET_SLUGS.has(course.slug)) {
     redirect(`/courses/${course.slug}`);
+  }
+
+  // Block re-applying. Logged-in users who already enrolled OR who
+  // have an Application row for this course get sent to the course
+  // detail page with the "applied" success state — no point in
+  // re-submitting the form. Unauthenticated visitors fall through
+  // and see the form (closer can dedupe on email at review time).
+  const session = await auth();
+  if (session?.user?.id) {
+    const alreadyEnrolled = await isEffectivelyEnrolled(session.user.id, course.id);
+    if (alreadyEnrolled) {
+      redirect(`/courses/${course.slug}`);
+    }
+    const existingApplication = await prisma.application.findUnique({
+      where: { email_courseId: { email: session.user.email!, courseId: course.id } },
+      select: { id: true },
+    });
+    if (existingApplication) {
+      redirect(`/courses/${course.slug}?applied=1`);
+    }
   }
 
   // Stripe public key + enabled providers + promo flag for the
