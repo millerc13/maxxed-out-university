@@ -1079,12 +1079,15 @@ function ComposeForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Course">
+            {/* Radix Select doesn't allow value="" on items (reserved for
+               "clear selection") so the off-list option uses a sentinel
+               that maps to empty courseId on the way in/out. */}
             <Select
-              value={courseId}
-              onValueChange={setCourseId}
+              value={courseId === '' ? '__custom__' : courseId}
+              onValueChange={(v) => setCourseId(v === '__custom__' ? '' : v)}
               ariaLabel="Course"
               options={[
-                { value: '', label: '— Off-list / custom —' },
+                { value: '__custom__', label: '— Off-list / custom —' },
                 ...courses.map((c) => ({ value: c.id, label: c.title })),
               ]}
             />
