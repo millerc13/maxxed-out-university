@@ -964,7 +964,7 @@ function ComposeForm({
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">
               Sending Template
             </p>
-            <h3 className="text-base sm:text-lg font-bold text-white truncate mt-0.5">
+            <h3 className="text-base sm:text-lg font-bold text-white mt-0.5 leading-tight">
               {selectedTemplate?.name ?? 'No template'}
             </h3>
             <p className="text-xs text-white/75 mt-0.5">
@@ -973,23 +973,23 @@ function ComposeForm({
                 : 'Manual variant'}
             </p>
           </div>
-          {templates.length > 1 && (
-            <button
-              type="button"
-              onClick={() => setShowTemplatePicker((v) => !v)}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white text-maxxed-blue hover:bg-blue-50 px-3 h-9 text-[13px] font-bold transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 shadow-sm"
-              aria-expanded={showTemplatePicker}
-            >
-              Change
-              <ChevronDown
-                className={
-                  'h-4 w-4 transition-transform ' +
-                  (showTemplatePicker ? 'rotate-180' : '')
-                }
-              />
-            </button>
-          )}
         </div>
+        {templates.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setShowTemplatePicker((v) => !v)}
+            className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-white/15 hover:bg-white/25 active:bg-white/30 text-white px-3 h-10 text-[13px] font-bold ring-1 ring-white/25 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            aria-expanded={showTemplatePicker}
+          >
+            <ChevronDown
+              className={
+                'h-4 w-4 transition-transform ' +
+                (showTemplatePicker ? 'rotate-180' : '')
+              }
+            />
+            {showTemplatePicker ? 'Hide template picker' : 'Change template'}
+          </button>
+        )}
         {showTemplatePicker && templates.length > 1 && (
           <ul className="mt-3 rounded-lg bg-white ring-1 ring-gray-200 divide-y divide-gray-100 overflow-hidden shadow-md">
             {templates.map((t) => {
@@ -1076,6 +1076,25 @@ function ComposeForm({
             />
           </Field>
         </div>
+
+        <Field
+          label="Recipient phone"
+          hint="Optional. Used to text the signing link via GHL when we can't find the contact's number on file."
+        >
+          <input
+            type="tel"
+            inputMode="tel"
+            value={recipientPhone}
+            onChange={(e) => {
+              setRecipientPhone(e.target.value);
+              // Don't unset pickedUserId here — admin may be adding a
+              // phone we never had on file for an existing student.
+            }}
+            placeholder="+1 (555) 555-5555"
+            autoComplete="tel"
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
+          />
+        </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Course">
