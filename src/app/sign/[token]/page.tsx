@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { ContractDisplay } from '@/components/sign/ContractDisplay';
 import { SigningPageClient } from '@/components/sign/SigningPageClient';
+import { SignedBanner } from '@/components/sign/SignedBanner';
 import { fillClientSignature } from '@/lib/esign-render';
 import { signDownloadToken } from '@/lib/esign-tokens';
 
@@ -72,11 +73,13 @@ export default async function SignPage({ params }: PageProps) {
     return (
       <main className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-6">
         <div className="max-w-3xl mx-auto">
-          <SignedBanner
-            signedName={doc.signedName}
-            signedDateStr={signedDateStr}
-            downloadUrl={`/api/sign/${encodeURIComponent(downloadToken)}/pdf`}
-          />
+          <div className="mb-6">
+            <SignedBanner
+              signedName={doc.signedName}
+              signedDateStr={signedDateStr}
+              downloadUrl={`/api/sign/${encodeURIComponent(downloadToken)}/pdf`}
+            />
+          </div>
           <ContractDisplay
             renderedHtml={filledHtml}
             letterheadMeta={doc.courseTitle}
@@ -151,51 +154,10 @@ export default async function SignPage({ params }: PageProps) {
   );
 }
 
-function SignedBanner({
-  signedName,
-  signedDateStr,
-  downloadUrl,
-}: {
-  signedName: string;
-  signedDateStr: string;
-  downloadUrl: string;
-}) {
-  return (
-    <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div className="flex items-start gap-3">
-        <div className="shrink-0 w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-green-900">
-            Signed by {signedName}
-          </p>
-          <p className="text-xs text-green-700">on {signedDateStr}</p>
-        </div>
-      </div>
-      <a
-        href={downloadUrl}
-        download
-        className="inline-flex items-center justify-center rounded-lg bg-maxxed-blue px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 transition-colors"
-      >
-        Download PDF
-      </a>
-    </div>
-  );
-}
+// SignedBanner moved to its own client component
+// (src/components/sign/SignedBanner.tsx) so the Download button can do
+// a Blob fetch with error handling instead of a direct <a download>
+// that silently saves error JSON as a .pdf when the route 5xxs.
 
 function ExpiredOrSignedState({
   reason,
