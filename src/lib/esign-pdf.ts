@@ -183,18 +183,29 @@ ${fontLinks}
 }
 
 // Resolves a Chromium executable path for puppeteer-core. On Vercel /
-// Lambda we use @sparticuz/chromium; locally, point PUPPETEER_EXECUTABLE_PATH
-// at a system Chrome install (the smoke script does this).
+// Lambda we use @sparticuz/chromium-min, which downloads the Chromium
+// binary tarball from a URL at runtime (cached in /tmp across warm
+// invocations) — sidesteps Next file-tracing entirely. Locally, point
+// PUPPETEER_EXECUTABLE_PATH at a system Chrome install instead.
+//
+// CHROMIUM_PACK_URL points to a v148 chromium-pack tarball. Defaults
+// to the official Sparticuz GitHub release; can be overridden in env
+// to point at our R2 mirror later if GH cold-start latency or rate
+// limits become an issue.
+const CHROMIUM_PACK_URL =
+  process.env.CHROMIUM_PACK_URL ||
+  'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar';
+
 async function launchBrowser() {
   const puppeteer = await import('puppeteer-core');
   const isServerless = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.VERCEL;
 
   if (isServerless) {
-    const chromium = (await import('@sparticuz/chromium')).default;
+    const chromium = (await import('@sparticuz/chromium-min')).default;
     return puppeteer.launch({
       args: chromium.args,
       defaultViewport: { width: 1024, height: 1280, deviceScaleFactor: 2 },
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
       headless: true,
     });
   }
