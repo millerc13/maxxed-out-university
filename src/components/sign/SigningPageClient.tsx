@@ -99,6 +99,14 @@ export function SigningPageClient({
       // Persisted successfully. Close the modal and re-fetch the page
       // — the server will re-render with status='completed' which
       // shows the green "Signed by …" banner + the filled Section 18.
+      // sessionStorage flag tells ScrollToBottomAfterSign on the new
+      // render to smooth-scroll to the bottom Download banner so the
+      // user sees it without manually scrolling past the contract.
+      try {
+        sessionStorage.setItem('esign:justSigned', '1');
+      } catch {
+        /* private mode — scroll won't fire, no big deal */
+      }
       setModalOpen(false);
       router.refresh();
     } catch (err) {

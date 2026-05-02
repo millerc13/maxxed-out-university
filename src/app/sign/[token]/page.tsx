@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { ContractDisplay } from '@/components/sign/ContractDisplay';
 import { SigningPageClient } from '@/components/sign/SigningPageClient';
 import { SignedBanner } from '@/components/sign/SignedBanner';
+import { ScrollToBottomAfterSign } from '@/components/sign/ScrollToBottomAfterSign';
 import { fillClientSignature } from '@/lib/esign-render';
 import { signDownloadToken } from '@/lib/esign-tokens';
 
@@ -94,6 +95,10 @@ export default async function SignPage({ params }: PageProps) {
               downloadUrl={`/api/sign/${encodeURIComponent(downloadToken)}/pdf`}
             />
           </div>
+          {/* On first render after the user adopts their signature,
+              auto-scroll to this bottom banner so they don't have to
+              scroll past the whole contract to find Download. */}
+          <ScrollToBottomAfterSign />
         </div>
       </main>
     );
