@@ -59,7 +59,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, bookACallEnabled, heroStats, checkoutBullets, welcomeSmsBody, welcomeEmailSubject, welcomeEmailBody, autoSendContract } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, bookACallEnabled, heroStats, checkoutBullets, welcomeSmsBody, welcomeEmailSubject, welcomeEmailBody, autoSendContract, metaPixelId, metaCapiAccessToken, metaTestEventCode } = body;
 
     // Validate checkoutBullets — string array, drop blanks.
     let checkoutBulletsValidated: string[] | undefined;
@@ -130,6 +130,21 @@ export async function PUT(
           welcomeEmailBody: typeof welcomeEmailBody === 'string' && welcomeEmailBody.trim() ? welcomeEmailBody : null,
         }),
         ...(autoSendContract !== undefined && { autoSendContract: !!autoSendContract }),
+        ...(metaPixelId !== undefined && {
+          metaPixelId: typeof metaPixelId === 'string' && /^\d{8,20}$/.test(metaPixelId.trim())
+            ? metaPixelId.trim()
+            : null,
+        }),
+        ...(metaCapiAccessToken !== undefined && {
+          metaCapiAccessToken: typeof metaCapiAccessToken === 'string' && metaCapiAccessToken.trim()
+            ? metaCapiAccessToken.trim()
+            : null,
+        }),
+        ...(metaTestEventCode !== undefined && {
+          metaTestEventCode: typeof metaTestEventCode === 'string' && metaTestEventCode.trim()
+            ? metaTestEventCode.trim()
+            : null,
+        }),
         ...(heroStatsValidated !== undefined && { heroStats: heroStatsValidated }),
         ...(checkoutBulletsValidated !== undefined && { checkoutBullets: checkoutBulletsValidated }),
       },

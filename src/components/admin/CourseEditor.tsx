@@ -2,21 +2,30 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye, RefreshCw, Handshake, ExternalLink, Send } from 'lucide-react';
+import { ChevronLeft, Layers, FileQuestion, Settings, Link2, Edit, Plus, Eye, RefreshCw, Handshake, ExternalLink, Send, Megaphone } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CourseForm, type CourseFormDraft } from '@/components/admin/CourseForm';
 import { CourseDeliveryForm } from '@/components/admin/CourseDeliveryForm';
+import { CourseMarketingForm } from '@/components/admin/CourseMarketingForm';
 import { ModuleManager } from '@/components/admin/ModuleManager';
 import Link from 'next/link';
 import Image from 'next/image';
 
 interface CourseEditorProps {
   course: any;
+  /**
+   * Masked tail of the system-wide CAPI access token (from
+   * `META_CAPI_ACCESS_TOKEN` env var). Passed straight through to
+   * the Marketing tab so it can show "Inherited from system token
+   * (EAAO…XXXX)" when no per-course override is set. NULL means no
+   * env-var token is configured.
+   */
+  systemCapiTokenMasked?: string | null;
 }
 
-export function CourseEditor({ course }: CourseEditorProps) {
+export function CourseEditor({ course, systemCapiTokenMasked }: CourseEditorProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'settings' | 'delivery' | 'preview' | 'content' | 'quizzes' | 'products'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'delivery' | 'marketing' | 'preview' | 'content' | 'quizzes' | 'products'>('settings');
   const [previewKey, setPreviewKey] = useState(0); // bump to force iframe reload
   // The Settings tab streams its in-progress form values up here so the
   // Preview tab's iframe can render with those unsaved overrides applied.
@@ -121,6 +130,7 @@ export function CourseEditor({ course }: CourseEditorProps) {
             { key: 'content' as const, label: 'Content', icon: Layers },
             { key: 'quizzes' as const, label: 'Quizzes', icon: FileQuestion },
             { key: 'delivery' as const, label: 'Delivery', icon: Send },
+            { key: 'marketing' as const, label: 'Marketing', icon: Megaphone },
             { key: 'products' as const, label: 'GHL Products', icon: Link2 },
           ]).map((tab) => (
             <button
@@ -311,6 +321,11 @@ export function CourseEditor({ course }: CourseEditorProps) {
 
       {/* ── TAB: Delivery ── */}
       {activeTab === 'delivery' && <CourseDeliveryForm course={course} />}
+
+      {/* ── TAB: Marketing (Meta Pixel + CAPI) ── */}
+      {activeTab === 'marketing' && (
+        <CourseMarketingForm course={course} systemCapiTokenMasked={systemCapiTokenMasked ?? null} />
+      )}
 
       {/* ── TAB: GHL Products ── */}
       {activeTab === 'products' && (

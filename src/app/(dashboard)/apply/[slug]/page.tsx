@@ -4,6 +4,7 @@ import { Header, Footer } from '@/components/layout';
 import { ApplyWizardOnPlatform } from '@/components/apply/ApplyWizardOnPlatform';
 import { auth } from '@/lib/auth';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
+import { MetaPixelLoader } from '@/components/MetaPixelLoader';
 
 interface ApplyPageProps {
   params: Promise<{ slug: string }>;
@@ -32,6 +33,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       applyMode: true,
       checkoutAfterApply: true,
       externalUrl: true,
+      metaPixelId: true,
     },
   });
 
@@ -115,6 +117,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
 
   return (
     <>
+      <MetaPixelLoader pixelId={course.metaPixelId} />
       <Header />
       <main className="min-h-screen bg-[#f5f5f7] py-10 px-5 md:px-10">
         <div className="mx-auto w-full max-w-3xl">
@@ -136,6 +139,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
               slug: course.slug,
               price: course.price,
               checkoutAfterApply: course.checkoutAfterApply,
+              metaPixelId: course.metaPixelId,
             }}
             prefill={prefill}
           />

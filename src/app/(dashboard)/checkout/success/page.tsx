@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Header } from '@/components/layout';
 import Link from 'next/link';
 import { CheckCircle, BookOpen, Mail, ArrowRight, PhoneCall, Calendar as CalendarIcon } from 'lucide-react';
+import { MetaPixelLoader } from '@/components/MetaPixelLoader';
 
 interface SuccessPageProps {
   searchParams: Promise<{
@@ -46,16 +47,28 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
   const isExistingUser = existing === '1';
 
   // Fanbasis's success redirect doesn't include courseSlug — resolve it from courseId.
+  // Also pull metaPixelId so this surface fires Purchase to Meta.
   let courseSlug = courseSlugParam ?? null;
   let resolvedProductName = product_name ?? null;
-  if (!courseSlug && courseId) {
+  let metaPixelId: string | null = null;
+  if (courseId) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { slug: true, title: true },
+      select: { slug: true, title: true, metaPixelId: true },
     });
     if (course) {
-      courseSlug = course.slug;
+      if (!courseSlug) courseSlug = course.slug;
       if (!resolvedProductName) resolvedProductName = course.title;
+      metaPixelId = course.metaPixelId;
+    }
+  } else if (courseSlug) {
+    const course = await prisma.course.findUnique({
+      where: { slug: courseSlug },
+      select: { title: true, metaPixelId: true },
+    });
+    if (course) {
+      if (!resolvedProductName) resolvedProductName = course.title;
+      metaPixelId = course.metaPixelId;
     }
   }
 
@@ -63,6 +76,25 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
   const productName = resolvedProductName;
   const amount = formatAmount(product_price);
   const isHighTicket = courseSlug ? HIGH_TICKET_SLUGS.has(courseSlug) : false;
+  const purchaseValue = product_price ? Number(product_price) : null;
+  const purchaseEvent =
+    metaPixelId && courseSlug && Number.isFinite(purchaseValue) && (purchaseValue ?? 0) > 0
+      ? {
+          event: 'Purchase' as const,
+          params: {
+            value: purchaseValue!,
+            currency: 'USD',
+            content_ids: [courseSlug],
+            content_name: productName ?? courseSlug,
+            content_type: 'product' as const,
+            num_items: 1,
+          },
+          // Use the Stripe/Fanbasis transaction ID (in payment_intent
+          // search param) as the dedup key so the matching server-side
+          // CAPI Purchase fired from the webhook collapses with this hit.
+          eventId: params.payment_intent || undefined,
+        }
+      : undefined;
 
   const Card = ({ children }: { children: React.ReactNode }) => (
     <div
@@ -73,11 +105,17 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
     </div>
   );
 
+  // Mounted once at the top of every variant render so PageView + Purchase
+  // fire regardless of which success template (high-ticket vs self-serve)
+  // ends up showing. No-op when metaPixelId is null.
+  const pixel = <MetaPixelLoader pixelId={metaPixelId} additionalEvent={purchaseEvent} />;
+
   // ── High-ticket purchase (DWY / Mentorship) ───────────────────────────────
   // No "log in and start the course" — onboarding happens via a call.
   if (isHighTicket) {
     return (
       <>
+        {pixel}
         <Header />
         <main className="min-h-[calc(100vh-96px)] flex items-start justify-center px-4 py-10 sm:py-16" style={{ background: '#f4f6fa' }}>
           <Card>
@@ -152,6 +190,7 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
   if (!isAuthenticated) {
     return (
       <>
+        {pixel}
         <Header />
         <main className="min-h-[calc(100vh-96px)] flex items-start justify-center px-4 py-10 sm:py-16" style={{ background: '#f4f6fa' }}>
           <Card>
@@ -217,6 +256,7 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
 
   return (
     <>
+      {pixel}
       <Header />
       <main className="min-h-[calc(100vh-96px)] flex items-start justify-center px-4 py-10 sm:py-16" style={{ background: '#f4f6fa' }}>
         <Card>

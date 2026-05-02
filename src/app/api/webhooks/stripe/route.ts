@@ -171,8 +171,47 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
         welcomeEmailSubject: true,
         welcomeEmailBody: true,
         autoSendContract: true,
+        metaPixelId: true,
+        metaCapiAccessToken: true,
+        metaTestEventCode: true,
       },
     });
+
+    // Server-side Meta CAPI Purchase mirror. event_id is the Stripe
+    // payment_intent.id so the matching browser-side Purchase fired by
+    // /checkout/success (which uses the same payment_intent search
+    // param as eventId) collapses to one conversion in Ads Manager.
+    if (purchasedCourse?.metaPixelId) {
+      const [firstName, ...rest] = (userName ?? '').trim().split(/\s+/);
+      const lastName = rest.join(' ');
+      const { sendCapiEvent } = await import('@/lib/meta-capi');
+      sendCapiEvent({
+        pixelId: purchasedCourse.metaPixelId,
+        accessToken: purchasedCourse.metaCapiAccessToken,
+        testEventCode: purchasedCourse.metaTestEventCode,
+        eventName: 'Purchase',
+        eventId: paymentIntent.id,
+        userData: {
+          email: userEmail || undefined,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          externalId: resolvedUserId,
+        },
+        customData: {
+          value: paymentIntent.amount / 100,
+          currency: (paymentIntent.currency || 'usd').toUpperCase(),
+          content_ids: purchasedCourse.slug ? [purchasedCourse.slug] : [courseId],
+          content_name: purchasedCourse.title,
+          content_type: 'product',
+          num_items: 1,
+          order_id: paymentIntent.id,
+        },
+      }).then((r) => {
+        if (!r.ok && !('skipped' in r)) {
+          console.warn('[stripe-webhook] Meta CAPI Purchase failed:', r.error);
+        }
+      });
+    }
     console.log('[stripe-webhook] Loaded course', { courseId, isBundle: purchasedCourse?.isBundle, title: purchasedCourse?.title });
 
     if (purchasedCourse?.isBundle) {

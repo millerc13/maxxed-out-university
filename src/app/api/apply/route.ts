@@ -10,6 +10,7 @@ import {
   GhlDisabledError,
 } from '@/lib/ghl-apply';
 import { notifyRecipients } from '@/lib/sms';
+import { sendCapiEvent, extractMetaIdentifiers } from '@/lib/meta-capi';
 
 export const runtime = 'nodejs';
 
@@ -64,6 +65,11 @@ export async function POST(request: Request) {
   // and the optional later checkout step). Best-effort — failures here
   // don't block the GHL flow.
   let courseTitle: string | undefined;
+  let courseSlug: string | undefined;
+  let coursePriceCents: number | null = null;
+  let metaPixelId: string | null = null;
+  let metaCapiAccessToken: string | null = null;
+  let metaTestEventCode: string | null = null;
   // Default true: legacy courses without the column read as true so we
   // don't silently drop opportunity creation when the lookup fails or
   // the course isn't found.
@@ -77,11 +83,24 @@ export async function POST(request: Request) {
     try {
       const c = await prisma.course.findUnique({
         where: courseSelector,
-        select: { title: true, notifyClosersOnApply: true },
+        select: {
+          title: true,
+          slug: true,
+          price: true,
+          notifyClosersOnApply: true,
+          metaPixelId: true,
+          metaCapiAccessToken: true,
+          metaTestEventCode: true,
+        },
       });
       if (c) {
         courseTitle = c.title;
+        courseSlug = c.slug;
+        coursePriceCents = c.price;
         notifyClosers = c.notifyClosersOnApply;
+        metaPixelId = c.metaPixelId;
+        metaCapiAccessToken = c.metaCapiAccessToken;
+        metaTestEventCode = c.metaTestEventCode;
       }
     } catch {
       /* ignore */
@@ -208,6 +227,55 @@ export async function POST(request: Request) {
     console.info(
       `[apply] notifyClosersOnApply=false for course "${courseTitle ?? 'unknown'}" — skipping SMS notifications`
     );
+  }
+
+  // Server-side Meta CAPI mirror of the browser `Lead` event. Only
+  // fires when the course has a Pixel ID configured. event_id is
+  // generated server-side here — the browser uses its own (we don't
+  // share an event_id between them for Lead because the browser fires
+  // before the response lands and the two arrive within seconds, which
+  // Meta's dedup window typically catches via the user_data hash
+  // matching). The event still helps recover iOS / ad-blocker traffic.
+  if (!isPartial && metaPixelId) {
+    const referer = request.headers.get('referer') ?? undefined;
+    const refererUrl = referer ? (() => {
+      try { return new URL(referer); } catch { return null; }
+    })() : null;
+    const meta = extractMetaIdentifiers(
+      request.headers as unknown as Headers,
+      refererUrl?.searchParams,
+    );
+    const [firstName, ...rest] = (data.name ?? '').trim().split(/\s+/);
+    const lastName = rest.join(' ');
+    sendCapiEvent({
+      pixelId: metaPixelId,
+      accessToken: metaCapiAccessToken,
+      testEventCode: metaTestEventCode,
+      eventName: 'Lead',
+      eventId: `lead_${data.email}_${Date.now()}`,
+      eventSourceUrl: referer,
+      userData: {
+        email: data.email,
+        phone: data.phone,
+        firstName,
+        lastName,
+        clientIp: meta.clientIp,
+        userAgent: meta.userAgent,
+        fbp: meta.fbp,
+        fbc: meta.fbc,
+      },
+      customData: {
+        value: coursePriceCents ? coursePriceCents / 100 : undefined,
+        currency: coursePriceCents ? 'USD' : undefined,
+        content_ids: courseSlug ? [courseSlug] : undefined,
+        content_name: courseTitle,
+        content_category: 'application',
+      },
+    }).then((r) => {
+      if (!r.ok && !('skipped' in r)) {
+        console.warn('[apply] Meta CAPI Lead failed:', r.error);
+      }
+    });
   }
 
   return NextResponse.json({ ok: true, kind: isPartial ? 'partial' : 'full' });
