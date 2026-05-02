@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   FileSignature,
   Search,
@@ -72,6 +73,15 @@ const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' },
   expired: { label: 'Expired', cls: 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' },
 };
+
+// YYYY-MM-DD in local time. Used by the per-installment date picker
+// so values round-trip through `<input type="date">` without TZ shift.
+function toIsoDate(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 function formatUsd(cents: number | null): string {
   if (cents == null) return '—';
@@ -719,6 +729,15 @@ function ComposeForm({
   const [installments, setInstallments] = useState('2');
   const [frequency, setFrequency] = useState<'monthly' | 'quarterly'>('monthly');
   const [firstDueAt, setFirstDueAt] = useState('');
+  // Per-installment dates. Auto-populated from firstDueAt + frequency
+  // when admin changes either of those, but each row is editable —
+  // admin can override any single date without re-typing the others.
+  // Length == installments (kept in sync by the effect below).
+  const [dueDates, setDueDates] = useState<string[]>([]);
+  // Per-installment refundability. true = refundable, false = NON-REFUNDABLE.
+  // Default per the contract is ALL non-refundable (matches "ALL SALES
+  // ARE FINAL"). Admin flips individual rows on. Length == installments.
+  const [refundable, setRefundable] = useState<boolean[]>([]);
   const [notes, setNotes] = useState('');
   // Template picker — defaults to the default template's id. Falls
   // through to whichever template has active=true server-side when
@@ -752,6 +771,42 @@ function ComposeForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
+  // Auto-populate per-installment dates from firstDueAt + frequency
+  // whenever those (or the installment count) change. Admin can still
+  // edit individual rows after this fires — we only OVERWRITE the
+  // computed slots, preserving any existing edits up to the new
+  // installment count.
+  useEffect(() => {
+    const n = parseInt(installments, 10);
+    if (scheduleType !== 'plan' || !Number.isFinite(n) || n < 2 || !firstDueAt) {
+      return;
+    }
+    setDueDates((prev) => {
+      const next: string[] = [];
+      const start = new Date(firstDueAt + 'T00:00:00');
+      if (Number.isNaN(start.getTime())) return prev;
+      const stepMonths = frequency === 'monthly' ? 1 : 3;
+      for (let i = 0; i < n; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth() + i * stepMonths, 1);
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(start.getDate(), lastDay));
+        next.push(toIsoDate(d));
+      }
+      // Only overwrite if computed differs from current — prevents
+      // wiping admin's manual edits on unrelated re-renders.
+      if (prev.length === next.length && prev.every((v, i) => v === next[i])) return prev;
+      return next;
+    });
+    // Sync the refundable array length to installments. Default = false
+    // (non-refundable) for any new rows. Preserves admin's previous
+    // choices on rows that still exist after a count change.
+    setRefundable((prev) => {
+      if (prev.length === n) return prev;
+      const next = Array.from({ length: n }, (_, i) => prev[i] ?? false);
+      return next;
+    });
+  }, [firstDueAt, frequency, installments, scheduleType]);
+
   const totalCents = (() => {
     const n = parseFloat(paymentTotalDollars);
     return Number.isFinite(n) ? Math.round(n * 100) : NaN;
@@ -768,7 +823,11 @@ function ComposeForm({
     courseTitle.length > 0 &&
     Number.isFinite(totalCents) &&
     totalCents >= 0 &&
-    (scheduleType === 'full' || (installmentsN >= 2 && firstDueAt.length > 0));
+    (scheduleType === 'full' ||
+      // Plan: need 2+ installments AND every visible date row filled in.
+      (installmentsN >= 2 &&
+        dueDates.length === installmentsN &&
+        dueDates.every((d) => d.length > 0)));
 
   function buildPayload(): Record<string, unknown> {
     const payload: Record<string, unknown> = {
@@ -783,12 +842,27 @@ function ComposeForm({
     if (templateId) payload.templateId = templateId;
     if (pickedUserId) payload.userId = pickedUserId;
     if (scheduleType === 'plan') {
-      payload.paymentPlan = {
+      const plan: Record<string, unknown> = {
         installments: installmentsN,
         perInstallmentCents,
         frequency,
         firstDueAt,
       };
+      // Send dueDates only when the array is well-formed (one per
+      // installment, all non-empty). Server then renders the contract
+      // schedule using these exact dates instead of computing from
+      // firstDueAt + frequency.
+      if (dueDates.length === installmentsN && dueDates.every((d) => d.length > 0)) {
+        plan.dueDates = dueDates;
+      }
+      // Send refundable only if the array length matches and at least
+      // one row was flipped — saves payload bytes when admin hasn't
+      // touched the toggles (default = all non-refundable handled
+      // server-side).
+      if (refundable.length === installmentsN && refundable.some(Boolean)) {
+        plan.refundable = refundable;
+      }
+      payload.paymentPlan = plan;
     }
     return payload;
   }
@@ -1037,7 +1111,7 @@ function ComposeForm({
             />
           </div>
           {scheduleType === 'plan' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <div className="grid grid-cols-2 gap-3 mt-3">
               <Field label="Installments">
                 <input
                   type="number"
@@ -1045,32 +1119,80 @@ function ComposeForm({
                   step="1"
                   value={installments}
                   onChange={(e) => setInstallments(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
+                  className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-base font-mono focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
                 />
               </Field>
-              <Field label="Frequency">
+              <Field label="Auto-fill spacing">
                 <select
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value as 'monthly' | 'quarterly')}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
+                  className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-base focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="quarterly">Quarterly</option>
                 </select>
               </Field>
-              <Field label="First due">
-                <input
-                  type="date"
-                  value={firstDueAt}
-                  onChange={(e) => setFirstDueAt(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
-                />
-              </Field>
               {Number.isFinite(totalCents) && installmentsN >= 2 && (
-                <p className="sm:col-span-3 text-xs text-gray-500">
+                <p className="col-span-2 text-xs text-gray-500">
                   Per installment: <span className="font-semibold text-gray-700 tabular-nums">{formatUsd(perInstallmentCents)}</span>
                 </p>
               )}
+            </div>
+          )}
+          {scheduleType === 'plan' && installmentsN >= 2 && (
+            <div className="mt-3 border border-gray-200 bg-gray-50/60 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-600">
+                  Payment dates ({installmentsN})
+                </p>
+                <p className="text-[10px] text-gray-500 text-right">
+                  Set the first row — the rest auto-fill by spacing. Edit any row to override.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {Array.from({ length: installmentsN }).map((_, i) => {
+                  const value = dueDates[i] ?? '';
+                  const isRefundable = refundable[i] ?? false;
+                  return (
+                  <div key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="shrink-0 w-10 text-gray-500 font-semibold tabular-nums text-xs">#{i + 1}</span>
+                    <DatePicker
+                      value={value}
+                      ariaLabel={`Installment ${i + 1} due date`}
+                      onChange={(next) => {
+                        const arr = [...dueDates];
+                        while (arr.length <= i) arr.push('');
+                        arr[i] = next;
+                        // Editing row #1 cascades: re-set firstDueAt so the
+                        // auto-fill effect re-runs and trickles spacing
+                        // through to the rest.
+                        if (i === 0) setFirstDueAt(next);
+                        setDueDates(arr);
+                      }}
+                    />
+                    <span className="shrink-0 text-[11px] text-gray-500 tabular-nums">{formatUsd(perInstallmentCents)}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const arr = [...refundable];
+                        while (arr.length <= i) arr.push(false);
+                        arr[i] = !arr[i];
+                        setRefundable(arr);
+                      }}
+                      title={isRefundable ? 'Refundable — click to mark non-refundable' : 'Non-refundable — click to mark refundable'}
+                      aria-label={isRefundable ? `Installment ${i + 1} is refundable` : `Installment ${i + 1} is non-refundable`}
+                      className={`shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-md text-[10px] font-extrabold uppercase tracking-wider ring-1 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maxxed-blue/40 ${
+                        isRefundable
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100'
+                          : 'bg-red-50 text-red-700 ring-red-200 hover:bg-red-100'
+                      }`}
+                    >
+                      {isRefundable ? 'Refundable' : 'Non-refund'}
+                    </button>
+                  </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </fieldset>

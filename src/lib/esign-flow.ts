@@ -48,12 +48,100 @@ type PaymentPlan = {
   perInstallmentCents: number;
   frequency: 'monthly' | 'quarterly';
   firstDueAt: string; // ISO date string (YYYY-MM-DD)
+  // Optional explicit per-installment due dates. When set, length must
+  // equal `installments`. Used by the Compose modal so admins can
+  // override the auto-computed-from-frequency dates per row. The
+  // contract's {{Payment.Schedule}} renders these verbatim. Falls back
+  // to firstDueAt + frequency when absent.
+  dueDates?: string[];
+  // Optional per-installment amounts in cents. Length must equal
+  // `installments`. Used for unequal payment plans (e.g. larger
+  // initial deposit). Falls back to perInstallmentCents (equal split)
+  // when absent.
+  amountsCents?: number[];
+  // Optional per-installment refundability flags. Length must equal
+  // `installments`. true = refundable, false = NON-REFUNDABLE.
+  // Default when absent: ALL installments are non-refundable (matches
+  // section 3.3 of the contract: "ALL SALES ARE FINAL"). Admin can
+  // flip individual rows in the Compose modal.
+  refundable?: boolean[];
 };
 
+// Parse a YYYY-MM-DD string as a *local* calendar date, not UTC.
+// `new Date('2026-06-01')` is parsed as UTC by spec, which then prints
+// as the previous day in any negative-offset timezone (e.g. EDT).
+// Splitting the string and using the multi-arg constructor keeps the
+// y/m/d in the server's local time zone — which is what an admin
+// editing a date picker means.
+function parseIsoLocalDate(s: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  // Fallback: anything else (full ISO etc.) — accept browser's interpretation.
+  return new Date(s);
+}
+
+// Date arithmetic that survives end-of-month edge cases (Jan 31 + 1
+// month → Feb 28/29). We clamp the day-of-month rather than overflow
+// into the next month, matching how a person reads "the 31st of every
+// month → the last day of February".
+function addMonthsClamped(date: Date, months: number): Date {
+  const d = new Date(date.getFullYear(), date.getMonth() + months, 1);
+  const lastDayOfTarget = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(date.getDate(), lastDayOfTarget));
+  return d;
+}
+
+// Compute the per-installment due dates from firstDueAt + frequency.
+// Used as the fallback when an admin hasn't specified explicit dates.
+function computeDueDatesFromFrequency(plan: Pick<PaymentPlan, 'firstDueAt' | 'frequency' | 'installments'>): Date[] {
+  const stepMonths = plan.frequency === 'monthly' ? 1 : 3;
+  const start = parseIsoLocalDate(plan.firstDueAt);
+  return Array.from({ length: plan.installments }, (_, i) => addMonthsClamped(start, i * stepMonths));
+}
+
+// Resolve the canonical due-date list for a plan: explicit dueDates
+// when set + length matches, otherwise computed from frequency.
+function resolveDueDates(plan: PaymentPlan): Date[] {
+  if (plan.dueDates && plan.dueDates.length === plan.installments) {
+    return plan.dueDates.map(parseIsoLocalDate);
+  }
+  return computeDueDatesFromFrequency(plan);
+}
+
+function resolveAmounts(plan: PaymentPlan): number[] {
+  if (plan.amountsCents && plan.amountsCents.length === plan.installments) {
+    return plan.amountsCents;
+  }
+  return Array.from({ length: plan.installments }, () => plan.perInstallmentCents);
+}
+
+// Resolve per-row refundability. Default: every installment is
+// non-refundable (matches the contract's "ALL SALES ARE FINAL" clause).
+// Admin can flip individual rows in the Compose modal — those edits
+// arrive in `plan.refundable` as a length-installments boolean array.
+function resolveRefundable(plan: PaymentPlan): boolean[] {
+  if (plan.refundable && plan.refundable.length === plan.installments) {
+    return plan.refundable;
+  }
+  return Array.from({ length: plan.installments }, () => false);
+}
+
+// Renders the payment schedule as a markdown bullet list — one row per
+// installment with date + amount + the NON-REFUNDABLE flag (default)
+// or no flag when the admin marked it refundable. Substituted into
+// the contract via {{Payment.Schedule}}.
 function describePaymentPlan(plan: PaymentPlan): string {
-  const each = formatUsd(plan.perInstallmentCents);
-  const start = formatDateLong(new Date(plan.firstDueAt));
-  return `${plan.installments} ${plan.frequency} installments of ${each} starting ${start}`;
+  const dates = resolveDueDates(plan);
+  const amounts = resolveAmounts(plan);
+  const refundable = resolveRefundable(plan);
+  return dates
+    .map((date, i) => {
+      const amount = formatUsd(amounts[i]);
+      const dateStr = formatDateLong(date);
+      const refundFlag = refundable[i] ? '' : ' *(NON-REFUNDABLE)*';
+      return `- **Installment ${i + 1}:** ${amount} due ${dateStr}${refundFlag}`;
+    })
+    .join('\n');
 }
 
 async function loadActiveTemplate() {
@@ -118,15 +206,23 @@ function buildEnrollmentTokens(
   now: Date,
 ): TokenValues {
   const { first, last } = splitName(input.recipientName);
-  const initialCents = input.paymentPlan
-    ? input.paymentPlan.perInstallmentCents
-    : input.paymentTotalCents;
-  const remainingCents = input.paymentPlan
-    ? Math.max(0, input.paymentTotalCents - input.paymentPlan.perInstallmentCents)
+  const plan = input.paymentPlan ?? null;
+  const planAmounts = plan ? resolveAmounts(plan) : null;
+  const planDates = plan ? resolveDueDates(plan) : null;
+
+  // Initial = first installment's amount when on a plan; full total when paid in full.
+  const initialCents = planAmounts ? planAmounts[0] : input.paymentTotalCents;
+  // Remaining = sum of all installments after the first when on a plan; 0 when paid in full.
+  const remainingCents = planAmounts
+    ? planAmounts.slice(1).reduce((sum, n) => sum + n, 0)
     : 0;
-  const scheduleNarrative = input.paymentPlan
-    ? describePaymentPlan(input.paymentPlan)
-    : 'Paid in full';
+
+  // Payment.Schedule is markdown when on a plan (renders as bullets in
+  // the contract), short string when paid in full. Substitution
+  // happens before markdown→HTML so multi-line markdown is fine.
+  const scheduleNarrative = plan
+    ? describePaymentPlan(plan)
+    : `**Paid in full** on ${formatDateLong(now)} — **${formatUsd(input.paymentTotalCents)}** *(NON-REFUNDABLE)*`;
   return {
     ...STATIC_TOKEN_DEFAULTS,
     'Agreement.EffectiveDate': formatDateLong(now),
@@ -140,11 +236,9 @@ function buildEnrollmentTokens(
     'Payment.RemainingBalance': formatUsd(remainingCents),
     'Payment.Date': formatDateLong(now),
     'Payment.Schedule': scheduleNarrative,
-    'Payment.NumberOfInstallments': input.paymentPlan?.installments ?? 1,
+    'Payment.NumberOfInstallments': plan?.installments ?? 1,
     'Payment.PerInstallmentAmount': formatUsd(initialCents),
-    'Payment.FirstDueDate': input.paymentPlan
-      ? formatDateLong(new Date(input.paymentPlan.firstDueAt))
-      : formatDateLong(now),
+    'Payment.FirstDueDate': planDates ? formatDateLong(planDates[0]) : formatDateLong(now),
     'Transaction.Id': input.enrollmentTransactionId ?? '',
     'Notes': input.notes ?? '',
     'Company.SignatureDate': formatDateLong(now),

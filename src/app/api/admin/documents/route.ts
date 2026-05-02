@@ -40,19 +40,43 @@ export async function POST(request: NextRequest) {
   }
 
   // Optional payment plan — validated only when present.
-  let paymentPlan: { installments: number; perInstallmentCents: number; frequency: 'monthly' | 'quarterly'; firstDueAt: string } | null = null;
+  // dueDates / amountsCents are optional per-installment overrides;
+  // when present and length matches `installments`, they take
+  // precedence over the auto-computed-from-frequency dates and the
+  // even split.
+  let paymentPlan: {
+    installments: number;
+    perInstallmentCents: number;
+    frequency: 'monthly' | 'quarterly';
+    firstDueAt: string;
+    dueDates?: string[];
+    amountsCents?: number[];
+    refundable?: boolean[];
+  } | null = null;
   if (body.paymentPlan && typeof body.paymentPlan === 'object') {
     const p = body.paymentPlan;
     const installments = Number(p.installments);
     const perInstallmentCents = Number(p.perInstallmentCents);
     const frequency = p.frequency === 'quarterly' ? 'quarterly' : 'monthly';
     const firstDueAt = typeof p.firstDueAt === 'string' ? p.firstDueAt : '';
+    const dueDates = Array.isArray(p.dueDates)
+      ? p.dueDates.filter((d: unknown): d is string => typeof d === 'string' && d.length > 0)
+      : undefined;
+    const amountsCents = Array.isArray(p.amountsCents)
+      ? p.amountsCents.map((n: unknown) => Number(n)).filter((n: number) => Number.isFinite(n) && n >= 0)
+      : undefined;
+    const refundable = Array.isArray(p.refundable)
+      ? p.refundable.map((v: unknown) => Boolean(v))
+      : undefined;
     if (
       Number.isFinite(installments) && installments >= 2 &&
       Number.isFinite(perInstallmentCents) && perInstallmentCents > 0 &&
       firstDueAt
     ) {
       paymentPlan = { installments, perInstallmentCents, frequency, firstDueAt };
+      if (dueDates && dueDates.length === installments) paymentPlan.dueDates = dueDates;
+      if (amountsCents && amountsCents.length === installments) paymentPlan.amountsCents = amountsCents;
+      if (refundable && refundable.length === installments) paymentPlan.refundable = refundable;
     }
   }
 
