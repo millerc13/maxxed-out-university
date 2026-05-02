@@ -81,6 +81,16 @@ export default async function SignPage({ params }: PageProps) {
             renderedHtml={filledHtml}
             letterheadMeta={doc.courseTitle}
           />
+          {/* Mirror the SignedBanner at the bottom so the recipient
+              can hit Download right after scrolling to the end of
+              the contract — no need to scroll back up to the top. */}
+          <div className="mt-6">
+            <SignedBanner
+              signedName={doc.signedName}
+              signedDateStr={signedDateStr}
+              downloadUrl={`/api/sign/${encodeURIComponent(downloadToken)}/pdf`}
+            />
+          </div>
         </div>
       </main>
     );

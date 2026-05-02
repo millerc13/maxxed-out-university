@@ -118,7 +118,11 @@ ${fontLinks}
     print-color-adjust: exact;
   }
   ${CONTRACT_STYLES}
-  .audit-page { page-break-before: always; }
+  /* Audit certificate now leads the PDF — the contract main body
+     gets the page-break-before so it always starts on a fresh sheet
+     after the audit page. */
+  .audit-page { padding: 0 0 12pt; }
+  .contract-wrap { page-break-before: always; }
   .audit-page h1 {
     font-size: 16pt; text-transform: uppercase; letter-spacing: 0.18em;
     text-align: center; margin: 0 0 16pt; color: #111827;
@@ -147,14 +151,6 @@ ${fontLinks}
 </style>
 </head>
 <body>
-  <main class="contract-wrap">
-    <header class="contract-letterhead">
-      <img src="${logoUrl}" alt="Maxxed Out" />
-      <p class="lh-meta">Document ${escapeHtml(doc.id)} · Effective ${escapeHtml(signedAtPretty)}</p>
-    </header>
-    <div class="contract-display">${decoratedBody}</div>
-  </main>
-
   <section class="audit-page">
     <h1>Audit Certificate</h1>
     <dl class="audit-grid">
@@ -178,6 +174,14 @@ ${fontLinks}
       ${escapeHtml(doc.signatureHash)}
     </div>
   </section>
+
+  <main class="contract-wrap">
+    <header class="contract-letterhead">
+      <img src="${logoUrl}" alt="Maxxed Out" />
+      <p class="lh-meta">Document ${escapeHtml(doc.id)} · Effective ${escapeHtml(signedAtPretty)}</p>
+    </header>
+    <div class="contract-display">${decoratedBody}</div>
+  </main>
 </body>
 </html>`;
 }

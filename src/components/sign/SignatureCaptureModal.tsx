@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { PenLine, Type as TypeIcon, X, Eraser } from 'lucide-react';
 
 export interface CapturedSignature {
   typedName: string;
@@ -218,48 +219,50 @@ export function SignatureCaptureModal({
         className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="px-5 py-4 sm:px-6 sm:py-5 border-b border-gray-100 flex items-start justify-between gap-3">
-          <div>
-            <h2
-              id="sigmodal-title"
-              className="text-base sm:text-lg font-bold text-gray-900"
-            >
-              Adopt your signature
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Signing as {recipientEmail}
-            </p>
-          </div>
+        {/* Branded header — Maxxed blue gradient + icon, matches the
+            Compose modal's anchor block. Bigger title so the act of
+            signing feels like a Real Thing. */}
+        <header className="bg-maxxed-blue text-white px-5 py-4 sm:px-6 sm:py-5 relative">
           <button
             type="button"
             onClick={onCancel}
             aria-label="Close"
-            className="text-gray-400 hover:text-gray-600 p-1 -m-1"
+            className="absolute top-3 right-3 p-1.5 rounded-md text-white/70 hover:text-white hover:bg-white/15 transition-colors cursor-pointer"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
+          <div className="flex items-start gap-3 pr-8">
+            <span
+              aria-hidden
+              className="shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white/15 text-white ring-1 ring-white/25"
+            >
+              <PenLine className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">
+                Sign Agreement
+              </p>
+              <h2
+                id="sigmodal-title"
+                className="text-lg sm:text-xl font-bold text-white leading-tight mt-0.5"
+              >
+                Adopt your signature
+              </h2>
+              <p className="text-xs text-white/80 mt-1 truncate">
+                Signing as {recipientEmail}
+              </p>
+            </div>
+          </div>
         </header>
 
-        <div className="px-5 sm:px-6 pt-4 border-b border-gray-100">
-          <div className="inline-flex rounded-lg bg-gray-100 p-1">
-            <TabButton active={tab === 'type'} onClick={() => setTab('type')}>
+        {/* Tab pills — bigger, with icons, full-width on mobile so
+            both Type and Draw are equally inviting. */}
+        <div className="px-5 sm:px-6 pt-4">
+          <div className="grid grid-cols-2 rounded-xl bg-gray-100 p-1 gap-1">
+            <TabButton active={tab === 'type'} onClick={() => setTab('type')} icon={TypeIcon}>
               Type
             </TabButton>
-            <TabButton active={tab === 'draw'} onClick={() => setTab('draw')}>
+            <TabButton active={tab === 'draw'} onClick={() => setTab('draw')} icon={PenLine}>
               Draw
             </TabButton>
           </div>
@@ -285,12 +288,24 @@ export function SignatureCaptureModal({
                 <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
                   Preview
                 </span>
-                <div className="relative rounded-xl border border-gray-200 bg-gray-50 h-32 sm:h-36 flex items-center justify-center overflow-hidden">
+                {/* Paper-look preview card: cream background, a real
+                    signature line at 75% height, "X" marker on the
+                    left. Mirrors the live signing line on the contract. */}
+                <div
+                  className="relative rounded-xl border border-gray-200 h-36 sm:h-40 overflow-hidden"
+                  style={{ background: 'linear-gradient(180deg, #fefce8 0%, #fffbf0 100%)' }}
+                >
                   <canvas
                     ref={previewCanvasRef}
-                    className="w-full h-full"
+                    className="w-full h-full relative z-10"
                     style={{ width: '100%', height: '100%' }}
                   />
+                  <div className="pointer-events-none absolute inset-x-6 sm:inset-x-8" style={{ bottom: '22%' }}>
+                    <div className="border-b border-gray-400" />
+                  </div>
+                  <span className="pointer-events-none absolute left-3 sm:left-4 text-[10px] font-bold text-gray-400 tracking-widest" style={{ bottom: 'calc(22% - 2px)' }}>
+                    ×
+                  </span>
                 </div>
                 <p className="text-[11px] text-gray-400 mt-1.5">
                   This will be the signature on your agreement.
@@ -304,10 +319,16 @@ export function SignatureCaptureModal({
                 <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
                   Draw signature
                 </span>
-                <div className="relative rounded-xl border-2 border-dashed border-gray-300 bg-white h-44 sm:h-48 overflow-hidden touch-none select-none">
+                {/* Paper-look draw surface — same cream background
+                    as the type preview, real signature line + "X"
+                    marker so the user knows where to land their pen. */}
+                <div
+                  className="relative rounded-xl border border-gray-200 h-44 sm:h-48 overflow-hidden touch-none select-none"
+                  style={{ background: 'linear-gradient(180deg, #fefce8 0%, #fffbf0 100%)' }}
+                >
                   <canvas
                     ref={canvasRef}
-                    className="w-full h-full block touch-none"
+                    className="w-full h-full block touch-none relative z-10"
                     style={{ width: '100%', height: '100%', touchAction: 'none' }}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
@@ -315,19 +336,25 @@ export function SignatureCaptureModal({
                     onPointerLeave={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                   />
+                  <div className="pointer-events-none absolute inset-x-6 sm:inset-x-8" style={{ bottom: '22%' }}>
+                    <div className="border-b border-gray-400" />
+                  </div>
+                  <span className="pointer-events-none absolute left-3 sm:left-4 text-[10px] font-bold text-gray-400 tracking-widest" style={{ bottom: 'calc(22% - 2px)' }}>
+                    ×
+                  </span>
                   {drawnEmpty && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-gray-300 text-sm">
-                      Sign here with your finger or mouse
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <span className="text-gray-400 text-sm font-medium italic">Sign above the line</span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center justify-between mt-2.5">
                   <button
                     type="button"
                     onClick={clearCanvas}
-                    className="text-sm font-semibold text-gray-500 hover:text-gray-700"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 cursor-pointer"
                   >
-                    Clear
+                    <Eraser className="w-4 h-4" /> Clear
                   </button>
                   <p className="text-[11px] text-gray-400">
                     Use a finger on mobile or a mouse on desktop.
@@ -445,22 +472,25 @@ function TabButton({
   active,
   onClick,
   children,
+  icon: Icon,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={
-        'px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ' +
+        'inline-flex items-center justify-center gap-1.5 px-3 py-2.5 text-[13px] sm:text-sm font-bold rounded-lg transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maxxed-blue/40 ' +
         (active
-          ? 'bg-white text-gray-900 shadow-sm'
-          : 'text-gray-500 hover:text-gray-700')
+          ? 'bg-white text-maxxed-blue shadow-sm ring-1 ring-gray-200'
+          : 'text-gray-500 hover:text-gray-900')
       }
     >
+      {Icon && <Icon className="w-4 h-4" strokeWidth={active ? 2.5 : 2} />}
       {children}
     </button>
   );
