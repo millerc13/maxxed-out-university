@@ -200,18 +200,47 @@ const CHROMIUM_PACK_URL =
   process.env.CHROMIUM_PACK_URL ||
   'https://github.com/Sparticuz/chromium/releases/download/v148.0.0/chromium-v148.0.0-pack.x64.tar';
 
+// Retry a puppeteer.launch() on ETXTBSY. With chromium-min, two
+// concurrent function invocations can race on the binary download:
+// one is still writing/extracting to /tmp when the other tries to
+// spawn it → "spawn ETXTBSY". The error is transient (clears as soon
+// as the writer closes the fd), so a short backoff + retry resolves
+// it without changing the launch shape. Caps at 3 attempts so a
+// genuinely-broken binary still surfaces an error rather than
+// looping.
+async function launchWithRetry<T>(launch: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      return await launch();
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const isTransient = /ETXTBSY|EAGAIN|EBUSY/i.test(msg);
+      if (!isTransient || i === maxAttempts - 1) throw err;
+      const waitMs = 400 * Math.pow(2, i); // 400ms, 800ms
+      console.warn('[esign-pdf] launch failed (transient), retrying', { attempt: i + 1, waitMs, err: msg });
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+  throw lastErr; // unreachable; keeps TS happy
+}
+
 async function launchBrowser() {
   const puppeteer = await import('puppeteer-core');
   const isServerless = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.VERCEL;
 
   if (isServerless) {
     const chromium = (await import('@sparticuz/chromium-min')).default;
-    return puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: { width: 1024, height: 1280, deviceScaleFactor: 2 },
-      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
-      headless: true,
-    });
+    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+    return launchWithRetry(() =>
+      puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: { width: 1024, height: 1280, deviceScaleFactor: 2 },
+        executablePath,
+        headless: true,
+      }),
+    );
   }
 
   const exe = process.env.PUPPETEER_EXECUTABLE_PATH;
