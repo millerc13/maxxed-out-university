@@ -3,6 +3,13 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getOrGenerateDocumentPdfKey, readPdfFromR2 } from '@/lib/esign-pdf';
 
+// chromium-min cold-start downloads + extracts ~50MB binary into /tmp
+// before puppeteer launches. That pushes first-render past Vercel's
+// default 60-second function timeout. Pin runtime to Node and bump
+// the limit so the first call from a cold instance has room.
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
 // Streams the signed PDF for an admin. Lazily renders + caches in R2 on
 // first call, streams from cache thereafter. Only available for
 // completed documents (we don't generate "draft" PDFs).

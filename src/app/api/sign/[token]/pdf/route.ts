@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { verifyDownloadToken } from '@/lib/esign-tokens';
 import { getOrGenerateDocumentPdfKey, readPdfFromR2 } from '@/lib/esign-pdf';
 
+// chromium-min cold start may exceed default 60s function timeout —
+// see admin pdf route for context.
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
 // GET /api/sign/[token]/pdf — post-sign download for the recipient.
 //
 // Auth model: the [token] here is NOT the original signingToken
