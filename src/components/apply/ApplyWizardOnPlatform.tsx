@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "./ui/Button";
+import { trackPixelEvent, generateEventId } from "@/lib/meta-pixel";
 import { Input, Textarea, Label, FieldError } from "./ui/Input";
 import { RadioGroup, RadioCard } from "./ui/RadioGroup";
 import {
@@ -53,6 +54,8 @@ interface CourseLite {
   title: string;
   price: number | null;
   checkoutAfterApply: boolean;
+  /** Per-course Meta Pixel ID — used to fire `Lead` event after submit. */
+  metaPixelId?: string | null;
 }
 
 interface ApplyWizardOnPlatformProps {
@@ -291,6 +294,25 @@ export function ApplyWizardOnPlatform({ course, prefill }: ApplyWizardOnPlatform
         throw new Error(body?.error || `Request failed (${res.status})`);
       }
       localStorage.removeItem(STORAGE_KEY);
+
+      // Fire Meta Pixel `Lead` event. value uses the course price as the
+      // lead's "potential value" for ad-bid optimization, currency USD.
+      // The server-side mirror fires from /api/apply with the same event_id
+      // so Meta dedupes. No-op when course has no Pixel configured.
+      if (course.metaPixelId) {
+        const eventId = generateEventId();
+        trackPixelEvent(
+          'Lead',
+          {
+            value: course.price ? course.price / 100 : undefined,
+            currency: course.price ? 'USD' : undefined,
+            content_ids: [course.slug],
+            content_name: course.title,
+            content_category: 'application',
+          },
+          eventId,
+        );
+      }
 
       if (sendToCheckoutAfter) {
         const params = new URLSearchParams({

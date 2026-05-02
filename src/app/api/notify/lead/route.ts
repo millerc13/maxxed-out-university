@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { notifyRecipients } from '@/lib/sms';
 import { formatNoteBody } from '@/lib/ghl-apply';
 import { applicationSchema } from '@/lib/apply-schema';
+import { sendCapiEvent } from '@/lib/meta-capi';
 
 export const runtime = 'nodejs';
 
@@ -42,7 +43,23 @@ export async function POST(request: NextRequest) {
   }
   const funnel = await prisma.funnelDeployment.findFirst({
     where: { apiKey, active: true },
-    select: { id: true, name: true, subdomain: true },
+    select: {
+      id: true,
+      name: true,
+      subdomain: true,
+      // Pull the funnel's linked Course (for CAPI Lead firing).
+      course: {
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          price: true,
+          metaPixelId: true,
+          metaCapiAccessToken: true,
+          metaTestEventCode: true,
+        },
+      },
+    },
   });
   if (!funnel) {
     return NextResponse.json({ error: 'Invalid api key' }, { status: 401 });
@@ -62,6 +79,10 @@ export async function POST(request: NextRequest) {
     payload,
     courseId,
     courseTitle: providedTitle,
+    // Optional Meta CAPI bag — funnel passes these so we can fire a
+    // server-side `Lead` event for ad attribution. If absent we still
+    // do the SMS fan-out but skip the CAPI call.
+    metaUserData,
   } = body || {};
 
   if (!source) {
@@ -112,6 +133,50 @@ export async function POST(request: NextRequest) {
 
   const results = await notifyRecipients('lead', smsBody, source);
   const sent = results.filter((r) => r.ok).length;
+
+  // Server-side Meta CAPI Lead — fired for the funnel's linked course.
+  // No-op when the course has no Pixel configured. Browser-side Lead
+  // fires from the funnel's ApplyWizard concurrently; Meta's secondary
+  // dedup catches duplicates via shared user_data.
+  if (funnel.course?.metaPixelId && payload && typeof payload === 'object') {
+    const p = payload as Record<string, unknown>;
+    const email = typeof p.email === 'string' ? p.email : undefined;
+    const phone = typeof p.phone === 'string' ? p.phone : undefined;
+    const name = typeof p.name === 'string' ? p.name : '';
+    const [firstName, ...rest] = name.trim().split(/\s+/);
+    const lastName = rest.join(' ');
+    const m = (metaUserData ?? {}) as Record<string, string | undefined>;
+    sendCapiEvent({
+      pixelId: funnel.course.metaPixelId,
+      accessToken: funnel.course.metaCapiAccessToken,
+      testEventCode: funnel.course.metaTestEventCode,
+      eventName: 'Lead',
+      eventId: `lead_${email ?? applicantName}_${Date.now()}`,
+      eventSourceUrl: m.sourceUrl,
+      userData: {
+        email,
+        phone,
+        firstName,
+        lastName,
+        clientIp: m.clientIp,
+        userAgent: m.userAgent,
+        fbp: m.fbp,
+        fbc: m.fbc,
+      },
+      customData: {
+        value: funnel.course.price ? funnel.course.price / 100 : undefined,
+        currency: funnel.course.price ? 'USD' : undefined,
+        content_ids: [funnel.course.slug],
+        content_name: funnel.course.title,
+        content_category: 'application',
+      },
+    }).then((r) => {
+      if (!r.ok && !('skipped' in r)) {
+        console.warn('[notify-lead] Meta CAPI Lead failed:', r.error);
+      }
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     sent,

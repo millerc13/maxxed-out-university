@@ -153,6 +153,22 @@ model Course {
   // OFF by default — closers compose custom contracts for high-ticket
   // programs; admin enables only on courses where one-size-fits-all is OK.
   autoSendContract  Boolean          @default(false)
+  // ── Meta Ads tracking (per-course Pixel + Conversions API) ──────────
+  // metaPixelId is the Pixel/Dataset ID from Meta Events Manager (also
+  // the Dataset ID for Conversions API). Sent to client-side fbq() init
+  // and to CAPI server-side calls. NULL → tracking is off for this
+  // course's surfaces (funnel landings, /apply, /checkout, /sign,
+  // success page) — they render no Pixel script and no CAPI events.
+  metaPixelId           String?
+  // System User access token with `ads_management` (or at minimum
+  // permission to write to the dataset). Used SERVER-SIDE only by
+  // Conversions API — never serialized to the client. Generated in Meta
+  // Business Suite → Settings → System Users → Generate Token.
+  metaCapiAccessToken   String?
+  // Optional test-event code (TEST12345 etc) from Events Manager → Test
+  // Events. When set, CAPI events are tagged with this so they appear in
+  // the test view and DON'T affect ad delivery. Clear to go live.
+  metaTestEventCode     String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])

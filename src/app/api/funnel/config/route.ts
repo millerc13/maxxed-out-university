@@ -28,6 +28,10 @@ export async function GET(request: NextRequest) {
           shortDesc: true,
           checkoutAfterApply: true,
           bookACallEnabled: true,
+          // Public — funnel repo injects fbq('init', ...) with this on
+          // every page render. Access token + test-event-code stay
+          // server-side only (used by /api/meta-capi/event proxy).
+          metaPixelId: true,
         },
       },
       featuredCourses: {

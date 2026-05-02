@@ -10,6 +10,7 @@ import { AdminEnrollButton } from '@/components/course/AdminEnrollButton';
 import { MarkdownContent } from '@/components/ui/markdown-content';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
 import { getModuleAccess } from '@/lib/gating';
+import { MetaPixelLoader } from '@/components/MetaPixelLoader';
 import { getSectionIcon } from '@/lib/section-icons';
 
 interface CoursePageProps {
@@ -218,6 +219,7 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
 
   return (
     <>
+      <MetaPixelLoader pixelId={courseRaw.metaPixelId} />
       <Header />
       <main className="min-h-screen bg-background">
         {/* Course Hero */}

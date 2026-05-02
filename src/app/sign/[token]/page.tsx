@@ -7,6 +7,7 @@ import { SignedBanner } from '@/components/sign/SignedBanner';
 import { ScrollToBottomAfterSign } from '@/components/sign/ScrollToBottomAfterSign';
 import { fillClientSignature } from '@/lib/esign-render';
 import { signDownloadToken } from '@/lib/esign-tokens';
+import { MetaPixelLoader } from '@/components/MetaPixelLoader';
 
 // Public, no-auth signing page. The signingToken in the URL is the
 // only credential — it's a 32-byte random hex value that's revoked
@@ -43,6 +44,10 @@ export default async function SignPage({ params }: PageProps) {
       signedName: true,
       signedAt: true,
       signedSignaturePng: true,
+      // Pull the linked course's Pixel ID so this surface fires PageView
+      // to the same pixel as the rest of the funnel. Off-list contracts
+      // (no courseId) get no Pixel — no harm.
+      course: { select: { metaPixelId: true } },
     },
   });
 
@@ -72,6 +77,8 @@ export default async function SignPage({ params }: PageProps) {
     });
     const downloadToken = signDownloadToken(doc.id, 60 * 60 * 24 * 365);
     return (
+      <>
+      <MetaPixelLoader pixelId={doc.course?.metaPixelId ?? null} />
       <main className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-6">
         <div className="max-w-3xl mx-auto">
           <div className="mb-6">
@@ -101,6 +108,7 @@ export default async function SignPage({ params }: PageProps) {
           <ScrollToBottomAfterSign />
         </div>
       </main>
+      </>
     );
   }
 
@@ -142,20 +150,23 @@ export default async function SignPage({ params }: PageProps) {
   );
 
   return (
-    <main className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-6">
-      <div className="max-w-3xl mx-auto">
-        <ContractDisplay
-          renderedHtml={interactiveHtml}
-          letterheadMeta={doc.courseTitle}
-        />
-        <SigningPageClient
-          token={token}
-          recipientEmail={doc.recipientEmail}
-          recipientName={doc.recipientName ?? ''}
-          courseTitle={doc.courseTitle}
-        />
-      </div>
-    </main>
+    <>
+      <MetaPixelLoader pixelId={doc.course?.metaPixelId ?? null} />
+      <main className="min-h-screen bg-gray-50 py-6 sm:py-10 px-3 sm:px-6">
+        <div className="max-w-3xl mx-auto">
+          <ContractDisplay
+            renderedHtml={interactiveHtml}
+            letterheadMeta={doc.courseTitle}
+          />
+          <SigningPageClient
+            token={token}
+            recipientEmail={doc.recipientEmail}
+            recipientName={doc.recipientName ?? ''}
+            courseTitle={doc.courseTitle}
+          />
+        </div>
+      </main>
+    </>
   );
 }
 

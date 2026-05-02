@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { FunnelCheckout } from '@/components/checkout/FunnelCheckout';
 import { stripePublishableKey } from '@/lib/stripe';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
+import { MetaPixelLoader } from '@/components/MetaPixelLoader';
 
 async function getEnabledProviders() {
   const providers = await prisma.paymentProvider.findMany({
@@ -63,7 +64,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
 
   const course = await prisma.course.findUnique({
     where: isAdminPreview ? { id: courseId } : { id: courseId, published: true },
-    select: { id: true, title: true, price: true, slug: true, thumbnail: true, checkoutBullets: true },
+    select: { id: true, title: true, price: true, slug: true, thumbnail: true, checkoutBullets: true, metaPixelId: true },
   });
 
   if (!course || !course.price || course.price <= 0) {
@@ -103,6 +104,20 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
 
   return (
     <div style={{ background: '#f4f6fa', minHeight: '100vh' }}>
+      <MetaPixelLoader
+        pixelId={course.metaPixelId}
+        additionalEvent={{
+          event: 'InitiateCheckout',
+          params: {
+            value: course.price / 100,
+            currency: 'USD',
+            content_ids: [course.slug],
+            content_name: course.title,
+            content_type: 'product',
+            num_items: 1,
+          },
+        }}
+      />
       <header className="bg-white border-t-4 border-maxxed-blue shadow-sm px-6 md:px-10 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 text-2xl font-extrabold text-text-dark no-underline">
           <Image

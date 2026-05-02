@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import { PayPageClient } from '@/components/pay/PayPageClient';
+import { MetaPixelLoader } from '@/components/MetaPixelLoader';
 
 /**
  * Permanent payment page — used by the /admin/quick-links QR codes that
@@ -48,6 +49,7 @@ export default async function PayPage({ params }: PayPageProps) {
       thumbnail: true,
       shortDesc: true,
       checkoutBullets: true,
+      metaPixelId: true,
     },
   });
 
@@ -61,6 +63,20 @@ export default async function PayPage({ params }: PayPageProps) {
 
   return (
     <div style={{ background: '#f4f6fa', minHeight: '100vh' }}>
+      <MetaPixelLoader
+        pixelId={course.metaPixelId}
+        additionalEvent={{
+          event: 'InitiateCheckout',
+          params: {
+            value: course.price / 100,
+            currency: 'USD',
+            content_ids: [course.slug],
+            content_name: course.title,
+            content_type: 'product',
+            num_items: 1,
+          },
+        }}
+      />
       <header className="bg-white border-t-4 border-maxxed-blue shadow-sm px-6 md:px-10 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 text-2xl font-extrabold text-text-dark no-underline">
           <Image

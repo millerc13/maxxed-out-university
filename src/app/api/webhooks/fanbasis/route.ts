@@ -391,13 +391,55 @@ async function enrollFromFanbasis(params: {
       thumbnail: true,
       title: true,
       slug: true,
+      price: true,
       checkoutAfterApply: true,
       welcomeSmsBody: true,
       welcomeEmailSubject: true,
       welcomeEmailBody: true,
       autoSendContract: true,
+      metaPixelId: true,
+      metaCapiAccessToken: true,
+      metaTestEventCode: true,
     },
   });
+
+  // Server-side Meta CAPI Purchase mirror. event_id is the Fanbasis
+  // payment id so the matching browser-side Purchase fired by
+  // /checkout/success collapses to one conversion in Ads Manager.
+  // Falls back to params.originalPrice (pre-promo) when Course.price
+  // isn't set; ad reporting cares about the order, not the discount.
+  if (purchasedCourse?.metaPixelId) {
+    const cents = purchasedCourse.price ?? Number(params.originalPrice) ?? null;
+    const [firstName, ...rest] = (userName ?? '').trim().split(/\s+/);
+    const lastName = rest.join(' ');
+    const { sendCapiEvent } = await import('@/lib/meta-capi');
+    sendCapiEvent({
+      pixelId: purchasedCourse.metaPixelId,
+      accessToken: purchasedCourse.metaCapiAccessToken,
+      testEventCode: purchasedCourse.metaTestEventCode,
+      eventName: 'Purchase',
+      eventId: params.transactionId,
+      userData: {
+        email: userEmail || undefined,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        externalId: resolvedUserId,
+      },
+      customData: {
+        value: cents != null && Number.isFinite(cents) ? cents / 100 : undefined,
+        currency: 'USD',
+        content_ids: purchasedCourse.slug ? [purchasedCourse.slug] : [params.courseId],
+        content_name: purchasedCourse.title,
+        content_type: 'product',
+        num_items: 1,
+        order_id: params.transactionId,
+      },
+    }).then((r) => {
+      if (!r.ok && !('skipped' in r)) {
+        console.warn('[fanbasis-webhook] Meta CAPI Purchase failed:', r.error);
+      }
+    });
+  }
 
   // Link buyer to GHL contact + tag with the course they bought, so
   // /admin/messages classifies them as a Sale and the closer-side GHL
