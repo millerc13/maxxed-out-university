@@ -1311,6 +1311,74 @@ export async function getConversationHistoryByContactId(contactId: string): Prom
 }
 
 /**
+ * Upsert a GHL contact by phone (and optional email/name). Returns the
+ * contact id, or null on failure. Used by the e-sign manual-compose
+ * SMS path when there's no User row to look up a cached contactId
+ * (off-list buyer that admin types in by hand).
+ *
+ * Idempotent on the GHL side — repeat upserts return the same contact
+ * row. Phone is normalized to E.164 before send because GHL silently
+ * drops non-E.164 numbers.
+ */
+export async function upsertGhlContactByPhone(args: {
+  phone: string;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+}): Promise<string | null> {
+  const apiKey = process.env.GHL_API_KEY?.trim();
+  const locationId = process.env.GHL_LOCATION_ID?.trim();
+  if (!apiKey || !locationId) {
+    console.warn('[ghl] upsertGhlContactByPhone: missing GHL_API_KEY or GHL_LOCATION_ID');
+    return null;
+  }
+
+  // Same E.164 normalizer pattern as sms.ts so the upsert matches the
+  // contact row a later Conversations API call would target.
+  const trimmed = args.phone.trim();
+  let e164 = '';
+  if (trimmed.startsWith('+')) {
+    const d = trimmed.slice(1).replace(/\D/g, '');
+    e164 = d ? `+${d}` : '';
+  } else {
+    const d = trimmed.replace(/\D/g, '');
+    if (d.length === 10) e164 = `+1${d}`;
+    else if (d.length === 11 && d.startsWith('1')) e164 = `+${d}`;
+    else e164 = trimmed;
+  }
+  if (!e164) return null;
+
+  try {
+    const res = await fetch('https://services.leadconnectorhq.com/contacts/upsert', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Version: GHL_API_VERSION,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        locationId,
+        phone: e164,
+        email: args.email ?? undefined,
+        firstName: args.firstName ?? undefined,
+        lastName: args.lastName ?? undefined,
+      }),
+      cache: 'no-store',
+    });
+    const json = (await res.json().catch(() => ({}))) as { contact?: { id?: string } };
+    if (!res.ok || !json.contact?.id) {
+      console.warn('[ghl] upsertGhlContactByPhone failed', { status: res.status, body: JSON.stringify(json).slice(0, 200) });
+      return null;
+    }
+    return json.contact.id;
+  } catch (err) {
+    console.warn('[ghl] upsertGhlContactByPhone threw', { err: err instanceof Error ? err.message : err });
+    return null;
+  }
+}
+
+/**
  * Send an SMS to a GHL contact via the Conversations API. Mirrors the
  * mastermind-stripe-dashboard pattern so post-checkout magic-link
  * delivery is identical across both surfaces.

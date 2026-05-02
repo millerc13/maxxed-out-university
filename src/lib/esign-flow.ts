@@ -324,19 +324,44 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
 
   const signingUrl = `${BASE_URL}/sign/${signingToken}`;
 
-  // Fire the signing-request email. Don't swallow errors silently — let the
-  // caller decide whether to retry. But we also don't want a resend failure
-  // to leave the row uncreated, so creation happens first.
+  // Fire the signing-request email. sendSigningRequestEmail uses the
+  // safeSend wrapper which RETURNS { error } on failure rather than
+  // throwing — so we have to inspect the result to detect Resend
+  // rejections (suppression list, invalid recipient, rate limit, etc.)
+  // and surface them in the audit trail. Without this check the doc
+  // looks "sent" forever even when Resend silently rejected the email.
+  let emailSent = false;
   try {
-    await sendSigningRequestEmail({
+    const result = (await sendSigningRequestEmail({
       to: input.recipientEmail,
       recipientName: input.recipientName,
       courseTitle: input.courseTitle,
       signingUrl,
       expiresAt,
-    });
+    })) as { error?: unknown } | undefined;
+    if (result?.error) {
+      console.error('[esign-flow] sendSigningRequestEmail returned error', {
+        documentId: doc.id,
+        error: result.error,
+      });
+      await prisma.documentSignature.update({
+        where: { id: doc.id },
+        data: {
+          auditEvents: [
+            ...((doc.auditEvents as unknown as object[]) ?? []),
+            {
+              type: 'send_failed',
+              at: new Date().toISOString(),
+              error: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
+            },
+          ] as object[],
+        },
+      });
+    } else {
+      emailSent = true;
+    }
   } catch (err) {
-    console.error('[esign-flow] sendSigningRequestEmail failed', { documentId: doc.id, err });
+    console.error('[esign-flow] sendSigningRequestEmail threw', { documentId: doc.id, err });
     await prisma.documentSignature.update({
       where: { id: doc.id },
       data: {
@@ -347,11 +372,29 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
       },
     });
   }
+  void emailSent; // reserved for future "send_succeeded" audit if needed
 
-  // Optional SMS with the signing link. Only fires when caller passed
-  // a GHL contact id (auto-trigger from webhook does; admin Compose
-  // does not). Wrapped — SMS failure must not orphan the row.
-  if (input.ghlContactId) {
+  // SMS with the signing link. Resolves a GHL contact id from one of
+  // three sources, in priority order:
+  //   1. caller passed input.ghlContactId (webhook auto-trigger)
+  //   2. input.userId → User.ghlContactId (admin Compose for an
+  //      existing student)
+  //   3. input.recipientPhone → upsert by phone (admin Compose for an
+  //      off-list buyer with a phone). Done lazily inside sendGhlSmsByPhone.
+  // Skipped silently when none of the above resolve.
+  let smsContactId: string | null = input.ghlContactId ?? null;
+  if (!smsContactId && input.userId) {
+    try {
+      const u = await prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { ghlContactId: true },
+      });
+      if (u?.ghlContactId) smsContactId = u.ghlContactId;
+    } catch (err) {
+      console.warn('[esign-flow] could not look up User.ghlContactId for SMS', { userId: input.userId, err });
+    }
+  }
+  if (smsContactId) {
     try {
       const { sendGhlSms } = await import('@/lib/ghl');
       const firstName = splitName(input.recipientName).first || 'Hi';
@@ -359,8 +402,8 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
         `${firstName}, your ${input.courseTitle} enrollment is confirmed. ` +
         `Please review and sign your agreement: ${signingUrl} ` +
         `– Todd / Maxxed Out`;
-      await sendGhlSms(input.ghlContactId, smsBody);
-      console.log('[esign-flow] Signing-link SMS sent', { documentId: doc.id, contactId: input.ghlContactId });
+      await sendGhlSms(smsContactId, smsBody);
+      console.log('[esign-flow] Signing-link SMS sent', { documentId: doc.id, contactId: smsContactId });
     } catch (err) {
       console.error('[esign-flow] Signing-link SMS failed (non-fatal)', { documentId: doc.id, err });
       try {
@@ -374,6 +417,30 @@ async function createAndSendDocument(input: CreateInput): Promise<{ documentId: 
           },
         });
       } catch { /* audit-write failure is non-fatal */ }
+    }
+  } else if (input.recipientPhone) {
+    // Off-list compose: no User row, no cached contactId, but a phone
+    // was provided. Upsert a GHL contact and send via the same path
+    // the lead-notify SMS uses (with stale-cache recovery built in).
+    try {
+      const { upsertGhlContactByPhone, sendGhlSms } = await import('@/lib/ghl');
+      const upserted = await upsertGhlContactByPhone({
+        phone: input.recipientPhone,
+        email: input.recipientEmail,
+        firstName: splitName(input.recipientName).first,
+        lastName: splitName(input.recipientName).last,
+      });
+      if (upserted) {
+        const firstName = splitName(input.recipientName).first || 'Hi';
+        const smsBody =
+          `${firstName}, your ${input.courseTitle} enrollment is confirmed. ` +
+          `Please review and sign your agreement: ${signingUrl} ` +
+          `– Todd / Maxxed Out`;
+        await sendGhlSms(upserted, smsBody);
+        console.log('[esign-flow] Signing-link SMS sent (upserted contact)', { documentId: doc.id, contactId: upserted });
+      }
+    } catch (err) {
+      console.warn('[esign-flow] phone-only SMS upsert failed (non-fatal)', { documentId: doc.id, err });
     }
   }
 
