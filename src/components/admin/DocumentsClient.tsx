@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Select } from '@/components/ui/select';
 import { PdfPreviewModal } from './PdfPreviewModal';
 import {
   FileSignature,
@@ -52,7 +53,7 @@ type Row = {
   declinedAt: string | null;
 };
 
-type Course = { id: string; title: string; priceCents: number | null };
+type Course = { id: string; slug: string; title: string; priceCents: number | null };
 
 type TemplateOption = { id: string; name: string; active: boolean };
 
@@ -739,7 +740,12 @@ function ComposeForm({
   const [recipientName, setRecipientName] = useState(prefillUser?.name ?? '');
   const [recipientPhone, setRecipientPhone] = useState(prefillUser?.phone ?? '');
   const [pickedUserId, setPickedUserId] = useState<string | null>(prefillUser?.id ?? null);
-  const [courseId, setCourseId] = useState<string>('');
+  // Default to the 6-Month Mentorship course when present — Todd's
+  // most-composed contract. Falls back to off-list/custom when that
+  // course doesn't exist in this environment.
+  const defaultCourseId =
+    courses.find((c) => c.slug === '6-month-mentorship')?.id ?? '';
+  const [courseId, setCourseId] = useState<string>(defaultCourseId);
   const [customCourseTitle, setCustomCourseTitle] = useState('');
   const [paymentTotalDollars, setPaymentTotalDollars] = useState('');
   const [scheduleType, setScheduleType] = useState<'full' | 'plan'>('full');
@@ -971,13 +977,13 @@ function ComposeForm({
             <button
               type="button"
               onClick={() => setShowTemplatePicker((v) => !v)}
-              className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 text-xs font-semibold text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white text-maxxed-blue hover:bg-blue-50 px-3 h-9 text-[13px] font-bold transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 shadow-sm"
               aria-expanded={showTemplatePicker}
             >
               Change
               <ChevronDown
                 className={
-                  'h-3 w-3 transition-transform ' +
+                  'h-4 w-4 transition-transform ' +
                   (showTemplatePicker ? 'rotate-180' : '')
                 }
               />
@@ -985,7 +991,7 @@ function ComposeForm({
           )}
         </div>
         {showTemplatePicker && templates.length > 1 && (
-          <ul className="mt-3 rounded-lg bg-white/10 ring-1 ring-white/20 divide-y divide-white/10 overflow-hidden">
+          <ul className="mt-3 rounded-lg bg-white ring-1 ring-gray-200 divide-y divide-gray-100 overflow-hidden shadow-md">
             {templates.map((t) => {
               const isSelected = t.id === templateId;
               return (
@@ -997,16 +1003,16 @@ function ComposeForm({
                       setShowTemplatePicker(false);
                     }}
                     className={
-                      'w-full text-left px-3 py-2 text-sm font-medium transition-colors flex items-center justify-between gap-2 ' +
+                      'w-full text-left px-3 py-3 text-base sm:text-sm font-semibold transition-colors flex items-center justify-between gap-2 cursor-pointer ' +
                       (isSelected
-                        ? 'bg-white/20 text-white'
-                        : 'text-white/85 hover:bg-white/15')
+                        ? 'bg-maxxed-blue text-white'
+                        : 'text-gray-900 hover:bg-blue-50 hover:text-maxxed-blue')
                     }
                   >
                     <span className="truncate">
                       {t.name}
                       {t.active && (
-                        <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-white/70">
+                        <span className={'ml-2 text-[10px] font-bold uppercase tracking-wider ' + (isSelected ? 'text-white/80' : 'text-gray-500')}>
                           default
                         </span>
                       )}
@@ -1073,16 +1079,15 @@ function ComposeForm({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Course">
-            <select
+            <Select
               value={courseId}
-              onChange={(e) => setCourseId(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
-            >
-              <option value="">— Off-list / custom —</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>{c.title}</option>
-              ))}
-            </select>
+              onValueChange={setCourseId}
+              ariaLabel="Course"
+              options={[
+                { value: '', label: '— Off-list / custom —' },
+                ...courses.map((c) => ({ value: c.id, label: c.title })),
+              ]}
+            />
             {!courseId && (
               <input
                 type="text"
@@ -1140,14 +1145,15 @@ function ComposeForm({
                 />
               </Field>
               <Field label="Auto-fill spacing">
-                <select
+                <Select
                   value={frequency}
-                  onChange={(e) => setFrequency(e.target.value as 'monthly' | 'quarterly')}
-                  className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-base focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                </select>
+                  onValueChange={(v) => setFrequency(v as 'monthly' | 'quarterly')}
+                  ariaLabel="Auto-fill spacing"
+                  options={[
+                    { value: 'monthly', label: 'Monthly' },
+                    { value: 'quarterly', label: 'Quarterly' },
+                  ]}
+                />
               </Field>
               {Number.isFinite(totalCents) && installmentsN >= 2 && (
                 <p className="col-span-2 text-xs text-gray-500">

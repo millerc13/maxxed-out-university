@@ -35,7 +35,7 @@ export default async function AdminDocumentsPage() {
     }),
     prisma.course.findMany({
       where: { bundleId: null, published: true },
-      select: { id: true, title: true, price: true },
+      select: { id: true, slug: true, title: true, price: true },
       orderBy: { title: 'asc' },
     }),
     prisma.contractTemplate.findFirst({
@@ -76,6 +76,7 @@ export default async function AdminDocumentsPage() {
       }))}
       courses={courses.map((c) => ({
         id: c.id,
+        slug: c.slug,
         title: c.title,
         priceCents: c.price ?? null,
       }))}
