@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { DatePicker } from '@/components/ui/date-picker';
+import { PdfPreviewModal } from './PdfPreviewModal';
 import {
   FileSignature,
   Search,
@@ -116,6 +117,9 @@ export function DocumentsClient({ initialRows, courses, activeTemplate, template
   const [filter, setFilter] = useState<FilterKey>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // PDF preview modal — opens inline so PWA users (especially iOS
+  // standalone) never get bounced out of the dashboard.
+  const [previewRow, setPreviewRow] = useState<Row | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
   const [prefillUser, setPrefillUser] = useState<PickedUser | null>(null);
 
@@ -225,7 +229,11 @@ export function DocumentsClient({ initialRows, courses, activeTemplate, template
 
   function handleDownload(row: Row) {
     if (row.status !== 'completed') return;
-    window.open(`/api/admin/documents/${row.id}/pdf`, '_blank');
+    // Open inline preview instead of `window.open(...,'_blank')`. The
+    // tab-target approach broke the iOS PWA — Safari can't open new
+    // tabs from a standalone window so the user got stranded with no
+    // way back. Inline modal stays inside the PWA shell.
+    setPreviewRow(row);
   }
 
   // Clear the global error banner after 6s automatically.
@@ -449,6 +457,15 @@ export function DocumentsClient({ initialRows, courses, activeTemplate, template
           </tbody>
         </table>
       </div>
+
+      {previewRow && (
+        <PdfPreviewModal
+          url={`/api/admin/documents/${previewRow.id}/pdf`}
+          title={`${previewRow.recipientName ?? previewRow.recipientEmail} — ${previewRow.courseTitle}`}
+          filename={`${(previewRow.recipientName ?? 'recipient').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`}
+          onClose={() => setPreviewRow(null)}
+        />
+      )}
     </div>
   );
 }
