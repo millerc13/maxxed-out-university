@@ -7,6 +7,21 @@
   color-scheme: light;
 }
 
+/* iOS Safari auto-zooms into form inputs whose computed font-size is
+   < 16px. That zoom completely breaks layouts (sticky bars slide
+   off-screen, modals get cropped). Forcing every text-input field
+   to ≥16px on small viewports stops the zoom without changing the
+   desktop layout (which keeps Tailwind's text-xs/text-sm sizes).
+   Excludes inputs that don't accept text (checkbox/radio/range/etc.)
+   so the rule doesn't override their visual sizing. */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @layer base {
   :root {
     /* MaxxedOut.com Color Scheme */
