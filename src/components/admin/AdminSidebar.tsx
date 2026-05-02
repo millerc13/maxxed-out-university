@@ -18,6 +18,7 @@ import {
   Bell,
   Tag,
   Zap,
+  Inbox,
   X,
 } from 'lucide-react';
 import { useAdminDrawer } from './AdminShell';
@@ -25,6 +26,7 @@ import { useAdminDrawer } from './AdminShell';
 const navItems = [
   { href: '/admin/quick-links', label: 'Quick Links', icon: Zap },
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/leads', label: 'Leads', icon: Inbox },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
   { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
   { href: '/admin/funnels/promo-codes', label: 'Promo Codes', icon: Tag },
