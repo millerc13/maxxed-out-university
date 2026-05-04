@@ -41,10 +41,14 @@ export const metadata: Metadata = {
     description: 'Business education and training for serious entrepreneurs',
     images: [
       {
-        url: 'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/6938430a35652be0d603e258.jpeg',
-        width: 1200,
-        height: 630,
-        alt: 'MaxxedOut Training Center',
+        // Self-hosted under public/ so we own the asset (no third-party
+        // bucket reaching its bandwidth cap can break our share previews).
+        // Absolute URL is required — link unfurlers (iMessage, Slack, FB,
+        // X, LinkedIn) ignore relative paths.
+        url: 'https://university.maxxedout.com/images/og-image-university.png',
+        width: 2752,
+        height: 1536,
+        alt: 'Maxxed Out University — Business education and training for serious entrepreneurs',
       },
     ],
   },
@@ -52,7 +56,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Training Center | MaxxedOut',
     description: 'Business education and training for serious entrepreneurs',
-    images: ['https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/6938430a35652be0d603e258.jpeg'],
+    images: ['https://university.maxxedout.com/images/og-image-university.png'],
   },
 };
 
