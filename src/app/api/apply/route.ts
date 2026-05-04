@@ -11,6 +11,8 @@ import {
 } from '@/lib/ghl-apply';
 import { notifyRecipients } from '@/lib/sms';
 import { sendCapiEvent, extractMetaIdentifiers } from '@/lib/meta-capi';
+import { pickAssignee } from '@/lib/ghl-assignment';
+import { notifySlackChannels } from '@/lib/slack';
 
 export const runtime = 'nodejs';
 
@@ -111,14 +113,23 @@ export async function POST(request: Request) {
     `[apply] ${isPartial ? 'Partial' : 'Full'} submission — email=${data.email} course=${courseTitle ?? 'none'}`
   );
 
+  // Pick the GHL user this submission gets assigned to. Default funnels
+  // → Rebecca; dd-healthcare alternates Rebecca/Rafael. Returns null
+  // when no env-var IDs are configured (system stays unassigned just
+  // like the old Netlify functions did).
+  const assignedTo = !isPartial ? await pickAssignee(data.program ?? null) : null;
+
   let resolvedContactId: string | null = null;
   try {
-    const { id: contactId, isNew } = await upsertContact(data, { partial: isPartial });
+    const { id: contactId, isNew } = await upsertContact(data, {
+      partial: isPartial,
+      assignedTo: assignedTo ?? undefined,
+    });
     resolvedContactId = contactId;
     console.info(
       `[apply] ${isPartial ? 'Partial' : 'Full'} GHL contact ${
         isNew ? 'created' : 'updated'
-      }: ${contactId}`
+      }: ${contactId}${assignedTo ? ` (assignedTo=${assignedTo})` : ''}`
     );
 
     if (!isPartial) {
@@ -139,7 +150,10 @@ export async function POST(request: Request) {
         process.env.GHL_PIPELINE_STAGE_ID
       ) {
         try {
-          const { id: opportunityId } = await createOpportunity(contactId, data, { courseTitle });
+          const { id: opportunityId } = await createOpportunity(contactId, data, {
+            courseTitle,
+            assignedTo: assignedTo ?? undefined,
+          });
           console.info(`[apply] GHL opportunity created: ${opportunityId}`);
         } catch (oppErr) {
           if (
@@ -223,6 +237,31 @@ export async function POST(request: Request) {
     notifyRecipients('lead', smsBody, 'university').catch((err) =>
       console.error('[apply] lead notification SMS fan-out failed', err)
     );
+
+    // Slack fan-out — same source slug as SMS so per-funnel channels
+    // route correctly. Fire-and-forget, fully independent of SMS so a
+    // Slack outage doesn't block lead capture.
+    notifySlackChannels('lead', data.program ?? 'university', {
+      headline: `New ${courseTitle ?? 'Maxxed Out'} application`,
+      contactName: data.name,
+      email: data.email,
+      phone: data.phone,
+      assignedTo: assignedTo === process.env.GHL_USER_REBECCA_ID
+        ? 'Rebecca'
+        : assignedTo === process.env.GHL_USER_RAFAEL_ID
+          ? 'Rafael'
+          : undefined,
+      fields: [
+        ...(courseTitle ? [{ label: 'Course', value: courseTitle }] : []),
+        ...(data.program ? [{ label: 'Funnel', value: data.program }] : []),
+      ],
+      link: resolvedContactId
+        ? {
+            url: `https://app.gohighlevel.com/v2/location/${process.env.GHL_LOCATION_ID}/contacts/detail/${resolvedContactId}`,
+            label: 'Open in GHL',
+          }
+        : undefined,
+    }).catch((err) => console.error('[apply] Slack lead fan-out failed', err));
   } else if (!isPartial && !notifyClosers) {
     console.info(
       `[apply] notifyClosersOnApply=false for course "${courseTitle ?? 'unknown'}" — skipping SMS notifications`

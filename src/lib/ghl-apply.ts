@@ -121,7 +121,7 @@ function programLabel(program: string | null | undefined): string {
 
 export async function upsertContact(
   payload: ApplicationPayload,
-  opts: UpsertOpts = {}
+  opts: UpsertOpts & { assignedTo?: string } = {}
 ): Promise<{ id: string; isNew: boolean }> {
   const locationId = requireEnv('GHL_LOCATION_ID');
   const { firstName, lastName } = splitName(payload.name);
@@ -152,6 +152,9 @@ export async function upsertContact(
   }
   if (payload.website && payload.website.trim() !== '') {
     body.website = payload.website;
+  }
+  if (opts.assignedTo) {
+    body.assignedTo = opts.assignedTo;
   }
 
   const res = await ghlFetch('/contacts/upsert', {
@@ -230,7 +233,7 @@ export async function createContactNote(contactId: string, body: string): Promis
 export async function createOpportunity(
   contactId: string,
   payload: ApplicationPayload,
-  context?: { courseTitle?: string }
+  context?: { courseTitle?: string; assignedTo?: string }
 ): Promise<{ id: string }> {
   const locationId = requireEnv('GHL_LOCATION_ID');
   const pipelineId = requireEnv('GHL_PIPELINE_ID');
@@ -241,7 +244,7 @@ export async function createOpportunity(
       ? `${payload.businessName} — ${payload.name}`
       : payload.name;
 
-  const body = {
+  const body: Record<string, unknown> = {
     locationId,
     pipelineId,
     pipelineStageId,
@@ -255,6 +258,9 @@ export async function createOpportunity(
         : 'Maxxed Out University — Apply',
     monetaryValue: 0,
   };
+  if (context?.assignedTo) {
+    body.assignedTo = context.assignedTo;
+  }
 
   const res = await ghlFetch('/opportunities/', {
     method: 'POST',

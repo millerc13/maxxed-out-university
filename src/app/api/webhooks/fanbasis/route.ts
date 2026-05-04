@@ -403,6 +403,27 @@ async function enrollFromFanbasis(params: {
     },
   });
 
+  // Slack `sale` fan-out — same shape as Stripe webhook. Source slug is
+  // course.slug so per-funnel channels route correctly. Fire-and-forget.
+  if (purchasedCourse) {
+    const saleAmountCents = purchasedCourse.price ?? Number(params.originalPrice) ?? 0;
+    const saleAmountStr = saleAmountCents > 0
+      ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(saleAmountCents / 100)
+      : '—';
+    const { notifySlackChannels } = await import('@/lib/slack');
+    notifySlackChannels('sale', purchasedCourse.slug, {
+      headline: `${purchasedCourse.title} — ${saleAmountStr}`,
+      contactName: userName ?? userEmail ?? undefined,
+      email: userEmail || undefined,
+      fields: [
+        { label: 'Amount', value: saleAmountStr },
+        { label: 'Course', value: purchasedCourse.title },
+        { label: 'Provider', value: 'Fanbasis' },
+        { label: 'Transaction', value: params.transactionId },
+      ],
+    }).catch((err) => console.error('[fanbasis-webhook] Slack sale fan-out failed', err));
+  }
+
   // Server-side Meta CAPI Purchase mirror. event_id is the Fanbasis
   // payment id so the matching browser-side Purchase fired by
   // /checkout/success collapses to one conversion in Ads Manager.

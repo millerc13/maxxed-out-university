@@ -348,6 +348,47 @@ model NotificationRecipient {
   updatedAt     DateTime @updatedAt
 }
 
+// Slack channel subscription. Each row = one Slack incoming webhook URL,
+// scoped by which event types and traffic sources it cares about. Admin
+// manages these at /admin/notifications.
+//
+// eventTypes: 'lead' | 'sale' | 'dd_application' | 'abandoned_checkout'
+//             | 'contract_signed'. Empty array = receives nothing.
+// sources:    same shape as NotificationRecipient.sources[] — empty means
+//             ALL sources, non-empty means only listed sources fan out
+//             to this channel. e.g. ['mentorship'] for the Mentorship
+//             funnel-only channel; ['business-mentorship', 'donewithyou']
+//             for the BAM channel that should accept both subdomain
+//             aliases. dd_application events ignore this filter — they
+//             always go to channels that opted into 'dd_application'.
+model SlackChannel {
+  id           String   @id @default(cuid())
+  // Human-friendly label shown in admin (e.g. "DD Applications", "BAM Funnel").
+  name         String
+  // Optional display-only Slack channel string (e.g. "#dd-applications").
+  channel      String?
+  // Slack incoming webhook URL — sensitive, never serialized to client.
+  webhookUrl   String
+  eventTypes   String[] @default([])
+  sources      String[] @default([])
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Round-robin assignment counter for funnels that distribute leads
+// across multiple GHL users (e.g. dd-healthcare alternates Rebecca /
+// Rafael). One row per scope key. The counter is incremented + read
+// transactionally inside `pickAssignee()`; assignee = candidates[counter
+// % candidates.length].
+model AssignmentCounter {
+  id        String   @id @default(cuid())
+  // Scope key — usually the funnel slug (e.g. "dd-healthcare").
+  scope     String   @unique
+  counter   Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 model WebhookLog {
   id           String   @id @default(cuid())
   source       String

@@ -4,6 +4,7 @@ import { notifyRecipients } from '@/lib/sms';
 import { formatNoteBody } from '@/lib/ghl-apply';
 import { applicationSchema } from '@/lib/apply-schema';
 import { sendCapiEvent } from '@/lib/meta-capi';
+import { notifySlackChannels } from '@/lib/slack';
 
 export const runtime = 'nodejs';
 
@@ -133,6 +134,25 @@ export async function POST(request: NextRequest) {
 
   const results = await notifyRecipients('lead', smsBody, source);
   const sent = results.filter((r) => r.ok).length;
+
+  // Slack fan-out — fire-and-forget. Per-funnel channels route on the
+  // same `source` slug as SMS does. Pulls contact name/email/phone off
+  // the payload (best-effort); falls back to applicantName for label.
+  if (payload && typeof payload === 'object') {
+    const p = payload as Record<string, unknown>;
+    const email = typeof p.email === 'string' ? p.email : undefined;
+    const phone = typeof p.phone === 'string' ? p.phone : undefined;
+    notifySlackChannels('lead', source, {
+      headline: `New ${funnel.course?.title ?? funnel.name} application`,
+      contactName: applicantName,
+      email,
+      phone,
+      fields: [
+        ...(funnel.course?.title ? [{ label: 'Course', value: funnel.course.title }] : []),
+        ...(source ? [{ label: 'Funnel', value: source }] : []),
+      ],
+    }).catch((err) => console.error('[notify-lead] Slack fan-out failed', err));
+  }
 
   // Server-side Meta CAPI Lead — fired for the funnel's linked course.
   // No-op when the course has no Pixel configured. Browser-side Lead

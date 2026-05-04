@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Switch } from '@/components/admin/Toggle';
+import { SlackChannelsSection } from '@/components/admin/SlackChannelsSection';
 
 interface Recipient {
   id: string;
@@ -348,6 +349,8 @@ export function NotificationsClient({ initialRecipients }: Props) {
         <span className="font-mono">sendSmsToRecipient</span> in{' '}
         <span className="font-mono">src/lib/sms.ts</span>.
       </p>
+
+      <SlackChannelsSection />
     </div>
   );
 }
