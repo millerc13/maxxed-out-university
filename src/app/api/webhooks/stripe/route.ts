@@ -8,6 +8,14 @@ import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
 
+function formatUsd(amountCents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(amountCents / 100);
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
@@ -176,6 +184,29 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
         metaTestEventCode: true,
       },
     });
+
+    // Slack `sale` fan-out — fires for every successful Stripe payment
+    // regardless of whether tracking is wired. Source slug is the
+    // course slug so per-funnel channels (mentorship / accelerator /
+    // etc) route correctly.
+    if (purchasedCourse) {
+      const { notifySlackChannels } = await import('@/lib/slack');
+      notifySlackChannels('sale', purchasedCourse.slug, {
+        headline: `${purchasedCourse.title} — ${formatUsd(paymentIntent.amount)}`,
+        contactName: userName ?? userEmail ?? undefined,
+        email: userEmail || undefined,
+        fields: [
+          { label: 'Amount', value: formatUsd(paymentIntent.amount) },
+          { label: 'Course', value: purchasedCourse.title },
+          { label: 'Provider', value: 'Stripe' },
+          { label: 'Transaction', value: paymentIntent.id },
+        ],
+        link: {
+          url: `https://dashboard.stripe.com/payments/${paymentIntent.id}`,
+          label: 'View in Stripe',
+        },
+      }).catch((err) => console.error('[stripe-webhook] Slack sale fan-out failed', err));
+    }
 
     // Server-side Meta CAPI Purchase mirror. event_id is the Stripe
     // payment_intent.id so the matching browser-side Purchase fired by
