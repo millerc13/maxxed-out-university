@@ -228,3 +228,15 @@
     content: none !important;
   }
 }
+
+/* Sales-tracker chart preview wrapper — forces every chart variant
+   (h-72, min-h-[18rem], etc.) to fill the smaller preview tile. */
+.chart-preview-shrink,
+.chart-preview-shrink > div {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.chart-preview-shrink > ul {
+  height: 100% !important;
+}
+

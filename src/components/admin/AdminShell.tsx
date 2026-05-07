@@ -74,7 +74,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
       <div className="min-h-screen bg-gray-100">
         <AdminHeader user={user} />
         <div className="flex">
-          <AdminSidebar />
+          <AdminSidebar user={user} />
           <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
         </div>
       </div>

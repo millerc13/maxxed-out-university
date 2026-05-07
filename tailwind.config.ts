@@ -1,11 +1,38 @@
 import type { Config } from 'tailwindcss';
 
+// All 13 section-color hue names used by the sales tracker palette.
+// These get safelisted below so Tailwind never purges them — without
+// this, an end user could land on a tag whose color (e.g. bg-yellow-700)
+// wasn't seen in any source file at build time, and the bar would
+// render as transparent (white-on-white).
+const SECTION_HUES = [
+  'rose', 'orange', 'amber', 'yellow', 'lime', 'emerald', 'teal',
+  'cyan', 'sky', 'blue', 'indigo', 'violet', 'pink',
+];
+
 export default {
   darkMode: ['class'],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  safelist: [
+    // Section bars (-700 / -800)
+    ...SECTION_HUES.flatMap((h) => [`bg-${h}-700`, `bg-${h}-800`]),
+    // Section pills (-100 + text/ring -200/-800)
+    ...SECTION_HUES.flatMap((h) => [
+      `bg-${h}-100`,
+      `text-${h}-800`,
+      `ring-${h}-200`,
+    ]),
+    // Swatch dots (-500)
+    ...SECTION_HUES.map((h) => `bg-${h}-500`),
+    // Session-card identity gradients (composed dynamically by hash).
+    'bg-gradient-to-r',
+    ...['rose', 'orange', 'amber', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'fuchsia', 'pink'].flatMap(
+      (h) => [`from-${h}-500`, `to-${h}-500`]
+    ),
   ],
   theme: {
     extend: {
