@@ -22,6 +22,8 @@ import {
   Download,
   Upload,
   Copy,
+  MessageSquare,
+  PhoneCall,
 } from 'lucide-react';
 import {
   type EntryRow,
@@ -825,8 +827,16 @@ function EditSheet({
         </div>
       </div>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+      {/* Scrollable body — overflow-x-hidden + overscroll-contain
+          stops iOS Safari's horizontal rubber-band on overflow-y elements. */}
+      <div
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-5 space-y-6"
+        style={{ touchAction: 'pan-y' }}
+      >
+        {/* Quick actions — Call + Text. Mobile-only (this whole component
+            is mobile-only). Disabled when no phone is set. */}
+        <ContactActions phone={entry.phone} />
+
         {/* Section / tag */}
         <Section title="Section">
           <TagPicker
@@ -1305,6 +1315,56 @@ function BoolToggle({
         <Circle className="w-4 h-4" />
         Still owed
       </button>
+    </div>
+  );
+}
+
+/**
+ * Quick-action bar with Call + Text buttons. iOS / Android handle the
+ * `tel:` and `sms:` schemes natively, so tapping these jumps straight
+ * to the phone or messaging app pre-filled with this lead's number.
+ *
+ * Disabled (greyed out, click-blocked) when no phone is on the entry,
+ * so the affordance is still visible — Rebecca knows the action exists,
+ * she just needs to fill in the phone first.
+ */
+function ContactActions({ phone }: { phone?: string | null }) {
+  const digits = (phone ?? '').replace(/[^0-9+]/g, '');
+  const enabled = digits.length >= 7;
+  const baseClass =
+    'inline-flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition active:scale-[0.98]';
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <a
+        href={enabled ? `tel:${digits}` : undefined}
+        aria-disabled={!enabled}
+        onClick={(e) => {
+          if (!enabled) e.preventDefault();
+        }}
+        className={`${baseClass} ${
+          enabled
+            ? 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700'
+            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+        }`}
+      >
+        <PhoneCall className="w-4 h-4" />
+        Call
+      </a>
+      <a
+        href={enabled ? `sms:${digits}` : undefined}
+        aria-disabled={!enabled}
+        onClick={(e) => {
+          if (!enabled) e.preventDefault();
+        }}
+        className={`${baseClass} ${
+          enabled
+            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+        }`}
+      >
+        <MessageSquare className="w-4 h-4" />
+        Text
+      </a>
     </div>
   );
 }
