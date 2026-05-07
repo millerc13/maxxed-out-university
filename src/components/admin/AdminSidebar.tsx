@@ -20,34 +20,45 @@ import {
   Zap,
   Inbox,
   X,
+  TrendingUp,
 } from 'lucide-react';
 import { useAdminDrawer } from './AdminShell';
 
-const navItems = [
-  { href: '/admin/quick-links', label: 'Quick Links', icon: Zap },
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/leads', label: 'Leads', icon: Inbox },
-  { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
-  { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
-  { href: '/admin/funnels/promo-codes', label: 'Promo Codes', icon: Tag },
-  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
-  { href: '/admin/courses', label: 'Courses', icon: BookOpen },
-  { href: '/admin/quizzes', label: 'Quizzes', icon: FileQuestion },
-  { href: '/admin/users', label: 'Users', icon: Users },
-  { href: '/admin/messages', label: 'Messages', icon: MessageCircle },
-  { href: '/admin/notifications', label: 'Notifications', icon: Bell },
-  { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
-  { href: '/admin/documents', label: 'Documents', icon: FileSignature },
-  { href: '/admin/import', label: 'CSV Import', icon: Upload },
-  { href: '/admin/webhooks', label: 'Webhook Logs', icon: FileText },
-];
+function getNavItems(userEmail?: string | null) {
+  const baseItems = [
+    { href: '/admin/quick-links', label: 'Quick Links', icon: Zap },
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/leads', label: 'Leads', icon: Inbox },
+    { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
+    { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
+    { href: '/admin/funnels/promo-codes', label: 'Promo Codes', icon: Tag },
+    { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+    { href: '/admin/courses', label: 'Courses', icon: BookOpen },
+    { href: '/admin/quizzes', label: 'Quizzes', icon: FileQuestion },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/messages', label: 'Messages', icon: MessageCircle },
+    { href: '/admin/notifications', label: 'Notifications', icon: Bell },
+    { href: '/admin/enrollments', label: 'Enrollments', icon: GraduationCap },
+    { href: '/admin/documents', label: 'Documents', icon: FileSignature },
+    { href: '/admin/import', label: 'CSV Import', icon: Upload },
+    { href: '/admin/webhooks', label: 'Webhook Logs', icon: FileText },
+  ];
+
+  // CRITICAL: Only show Sales Tracker to admin@maxxedout.com - NO OTHER ADMINS
+  if (userEmail === 'admin@maxxedout.com') {
+    // Insert Sales Tracker as the SECOND item (after Quick Links)
+    baseItems.splice(1, 0, { href: '/admin/sales', label: 'Sales Tracker', icon: TrendingUp });
+  }
+
+  return baseItems;
+}
 
 /**
  * Returns the href that should be active for the current pathname using a
  * longest-prefix match — so /admin/funnels/promo-codes activates only
  * "Promo Codes" and not also its parent "Funnels".
  */
-function useActiveHref(): string | null {
+function useActiveHref(navItems: ReturnType<typeof getNavItems>): string | null {
   const pathname = usePathname();
   return navItems.reduce<string | null>((best, item) => {
     const matches =
@@ -62,9 +73,10 @@ function useActiveHref(): string | null {
 interface NavListProps {
   onNavigate?: () => void;
   activeHref: string | null;
+  navItems: ReturnType<typeof getNavItems>;
 }
 
-function NavList({ onNavigate, activeHref }: NavListProps) {
+function NavList({ onNavigate, activeHref, navItems }: NavListProps) {
   return (
     <nav className="p-4 space-y-1">
       {navItems.map((item) => {
@@ -89,15 +101,22 @@ function NavList({ onNavigate, activeHref }: NavListProps) {
   );
 }
 
-export function AdminSidebar() {
-  const activeHref = useActiveHref();
+interface AdminSidebarProps {
+  user: {
+    email?: string | null;
+  };
+}
+
+export function AdminSidebar({ user }: AdminSidebarProps) {
+  const navItems = getNavItems(user.email);
+  const activeHref = useActiveHref(navItems);
   const { open, setOpen } = useAdminDrawer();
 
   return (
     <>
       {/* Persistent desktop sidebar */}
       <aside className="w-64 bg-gray-900 min-h-[calc(100vh-64px)] hidden lg:block">
-        <NavList activeHref={activeHref} />
+        <NavList activeHref={activeHref} navItems={navItems} />
       </aside>
 
       {/* Mobile drawer + backdrop. Rendered always so the slide animation
@@ -130,7 +149,7 @@ export function AdminSidebar() {
           </button>
         </div>
         <div className="overflow-y-auto h-[calc(100%-3.5rem)]">
-          <NavList activeHref={activeHref} onNavigate={() => setOpen(false)} />
+          <NavList activeHref={activeHref} navItems={navItems} onNavigate={() => setOpen(false)} />
         </div>
       </aside>
     </>

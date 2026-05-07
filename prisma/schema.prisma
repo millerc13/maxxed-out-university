@@ -788,3 +788,116 @@ model Application {
   @@index([courseId])
   @@index([status])
 }
+
+// ============================================================================
+// SALES TRACKER MODELS (Only accessible to admin@maxxedout.com)
+// Enhanced version of Rebecca's Excel sales tracking workflow
+// ============================================================================
+
+model SalesLead {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+
+  // Sales activity tracking (matches Excel structure)
+  contactDate DateTime? // When they were contacted
+  contactTime String?   // Time of contact (e.g., "2:00 PM")
+  didShow     Boolean?  // Did the prospect show up/engage?
+  didClose    Boolean?  // Did they close/buy?
+
+  // Deal details
+  dealValue   Int?      // Deal amount in cents
+  product     String?   // What they bought
+  source      String?   // Where they came from
+
+  // Commission tracking (flexible rates)
+  commissionRate   Decimal? @default(0.10) @db.Decimal(5,4) // Custom commission rate
+  commissionAmount Int?     // Commission earned in cents
+  commissionDue    DateTime? // When commission is due
+  commissionPaid   Boolean  @default(false) // Has commission been paid?
+
+  // Additional tracking
+  notes       String?
+  convertedAt DateTime? // When they converted to customer
+
+  // Metadata
+  recordedBy  String   @default("Rebecca Nardi")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([didShow])
+  @@index([didClose])
+  @@index([commissionPaid])
+  @@index([contactDate])
+  @@index([source])
+}
+
+// Standalone sales tracker for Rebecca — completely separate from CRM/lead
+// data. A "session" is a named bucket she creates ("Sales for Todd Pultz",
+// etc). Each session owns its own entries.
+model SalesTrackerSession {
+  id        String   @id @default(cuid())
+  name      String
+  // Per-tag color overrides for this session, keyed by tag string.
+  // E.g. { "MIAMI": "rose", "NASHVILLE": "blue" }. Tags missing from
+  // this map fall back to the deterministic hash-based palette in
+  // tagStyles(). Stored as JSON to avoid a separate join table for
+  // what is effectively a small object per session.
+  tagColors Json     @default("{}")
+  // Per-slot chart picks for the Analytics dashboard. Keys are slot
+  // ids (status / funnel / trend1 / trend2 / trend3 / ranking),
+  // values are chart ids from CHART_REGISTRY. Missing keys fall back
+  // to DEFAULT_SLOTS so an empty object renders the original layout.
+  chartLayout Json   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries   SalesTrackerEntry[]
+
+  @@index([createdAt])
+}
+
+model SalesTrackerEntry {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   SalesTrackerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Position within the session — drives display order in the grid so
+  // Rebecca's manual ordering survives reloads.
+  position  Int      @default(0)
+
+  // Optional grouping label, like "MIAMI", "NASHVILLE", or
+  // "Production 35k with Tim". Free-form string; the editor groups
+  // entries by tag and renders a colored header row above each group,
+  // matching the section bars in Rebecca's Excel sheet.
+  tag         String?
+
+  name        String?
+  email       String?
+  phone       String?
+
+  contactDate DateTime?
+  contactTime String?   // free-form ("2:00 PM"), matches Excel habit
+
+  // Tri-state strings ("YES" | "NO" | "PENDING") rather than nullable bool
+  // so the grid can show three states without ambiguity.
+  didShow     String?
+  didClose    String?
+
+  dealAmountCents      Int?
+  commissionRate       Decimal? @db.Decimal(5,4)
+  // When null the UI shows the auto-calculated amount; when set it's a
+  // manual override Rebecca typed in.
+  commissionAmountCents Int?
+  commissionDue        DateTime?
+  commissionPaid       Boolean  @default(false)
+
+  notes       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sessionId, position])
+  @@index([sessionId, tag])
+}
