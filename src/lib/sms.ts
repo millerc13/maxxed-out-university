@@ -262,9 +262,38 @@ export async function notifyRecipients(
   //   of their per-source subscription" (used by the test-send button).
   // source=string means "only recipients whose sources array is empty
   //   (subscribe-all) OR explicitly includes this source".
-  const matched = source
+  let matched = source
     ? recipients.filter((r) => r.sources.length === 0 || r.sources.includes(source))
     : recipients;
+
+  // Test-mode override: when NOTIFY_TEST_PHONE_OVERRIDE is set (E.164
+  // or 10-digit US) every notification is rerouted to just that one
+  // number, regardless of recipient subscriptions. Lets us QA a new
+  // funnel without pinging the rest of the team. Unset to restore
+  // normal fan-out.
+  const overrideRaw = (process.env.NOTIFY_TEST_PHONE_OVERRIDE ?? '').trim();
+  if (overrideRaw) {
+    const digits = overrideRaw.replace(/\D/g, '');
+    const e164 = overrideRaw.startsWith('+')
+      ? `+${digits}`
+      : digits.length === 10
+        ? `+1${digits}`
+        : digits.length === 11 && digits.startsWith('1')
+          ? `+${digits}`
+          : overrideRaw;
+    console.log(
+      `[sms] NOTIFY_TEST_PHONE_OVERRIDE active — rerouting all ${matched.length} matched recipient(s) to ${e164}`
+    );
+    matched = [
+      {
+        id: 'test-override',
+        phone: e164,
+        label: 'Test Override',
+        sources: [],
+        ghlContactId: null,
+      },
+    ];
+  }
 
   if (matched.length === 0) {
     console.log(
