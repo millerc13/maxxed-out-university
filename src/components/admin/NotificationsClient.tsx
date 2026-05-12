@@ -38,6 +38,7 @@ const SOURCE_OPTIONS: Array<{ value: string; label: string; short: string }> = [
   { value: 'donewithyou', label: 'DWY funnel', short: 'DWY' },
   { value: 'accelerator', label: 'Business Accelerator', short: 'ACC' },
   { value: 'university', label: 'University site (/apply)', short: 'UNI' },
+  { value: 'experience', label: 'Inner Circle Experience', short: 'IC' },
 ];
 
 export function NotificationsClient({ initialRecipients }: Props) {
