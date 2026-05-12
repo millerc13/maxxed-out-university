@@ -129,7 +129,10 @@ export async function POST(request: NextRequest) {
         redirectUrl = `${baseUrl}/courses/${lesson.module.course.slug}`;
       }
 
-      return NextResponse.redirect(redirectUrl);
+      // 303 (not the default 307) so Safari follows the redirect with GET
+      // instead of re-POSTing to the lesson page. Without this Safari shows
+      // "can't open page" because the lesson route only handles GET.
+      return NextResponse.redirect(redirectUrl, 303);
     }
 
     return NextResponse.json({
