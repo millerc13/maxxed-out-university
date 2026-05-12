@@ -241,6 +241,22 @@ export async function POST(request: Request) {
     // Slack fan-out — same source slug as SMS so per-funnel channels
     // route correctly. Fire-and-forget, fully independent of SMS so a
     // Slack outage doesn't block lead capture.
+    const slackFields: { label: string; value: string }[] = [];
+    if (courseTitle) slackFields.push({ label: 'Course', value: courseTitle });
+    if (data.program) slackFields.push({ label: 'Funnel', value: data.program });
+    if (data.businessName) slackFields.push({ label: 'Business', value: data.businessName });
+    if (data.website) slackFields.push({ label: 'Website', value: data.website });
+    if (data.industry) slackFields.push({ label: 'Industry', value: data.industry });
+    if (data.revenue) slackFields.push({ label: 'Revenue', value: data.revenue });
+    if (data.teamSize) slackFields.push({ label: 'Team size', value: data.teamSize });
+    if (data.bottleneck) slackFields.push({ label: 'Bottleneck', value: data.bottleneck });
+    if (data.commitment) slackFields.push({ label: 'Commitment', value: data.commitment });
+    if (data.bestTimes && data.bestTimes.length) {
+      slackFields.push({ label: 'Best times', value: data.bestTimes.join(', ') });
+    }
+    if (data.heardAbout) slackFields.push({ label: 'Heard about', value: data.heardAbout });
+    if (data.vision) slackFields.push({ label: 'Vision', value: data.vision });
+
     notifySlackChannels('lead', data.program ?? 'university', {
       headline: `New ${courseTitle ?? 'Maxxed Out'} application`,
       contactName: data.name,
@@ -251,10 +267,7 @@ export async function POST(request: Request) {
         : assignedTo === process.env.GHL_USER_RAFAEL_ID
           ? 'Rafael'
           : undefined,
-      fields: [
-        ...(courseTitle ? [{ label: 'Course', value: courseTitle }] : []),
-        ...(data.program ? [{ label: 'Funnel', value: data.program }] : []),
-      ],
+      fields: slackFields,
       link: resolvedContactId
         ? {
             url: `https://app.gohighlevel.com/v2/location/${process.env.GHL_LOCATION_ID}/contacts/detail/${resolvedContactId}`,

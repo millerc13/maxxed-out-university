@@ -76,7 +76,7 @@ export const applicationSchema = z.object({
   heardAbout: z.enum(heardAboutOptions).optional(),
   // `donewithyou` retained as a legacy value for in-flight submissions
   // mid-deploy after the rename to `business-mentorship`.
-  program: z.enum(['business-mentorship', 'donewithyou', 'mentorship', 'blueprint', 'accelerator', 'university']).optional(),
+  program: z.enum(['business-mentorship', 'donewithyou', 'mentorship', 'blueprint', 'accelerator', 'university', 'experience']).optional(),
   partial: z.boolean().optional(),
   // Used on the university side: which course this application is for.
   courseId: z.string().optional(),
