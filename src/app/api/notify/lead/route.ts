@@ -5,6 +5,7 @@ import { formatNoteBody } from '@/lib/ghl-apply';
 import { applicationSchema } from '@/lib/apply-schema';
 import { sendCapiEvent } from '@/lib/meta-capi';
 import { notifySlackChannels } from '@/lib/slack';
+import { deriveAssigneeFromSource } from '@/lib/ghl-assignment';
 
 export const runtime = 'nodejs';
 
@@ -136,21 +137,20 @@ export async function POST(request: NextRequest) {
   const sent = results.filter((r) => r.ok).length;
 
   // Slack fan-out — fire-and-forget. Per-funnel channels route on the
-  // same `source` slug as SMS does. Pulls contact name/email/phone off
-  // the payload (best-effort); falls back to applicantName for label.
+  // same `source` slug as SMS does. Minimal payload by design: name,
+  // email, phone, and the closer the lead was assigned to. Closers
+  // open the GHL contact for the qualifying answers / full noteBody.
   if (payload && typeof payload === 'object') {
     const p = payload as Record<string, unknown>;
     const email = typeof p.email === 'string' ? p.email : undefined;
     const phone = typeof p.phone === 'string' ? p.phone : undefined;
+    const assignedTo = deriveAssigneeFromSource(source) ?? undefined;
     notifySlackChannels('lead', source, {
       headline: `New ${funnel.course?.title ?? funnel.name} application`,
       contactName: applicantName,
       email,
       phone,
-      fields: [
-        ...(funnel.course?.title ? [{ label: 'Course', value: funnel.course.title }] : []),
-        ...(source ? [{ label: 'Funnel', value: source }] : []),
-      ],
+      assignedTo,
     }).catch((err) => console.error('[notify-lead] Slack fan-out failed', err));
   }
 
