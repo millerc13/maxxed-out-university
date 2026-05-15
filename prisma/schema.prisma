@@ -389,6 +389,17 @@ model AssignmentCounter {
   updatedAt DateTime @updatedAt
 }
 
+// Runtime-flippable settings backed by Postgres instead of env vars so
+// flipping doesn't require a Vercel redeploy. Read via getSetting() in
+// src/lib/settings.ts (10s in-memory cache). Seed keys:
+//   · internalNotificationsEnabled — "true"/"false" — global kill for SMS+Slack fan-out
+//   · testPhoneOverride            — E.164 phone or "" — reroutes all SMS to one number for QA
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model WebhookLog {
   id           String   @id @default(cuid())
   source       String
@@ -778,6 +789,11 @@ model Application {
   // GHL contact id resolved at submit time so we can re-link to the
   // CRM record without re-querying GHL.
   ghlContactId String?
+  // GHL user ID this lead was assigned to at submit time (Rebecca,
+  // Rafael, or null). Mirrors what we send to GHL via pickAssignee()
+  // so the leads list can filter by closer without round-tripping
+  // back to GHL on every page load.
+  assignedToId String?
   // Lifecycle: submitted → reviewed → enrolled → declined / cancelled
   status      String   @default("submitted")
   createdAt   DateTime @default(now())
@@ -787,6 +803,7 @@ model Application {
   @@index([userId])
   @@index([courseId])
   @@index([status])
+  @@index([assignedToId])
 }
 
 // ============================================================================

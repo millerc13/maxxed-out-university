@@ -28,22 +28,36 @@ interface Recipient {
   ghlContactId: string | null;
 }
 
-interface Props {
-  initialRecipients: Recipient[];
+interface GlobalSettings {
+  internalNotificationsEnabled: boolean;
+  testPhoneOverride: string;
 }
 
+interface Props {
+  initialRecipients: Recipient[];
+  initialSettings: GlobalSettings;
+}
+
+// Source slugs the funnel side can emit, mirrored from
+// university-funnel/src/app/api/apply/route.ts:36 (detectProgram).
+// 'donewithyou' is a legacy alias for 'business-mentorship' — kept so
+// cached/old links still route to the BAM channel + recipients.
+// 'university' is the LMS's own /apply form (separate from any funnel
+// subdomain). Keep this list in sync with funnel subdomains.
 const SOURCE_OPTIONS: Array<{ value: string; label: string; short: string }> = [
   { value: 'blueprint', label: 'Blueprint funnel', short: 'BP' },
   { value: 'mentorship', label: 'Mentorship funnel', short: 'MT' },
-  { value: 'donewithyou', label: 'DWY funnel', short: 'DWY' },
+  { value: 'business-mentorship', label: 'BAM (Business Accelerator + Mentorship)', short: 'BAM' },
   { value: 'accelerator', label: 'Business Accelerator', short: 'ACC' },
-  { value: 'university', label: 'University site (/apply)', short: 'UNI' },
   { value: 'experience', label: 'Inner Circle Experience', short: 'IC' },
+  { value: 'university', label: 'University site (/apply)', short: 'UNI' },
+  { value: 'donewithyou', label: 'DWY (legacy alias)', short: 'DWY' },
 ];
 
-export function NotificationsClient({ initialRecipients }: Props) {
+export function NotificationsClient({ initialRecipients, initialSettings }: Props) {
   const router = useRouter();
   const [recipients, setRecipients] = useState<Recipient[]>(initialRecipients);
+  const [settings, setSettings] = useState<GlobalSettings>(initialSettings);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -145,10 +159,42 @@ export function NotificationsClient({ initialRecipients }: Props) {
     });
   }
 
+  async function updateSetting<K extends keyof GlobalSettings>(
+    key: K,
+    value: GlobalSettings[K]
+  ) {
+    const before = settings;
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    await withBusy(`setting:${key}`, async () => {
+      try {
+        const res = await fetch(`/api/admin/settings/${key}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            value: typeof value === 'boolean' ? String(value) : String(value ?? ''),
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed to save');
+      } catch (err) {
+        setSettings(before);
+        throw err;
+      }
+    });
+  }
+
   const enabledLeadCount = recipients.filter((r) => r.active && r.notifyOnLead).length;
 
   return (
     <div className="space-y-5">
+      {/* Global settings banner — global SMS/Slack kill + test phone override */}
+      <SettingsBanner
+        settings={settings}
+        onUpdate={updateSetting}
+        busyKill={busy === 'setting:internalNotificationsEnabled'}
+        busyOverride={busy === 'setting:testPhoneOverride'}
+      />
+
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -352,6 +398,106 @@ export function NotificationsClient({ initialRecipients }: Props) {
       </p>
 
       <SlackChannelsSection />
+    </div>
+  );
+}
+
+/* ─── Settings banner ────────────────────────────────────────── */
+
+function SettingsBanner({
+  settings,
+  onUpdate,
+  busyKill,
+  busyOverride,
+}: {
+  settings: GlobalSettings;
+  onUpdate: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => Promise<void>;
+  busyKill: boolean;
+  busyOverride: boolean;
+}) {
+  const enabled = settings.internalNotificationsEnabled;
+  const override = settings.testPhoneOverride;
+  const [overrideDraft, setOverrideDraft] = useState(override);
+  const dirty = overrideDraft.trim() !== override.trim();
+
+  // Keep the input in sync if a save bumps the parent state.
+  if (!busyOverride && !dirty && overrideDraft !== override) {
+    setTimeout(() => setOverrideDraft(override), 0);
+  }
+
+  return (
+    <div
+      className={`rounded-xl border shadow-sm overflow-hidden transition-colors ${
+        enabled ? 'border-gray-200 bg-white' : 'border-red-300 bg-red-50/60'
+      }`}
+    >
+      {/* Top row: global kill toggle */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="min-w-0 flex items-center gap-3">
+          <span
+            className={`inline-flex h-2.5 w-2.5 rounded-full ${
+              enabled ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'
+            }`}
+            aria-hidden="true"
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-gray-900">
+              {enabled
+                ? 'Internal notifications: ON'
+                : 'Internal notifications: PAUSED'}
+            </div>
+            <div className="text-[11px] text-gray-500 leading-tight mt-0.5">
+              {enabled
+                ? 'SMS + Slack fire normally when leads/sales come in. Flip OFF to silence the team globally without a redeploy.'
+                : 'No SMS or Slack alerts will fire for any funnel. Existing automations (GHL workflows, customer-facing comms) keep running.'}
+            </div>
+          </div>
+        </div>
+        <Switch
+          checked={enabled}
+          onChange={(v) => onUpdate('internalNotificationsEnabled', v)}
+          disabled={busyKill}
+          ariaLabel="Toggle global internal notifications"
+        />
+      </div>
+
+      {/* Bottom row: test phone override */}
+      <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/40 flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 shrink-0">
+            Test phone override
+          </span>
+          <input
+            type="tel"
+            value={overrideDraft}
+            onChange={(e) => setOverrideDraft(e.target.value)}
+            placeholder="+1 937 555 1234 (empty = normal fan-out)"
+            className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-gray-200 rounded-md text-sm font-mono placeholder:text-gray-400 focus:outline-none focus:border-maxxed-blue focus:ring-2 focus:ring-maxxed-blue/20 transition-colors"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => onUpdate('testPhoneOverride', overrideDraft.trim())}
+          disabled={busyOverride || !dirty}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-maxxed-blue text-white text-xs font-semibold shadow-sm hover:bg-maxxed-blue-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+        >
+          {busyOverride ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+          )}
+          Save
+        </button>
+      </div>
+      {override && (
+        <div className="border-t border-amber-200 bg-amber-50 px-4 py-2 text-[12px] text-amber-900 flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            All SMS is currently rerouted to <span className="font-mono font-bold">{override}</span>.
+            Recipients won&apos;t receive anything until this field is cleared.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

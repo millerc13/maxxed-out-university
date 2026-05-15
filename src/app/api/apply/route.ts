@@ -13,6 +13,7 @@ import { notifyRecipients } from '@/lib/sms';
 import { sendCapiEvent, extractMetaIdentifiers } from '@/lib/meta-capi';
 import { pickAssignee } from '@/lib/ghl-assignment';
 import { notifySlackChannels } from '@/lib/slack';
+import { getSettingBool } from '@/lib/settings';
 
 export const runtime = 'nodejs';
 
@@ -210,6 +211,7 @@ export async function POST(request: Request) {
           payload: payload as never,
           ghlContactId: resolvedContactId,
           userId: existingUser?.id ?? null,
+          assignedToId: assignedTo ?? null,
         },
         update: {
           name: data.name ?? undefined,
@@ -218,6 +220,9 @@ export async function POST(request: Request) {
           payload: payload as never,
           ghlContactId: resolvedContactId ?? undefined,
           userId: existingUser?.id ?? undefined,
+          // Only set assignee if we computed one (i.e., not a partial submit).
+          // Don't overwrite an existing assignment with null on re-apply.
+          ...(assignedTo ? { assignedToId: assignedTo } : {}),
         },
       });
       console.info(`[apply] Application row upserted for email=${data.email} courseId=${data.courseId}`);
@@ -230,8 +235,13 @@ export async function POST(request: Request) {
   // NotificationRecipient table (admin-managed at /admin/notifications).
   // Body matches the GHL note exactly so closers see the same rich
   // breakdown they'd see if they opened the contact in GHL. Gated by the
-  // per-course notifyClosersOnApply flag.
-  if (!isPartial && notifyClosers) {
+  // per-course notifyClosersOnApply flag AND the global
+  // internalNotificationsEnabled Setting (flippable from /admin/notifications).
+  const internalNotificationsEnabled = await getSettingBool('internalNotificationsEnabled', true);
+  if (!isPartial && notifyClosers && !internalNotificationsEnabled) {
+    console.log('[apply] internalNotificationsEnabled=false — skipping SMS+Slack');
+  }
+  if (!isPartial && notifyClosers && internalNotificationsEnabled) {
     const richNoteBody = formatNoteBody(data, { courseTitle });
     const smsBody = `New Maxxed Out application — ${data.name}\n\n${richNoteBody}`;
     notifyRecipients('lead', smsBody, 'university').catch((err) =>
