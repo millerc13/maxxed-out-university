@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Switch } from '@/components/admin/Toggle';
 import { SlackChannelsSection } from '@/components/admin/SlackChannelsSection';
+import { CalendlySection } from '@/components/admin/CalendlySection';
 
 interface Recipient {
   id: string;
@@ -398,6 +399,8 @@ export function NotificationsClient({ initialRecipients, initialSettings }: Prop
       </p>
 
       <SlackChannelsSection />
+
+      <CalendlySection />
     </div>
   );
 }

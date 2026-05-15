@@ -14,6 +14,8 @@ import {
   Hash,
   Send,
   ExternalLink,
+  Code2,
+  ChevronDown,
 } from 'lucide-react';
 import { Switch } from '@/components/admin/Toggle';
 
@@ -267,6 +269,22 @@ export function SlackChannelsSection() {
   );
 }
 
+interface DeliveryLog {
+  id: string;
+  source: string;
+  event: string;
+  status: string;
+  errorMessage: string | null;
+  processedAt: string;
+  payload: {
+    channelName?: string;
+    headline?: string;
+    contactName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+}
+
 function ChannelRow({
   channel,
   onEdit,
@@ -282,6 +300,35 @@ function ChannelRow({
   onTest: () => void;
   busyKey: string | null;
 }) {
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [logs, setLogs] = useState<DeliveryLog[] | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
+  async function loadLogs() {
+    setLogsLoading(true);
+    setLogsError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/notifications/slack-channels/${channel.id}/logs`,
+        { cache: 'no-store' }
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load logs');
+      setLogs(json.logs ?? []);
+    } catch (e: any) {
+      setLogsError(e.message || 'Failed to load logs');
+    } finally {
+      setLogsLoading(false);
+    }
+  }
+
+  function toggleLogs() {
+    const next = !logsOpen;
+    setLogsOpen(next);
+    if (next && logs === null && !logsLoading) void loadLogs();
+  }
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5 sm:px-5 sm:py-4 shadow-sm hover:border-gray-300 transition-colors">
       <div className="flex items-start justify-between gap-3">
@@ -354,6 +401,19 @@ function ChannelRow({
           </button>
           <button
             type="button"
+            onClick={toggleLogs}
+            title="Show recent delivery logs for this channel"
+            aria-expanded={logsOpen}
+            className={`inline-flex items-center justify-center w-8 h-8 rounded-md cursor-pointer transition-colors ${
+              logsOpen
+                ? 'text-maxxed-blue bg-maxxed-blue/10'
+                : 'text-gray-500 hover:text-maxxed-blue hover:bg-maxxed-blue/5'
+            }`}
+          >
+            <Code2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={onEdit}
             className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 cursor-pointer"
             title="Edit"
@@ -375,6 +435,91 @@ function ChannelRow({
           </button>
         </div>
       </div>
+
+      {logsOpen && (
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500 flex items-center gap-1.5">
+              <Code2 className="w-3.5 h-3.5" />
+              Recent deliveries
+            </span>
+            <button
+              type="button"
+              onClick={loadLogs}
+              disabled={logsLoading}
+              className="text-[11px] font-medium text-maxxed-blue hover:underline disabled:opacity-40 cursor-pointer flex items-center gap-1"
+            >
+              {logsLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+              Refresh
+            </button>
+          </div>
+
+          {logsError ? (
+            <p className="text-[12px] text-red-600">{logsError}</p>
+          ) : logsLoading && logs === null ? (
+            <p className="text-[12px] text-gray-500 flex items-center gap-1.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+            </p>
+          ) : logs && logs.length === 0 ? (
+            <p className="text-[12px] text-gray-500">
+              No deliveries logged yet. A row appears here every time this
+              channel fires (or fails to fire) a Slack alert.
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {logs?.map((log) => (
+                <div
+                  key={log.id}
+                  className="rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2 text-[12px]"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        log.status === 'success'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {log.status === 'success' ? (
+                        <CheckCircle2 className="w-3 h-3" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3" />
+                      )}
+                      {log.status}
+                    </span>
+                    <span className="font-mono text-[10px] text-gray-500">
+                      {log.event}
+                    </span>
+                    <span className="text-[10px] text-gray-400">
+                      {new Date(log.processedAt).toLocaleString()}
+                    </span>
+                  </div>
+                  {log.payload?.headline && (
+                    <p className="mt-1 text-gray-800 font-medium truncate">
+                      {log.payload.headline}
+                    </p>
+                  )}
+                  {(log.payload?.contactName || log.payload?.email) && (
+                    <p className="text-[11px] text-gray-500 truncate">
+                      {log.payload?.contactName ?? ''}
+                      {log.payload?.email ? ` · ${log.payload.email}` : ''}
+                    </p>
+                  )}
+                  {log.errorMessage && (
+                    <p className="mt-1 text-[11px] text-red-600 font-mono break-all">
+                      {log.errorMessage}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
