@@ -206,7 +206,11 @@ export async function notifySlackChannels(
   // history under each Slack channel. Best-effort: a logging failure must
   // never break the (fire-and-forget) fan-out. channelId in the payload
   // is what the per-channel log API filters on.
-  void prisma.webhookLog
+  // Awaited (not void) so the rows are persisted before this function
+  // resolves — callers now await notifySlackChannels, and a fire-and-
+  // forget write would be lost when the serverless instance suspends.
+  // Still .catch()'d: a logging failure must never break the fan-out.
+  await prisma.webhookLog
     .createMany({
       data: results.map((r) => ({
         source: source ?? 'unknown',

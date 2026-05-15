@@ -164,10 +164,12 @@ export async function POST(request: NextRequest) {
   const results = await notifyRecipients('lead', smsBody, source);
   const sent = results.filter((r) => r.ok).length;
 
-  // Slack fan-out — fire-and-forget. Per-funnel channels route on the
-  // same `source` slug as SMS does. Minimal payload by design: name,
-  // email, phone, and the closer the lead was assigned to. Closers
-  // open the GHL contact for the qualifying answers / full noteBody.
+  // Slack fan-out. AWAITED (not fire-and-forget): this route is itself
+  // called from the funnel inside after(), so awaiting here adds no
+  // latency to the applicant — and a bare fire-and-forget call would be
+  // killed when this serverless instance suspends after the response
+  // (the WebhookLog row + Slack POST would silently never happen).
+  // try/catch so a Slack outage still returns 200 and doesn't block SMS.
   if (payload && typeof payload === 'object') {
     const p = payload as Record<string, unknown>;
     const email = typeof p.email === 'string' ? p.email : undefined;
@@ -177,13 +179,17 @@ export async function POST(request: NextRequest) {
     // the counter here so leave unassigned to avoid misreporting GHL).
     const isRoundRobin = source === 'dd-healthcare' || source === 'dd_application' || source === 'healthcare' || source === 'dd';
     const assignedTo = isRoundRobin || !process.env.GHL_USER_REBECCA_ID ? undefined : 'Rebecca';
-    notifySlackChannels('lead', source, {
-      headline: `New ${funnel.course?.title ?? funnel.name} application`,
-      contactName: applicantName,
-      email,
-      phone,
-      assignedTo,
-    }).catch((err) => console.error('[notify-lead] Slack fan-out failed', err));
+    try {
+      await notifySlackChannels('lead', source, {
+        headline: `New ${funnel.course?.title ?? funnel.name} application`,
+        contactName: applicantName,
+        email,
+        phone,
+        assignedTo,
+      });
+    } catch (err) {
+      console.error('[notify-lead] Slack fan-out failed', err);
+    }
   }
 
   // Server-side Meta CAPI Lead — fired for the funnel's linked course.
