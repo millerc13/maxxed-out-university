@@ -5,7 +5,6 @@ import { formatNoteBody } from '@/lib/ghl-apply';
 import { applicationSchema } from '@/lib/apply-schema';
 import { sendCapiEvent } from '@/lib/meta-capi';
 import { notifySlackChannels } from '@/lib/slack';
-import { deriveAssigneeFromSource } from '@/lib/ghl-assignment';
 
 export const runtime = 'nodejs';
 
@@ -144,7 +143,11 @@ export async function POST(request: NextRequest) {
     const p = payload as Record<string, unknown>;
     const email = typeof p.email === 'string' ? p.email : undefined;
     const phone = typeof p.phone === 'string' ? p.phone : undefined;
-    const assignedTo = deriveAssigneeFromSource(source) ?? undefined;
+    // Default-funnel rule mirror: every funnel auto-assigns to Rebecca
+    // except dd-healthcare (round-robin Rebecca/Rafael — can't replay
+    // the counter here so leave unassigned to avoid misreporting GHL).
+    const isRoundRobin = source === 'dd-healthcare' || source === 'dd_application' || source === 'healthcare' || source === 'dd';
+    const assignedTo = isRoundRobin || !process.env.GHL_USER_REBECCA_ID ? undefined : 'Rebecca';
     // Headline subject by source — used when the funnel doesn't have its
     // own FunnelDeployment row (e.g. Inner Circle Experience reuses
     // Blueprint's apiKey, so funnel.course.title would surface as
