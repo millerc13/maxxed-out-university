@@ -202,5 +202,28 @@ export async function notifySlackChannels(
     }),
   );
 
+  // Persist a per-channel delivery log so /admin/notifications can show a
+  // history under each Slack channel. Best-effort: a logging failure must
+  // never break the (fire-and-forget) fan-out. channelId in the payload
+  // is what the per-channel log API filters on.
+  void prisma.webhookLog
+    .createMany({
+      data: results.map((r) => ({
+        source: source ?? 'unknown',
+        event: `slack:${eventType}`,
+        status: r.ok ? 'success' : 'failed',
+        errorMessage: r.error ?? null,
+        payload: {
+          channelId: r.channelId,
+          channelName: r.channelName,
+          headline: payload.headline,
+          contactName: payload.contactName ?? null,
+          email: payload.email ?? null,
+          phone: payload.phone ?? null,
+        },
+      })),
+    })
+    .catch((err) => console.error('[slack] WebhookLog write failed', err));
+
   return results;
 }
