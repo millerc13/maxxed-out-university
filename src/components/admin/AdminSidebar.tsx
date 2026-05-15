@@ -21,6 +21,7 @@ import {
   Inbox,
   X,
   TrendingUp,
+  Settings,
 } from 'lucide-react';
 import { useAdminDrawer } from './AdminShell';
 
@@ -42,6 +43,7 @@ function getNavItems(userEmail?: string | null) {
     { href: '/admin/documents', label: 'Documents', icon: FileSignature },
     { href: '/admin/import', label: 'CSV Import', icon: Upload },
     { href: '/admin/webhooks', label: 'Webhook Logs', icon: FileText },
+    { href: '/admin/settings', label: 'Settings', icon: Settings },
   ];
 
   // CRITICAL: Only show Sales Tracker to admin@maxxedout.com - NO OTHER ADMINS
