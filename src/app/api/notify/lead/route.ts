@@ -37,32 +37,20 @@ export const runtime = 'nodejs';
  * `notifyClosersOnApply = false`, no SMS goes out.
  */
 export async function POST(request: NextRequest) {
-  // Auth — match the API key against any active funnel deployment.
+  // Auth gate — accept any active funnel deployment's apiKey. We split
+  // auth from attribution: the funnel-side repo shares one apiKey across
+  // all its sub-funnels (mentorship/blueprint/experience/etc.), so the
+  // apiKey alone can't tell us which sub-funnel the lead came from. We
+  // pick the *attribution* funnel below by matching subdomain to source.
   const apiKey = request.headers.get('x-funnel-api-key')?.trim();
   if (!apiKey) {
     return NextResponse.json({ error: 'Missing x-funnel-api-key' }, { status: 401 });
   }
-  const funnel = await prisma.funnelDeployment.findFirst({
+  const authFunnel = await prisma.funnelDeployment.findFirst({
     where: { apiKey, active: true },
-    select: {
-      id: true,
-      name: true,
-      subdomain: true,
-      // Pull the funnel's linked Course (for CAPI Lead firing).
-      course: {
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          price: true,
-          metaPixelId: true,
-          metaCapiAccessToken: true,
-          metaTestEventCode: true,
-        },
-      },
-    },
+    select: { id: true },
   });
-  if (!funnel) {
+  if (!authFunnel) {
     return NextResponse.json({ error: 'Invalid api key' }, { status: 401 });
   }
 
@@ -92,6 +80,36 @@ export async function POST(request: NextRequest) {
   if (!applicantName) {
     return NextResponse.json({ error: 'applicantName is required' }, { status: 400 });
   }
+
+  // Attribution lookup — prefer the funnel whose subdomain matches the
+  // submission source (so an 'experience' submission resolves to the IC
+  // funnel + course, not whichever deployment owns the shared apiKey).
+  // Falls back to the auth funnel when no subdomain match exists.
+  const funnelSelect = {
+    id: true,
+    name: true,
+    subdomain: true,
+    course: {
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        price: true,
+        metaPixelId: true,
+        metaCapiAccessToken: true,
+        metaTestEventCode: true,
+      },
+    },
+  } as const;
+  const funnel =
+    (await prisma.funnelDeployment.findFirst({
+      where: { subdomain: source, active: true },
+      select: funnelSelect,
+    })) ??
+    (await prisma.funnelDeployment.findFirst({
+      where: { id: authFunnel.id },
+      select: funnelSelect,
+    }))!;
 
   // Optional course-level gate.
   let courseTitle: string | undefined = providedTitle?.toString().trim() || undefined;
@@ -148,16 +166,8 @@ export async function POST(request: NextRequest) {
     // the counter here so leave unassigned to avoid misreporting GHL).
     const isRoundRobin = source === 'dd-healthcare' || source === 'dd_application' || source === 'healthcare' || source === 'dd';
     const assignedTo = isRoundRobin || !process.env.GHL_USER_REBECCA_ID ? undefined : 'Rebecca';
-    // Headline subject by source — used when the funnel doesn't have its
-    // own FunnelDeployment row (e.g. Inner Circle Experience reuses
-    // Blueprint's apiKey, so funnel.course.title would surface as
-    // "Real Estate Empire Blueprint" instead of the IC funnel name).
-    const SOURCE_HEADLINES: Record<string, string> = {
-      experience: 'Inner Circle Experience',
-    };
-    const headlineSubject = SOURCE_HEADLINES[source] ?? funnel.course?.title ?? funnel.name;
     notifySlackChannels('lead', source, {
-      headline: `New ${headlineSubject} application`,
+      headline: `New ${funnel.course?.title ?? funnel.name} application`,
       contactName: applicantName,
       email,
       phone,
