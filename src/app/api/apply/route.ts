@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { applicationSchema, type ApplicationPayload } from '@/lib/apply-schema';
 import {
@@ -244,32 +244,40 @@ export async function POST(request: Request) {
   if (!isPartial && notifyClosers && internalNotificationsEnabled) {
     const richNoteBody = formatNoteBody(data, { courseTitle });
     const smsBody = `New Maxxed Out application — ${data.name}\n\n${richNoteBody}`;
-    notifyRecipients('lead', smsBody, 'university').catch((err) =>
-      console.error('[apply] lead notification SMS fan-out failed', err)
-    );
-
-    // Slack fan-out — same source slug as SMS so per-funnel channels
-    // route correctly. Fire-and-forget, fully independent of SMS so a
-    // Slack outage doesn't block lead capture. Minimal payload — name,
-    // email, phone, assigned closer + a deep link to the GHL contact;
-    // closers open GHL for the full qualifying answers.
-    notifySlackChannels('lead', data.program ?? 'university', {
-      headline: `New ${courseTitle ?? 'Maxxed Out'} application`,
-      contactName: data.name,
-      email: data.email,
-      phone: data.phone,
-      assignedTo: assignedTo === process.env.GHL_USER_REBECCA_ID
+    const slackAssignedTo =
+      assignedTo === process.env.GHL_USER_REBECCA_ID
         ? 'Rebecca'
         : assignedTo === process.env.GHL_USER_RAFAEL_ID
           ? 'Rafael'
-          : undefined,
-      link: resolvedContactId
-        ? {
-            url: `https://app.gohighlevel.com/v2/location/${process.env.GHL_LOCATION_ID}/contacts/detail/${resolvedContactId}`,
-            label: 'Open in GHL',
-          }
-        : undefined,
-    }).catch((err) => console.error('[apply] Slack lead fan-out failed', err));
+          : undefined;
+    const slackLink = resolvedContactId
+      ? {
+          url: `https://app.gohighlevel.com/v2/location/${process.env.GHL_LOCATION_ID}/contacts/detail/${resolvedContactId}`,
+          label: 'Open in GHL',
+        }
+      : undefined;
+    // after(): SMS + Slack fan-out run past the response flush but stay
+    // alive — a bare fire-and-forget call is killed when the serverless
+    // instance suspends, which silently drops the alert + WebhookLog row.
+    after(async () => {
+      try {
+        await notifyRecipients('lead', smsBody, 'university');
+      } catch (err) {
+        console.error('[apply] lead notification SMS fan-out failed', err);
+      }
+      try {
+        await notifySlackChannels('lead', data.program ?? 'university', {
+          headline: `New ${courseTitle ?? 'Maxxed Out'} application`,
+          contactName: data.name,
+          email: data.email,
+          phone: data.phone,
+          assignedTo: slackAssignedTo,
+          link: slackLink,
+        });
+      } catch (err) {
+        console.error('[apply] Slack lead fan-out failed', err);
+      }
+    });
   } else if (!isPartial && !notifyClosers) {
     console.info(
       `[apply] notifyClosersOnApply=false for course "${courseTitle ?? 'unknown'}" — skipping SMS notifications`
