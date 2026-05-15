@@ -145,8 +145,16 @@ export async function POST(request: NextRequest) {
     const email = typeof p.email === 'string' ? p.email : undefined;
     const phone = typeof p.phone === 'string' ? p.phone : undefined;
     const assignedTo = deriveAssigneeFromSource(source) ?? undefined;
+    // Headline subject by source — used when the funnel doesn't have its
+    // own FunnelDeployment row (e.g. Inner Circle Experience reuses
+    // Blueprint's apiKey, so funnel.course.title would surface as
+    // "Real Estate Empire Blueprint" instead of the IC funnel name).
+    const SOURCE_HEADLINES: Record<string, string> = {
+      experience: 'Inner Circle Experience',
+    };
+    const headlineSubject = SOURCE_HEADLINES[source] ?? funnel.course?.title ?? funnel.name;
     notifySlackChannels('lead', source, {
-      headline: `New ${funnel.course?.title ?? funnel.name} application`,
+      headline: `New ${headlineSubject} application`,
       contactName: applicantName,
       email,
       phone,
