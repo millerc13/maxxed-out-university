@@ -5,6 +5,7 @@ import { formatNoteBody } from '@/lib/ghl-apply';
 import { applicationSchema } from '@/lib/apply-schema';
 import { sendCapiEvent } from '@/lib/meta-capi';
 import { notifySlackChannels } from '@/lib/slack';
+import { getSettingBool } from '@/lib/settings';
 
 export const runtime = 'nodejs';
 
@@ -52,6 +53,16 @@ export async function POST(request: NextRequest) {
   });
   if (!authFunnel) {
     return NextResponse.json({ error: 'Invalid api key' }, { status: 401 });
+  }
+
+  // Global kill switch — flippable from /admin/notifications without a
+  // redeploy. When off, return 200 so the funnel doesn't retry; just skip
+  // the SMS+Slack fan-out. We still parse the body below to log what was
+  // received, but bail before any side effects fire.
+  const notificationsEnabled = await getSettingBool('internalNotificationsEnabled', true);
+  if (!notificationsEnabled) {
+    console.log('[notify-lead] internalNotificationsEnabled=false — skipping SMS+Slack');
+    return NextResponse.json({ ok: true, sent: 0, skipped: 'internal_notifications_disabled' });
   }
 
   let body: any;

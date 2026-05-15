@@ -11,6 +11,7 @@
  */
 
 import { prisma } from './prisma';
+import { getSetting } from './settings';
 
 const GHL_API_BASE = 'https://services.leadconnectorhq.com';
 const GHL_API_VERSION = '2021-07-28';
@@ -266,12 +267,15 @@ export async function notifyRecipients(
     ? recipients.filter((r) => r.sources.length === 0 || r.sources.includes(source))
     : recipients;
 
-  // Test-mode override: when NOTIFY_TEST_PHONE_OVERRIDE is set (E.164
-  // or 10-digit US) every notification is rerouted to just that one
-  // number, regardless of recipient subscriptions. Lets us QA a new
-  // funnel without pinging the rest of the team. Unset to restore
-  // normal fan-out.
-  const overrideRaw = (process.env.NOTIFY_TEST_PHONE_OVERRIDE ?? '').trim();
+  // Test-mode override: when the `testPhoneOverride` Setting row is set
+  // (E.164 or 10-digit US) every notification is rerouted to just that one
+  // number, regardless of recipient subscriptions. Lets us QA a new funnel
+  // without pinging the rest of the team. Flippable from /admin/notifications
+  // without a redeploy. Falls back to NOTIFY_TEST_PHONE_OVERRIDE env var so
+  // existing prod env keeps working until the DB seed lands.
+  const overrideRaw = (
+    await getSetting('testPhoneOverride', process.env.NOTIFY_TEST_PHONE_OVERRIDE ?? '')
+  ).trim();
   if (overrideRaw) {
     const digits = overrideRaw.replace(/\D/g, '');
     const e164 = overrideRaw.startsWith('+')
@@ -282,7 +286,7 @@ export async function notifyRecipients(
           ? `+${digits}`
           : overrideRaw;
     console.log(
-      `[sms] NOTIFY_TEST_PHONE_OVERRIDE active — rerouting all ${matched.length} matched recipient(s) to ${e164}`
+      `[sms] testPhoneOverride active — rerouting all ${matched.length} matched recipient(s) to ${e164}`
     );
     matched = [
       {

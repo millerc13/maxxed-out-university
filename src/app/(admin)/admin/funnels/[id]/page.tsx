@@ -12,6 +12,7 @@ interface Course {
   price: number | null;
   thumbnail?: string | null;
   checkoutAfterApply?: boolean;
+  notifyClosersOnApply?: boolean;
 }
 
 interface Testimonial {
@@ -1182,6 +1183,23 @@ export default function FunnelEditorPage() {
                     </div>
                   );
                 })()}
+
+                {/* Notify team on lead — editable here, writes through to
+                    the linked course's notifyClosersOnApply column. Flip
+                    OFF to silence this funnel's lead SMS + Slack alerts
+                    while QA-testing (also skips GHL opportunity creation
+                    so closers aren't pinged by the GHL automation either). */}
+                <NotifyTeamToggle
+                  courseId={courseId}
+                  linkedCourse={courses.find((c) => c.id === courseId)}
+                  onUpdate={(next) =>
+                    setCourses((prev) =>
+                      prev.map((c) =>
+                        c.id === courseId ? { ...c, notifyClosersOnApply: next } : c
+                      )
+                    )
+                  }
+                />
               </div>
             </CardContent>
           </Card>
@@ -1724,6 +1742,104 @@ export default function FunnelEditorPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Notify team toggle ───────────────────────────────────────
+ * Surfaces Course.notifyClosersOnApply on the funnel page so the user
+ * can pause/resume internal SMS+Slack for this funnel without leaving
+ * the page. Writes through to PUT /api/admin/courses/[id].
+ */
+function NotifyTeamToggle({
+  courseId,
+  linkedCourse,
+  onUpdate,
+}: {
+  courseId: string;
+  linkedCourse: Course | undefined;
+  onUpdate: (next: boolean) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!courseId || !linkedCourse) {
+    return (
+      <div className="pt-2 border-t border-gray-100">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Notify team on lead
+        </label>
+        <p className="text-xs text-gray-500">
+          Link a primary course above to control this funnel&apos;s internal SMS + Slack alerts.
+        </p>
+      </div>
+    );
+  }
+
+  const enabled = !!linkedCourse.notifyClosersOnApply;
+
+  async function toggle() {
+    setErr(null);
+    setBusy(true);
+    const next = !enabled;
+    // Optimistic flip
+    onUpdate(next);
+    try {
+      const res = await fetch(`/api/admin/courses/${courseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifyClosersOnApply: next }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `Failed (${res.status})`);
+      }
+    } catch (e: any) {
+      onUpdate(enabled); // rollback
+      setErr(e.message || 'Save failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="pt-2 border-t border-gray-100">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <label className="block text-sm font-medium text-gray-700">
+            Notify team on lead{' '}
+            <span className={`inline-block ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
+              {enabled ? 'ON' : 'OFF'}
+            </span>
+          </label>
+          <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+            When ON, every lead on this funnel pings closers via SMS + the matching Slack channel
+            (and creates a GHL opportunity that fires the closer-notify automation). Flip OFF to
+            silence this funnel while QA-testing. Writes through to the linked course&apos;s{' '}
+            <span className="font-mono">notifyClosersOnApply</span> field — same effect as toggling
+            it on{' '}
+            <a
+              href={`/admin/courses/${linkedCourse.id}`}
+              className="text-maxxed-blue underline"
+            >
+              the course
+            </a>
+            .
+          </p>
+          {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          disabled={busy}
+          aria-pressed={enabled}
+          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${enabled ? 'bg-maxxed-blue' : 'bg-gray-300'}`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : ''}`}
+          />
+        </button>
+      </div>
     </div>
   );
 }
