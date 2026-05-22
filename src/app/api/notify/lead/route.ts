@@ -174,11 +174,20 @@ export async function POST(request: NextRequest) {
     const p = payload as Record<string, unknown>;
     const email = typeof p.email === 'string' ? p.email : undefined;
     const phone = typeof p.phone === 'string' ? p.phone : undefined;
-    // Default-funnel rule mirror: every funnel auto-assigns to Rebecca
-    // except dd-healthcare (round-robin Rebecca/Rafael — can't replay
-    // the counter here so leave unassigned to avoid misreporting GHL).
+    // Assignee shown in the Slack alert — mirrors the funnel's actual GHL
+    // assignment so the notification doesn't misreport the closer:
+    //   · dd-healthcare → round-robin Rebecca/Rafael (can't replay the
+    //     counter here, so leave unassigned rather than guess)
+    //   · experience / inner-circle (Jet Inner Circle) → Mike (moved off
+    //     Rebecca 2026-05-21)
+    //   · everything else → Rebecca
     const isRoundRobin = source === 'dd-healthcare' || source === 'dd_application' || source === 'healthcare' || source === 'dd';
-    const assignedTo = isRoundRobin || !process.env.GHL_USER_REBECCA_ID ? undefined : 'Rebecca';
+    const isExperience = source === 'experience' || source === 'inner-circle';
+    const assignedTo = isRoundRobin
+      ? undefined
+      : isExperience
+        ? 'Mike'
+        : (process.env.GHL_USER_REBECCA_ID ? 'Rebecca' : undefined);
     try {
       await notifySlackChannels('lead', source, {
         headline: `New ${funnel.course?.title ?? funnel.name} application`,
