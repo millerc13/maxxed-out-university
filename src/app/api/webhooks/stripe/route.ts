@@ -206,6 +206,33 @@ async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
           label: 'View in Stripe',
         },
       }).catch((err) => console.error('[stripe-webhook] Slack sale fan-out failed', err));
+
+      // SMS `sale` fan-out — text every active NotificationRecipient with
+      // notifyOnSale=true whose sources accept this course slug. Mirrors
+      // the Fanbasis webhook so a sale via either provider notifies the
+      // closer team instantly. Fire-and-forget, never blocks.
+      try {
+        const { notifyRecipients } = await import('@/lib/sms');
+        const buyer = resolvedUserId
+          ? await prisma.user.findUnique({
+              where: { id: resolvedUserId },
+              select: { phone: true },
+            })
+          : null;
+        const buyerPhone = buyer?.phone ?? null;
+        const lines = [
+          `${purchasedCourse.title} — ${formatUsd(paymentIntent.amount)}`,
+          `${userName ?? 'Buyer'}`,
+          buyerPhone ? `${buyerPhone}` : null,
+          userEmail ? `${userEmail}` : null,
+          `Txn: ${paymentIntent.id}`,
+        ].filter(Boolean);
+        notifyRecipients('sale', lines.join('\n'), purchasedCourse.slug).catch(
+          (err) => console.error('[stripe-webhook] SMS sale fan-out failed', err)
+        );
+      } catch (err) {
+        console.error('[stripe-webhook] SMS sale fan-out setup failed', err);
+      }
     }
 
     // Server-side Meta CAPI Purchase mirror. event_id is the Stripe
