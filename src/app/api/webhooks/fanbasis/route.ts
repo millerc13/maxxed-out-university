@@ -422,6 +422,32 @@ async function enrollFromFanbasis(params: {
         { label: 'Transaction', value: params.transactionId },
       ],
     }).catch((err) => console.error('[fanbasis-webhook] Slack sale fan-out failed', err));
+
+    // SMS `sale` fan-out — text every active NotificationRecipient with
+    // notifyOnSale=true whose sources accept this course slug. Mike asked
+    // for instant "card hit" alerts on the IC / mentorship pay links;
+    // any closer who needs the same just adds their phone in /admin/
+    // notifications with notifyOnSale on. Fire-and-forget, never blocks.
+    try {
+      const { notifyRecipients } = await import('@/lib/sms');
+      const buyer = await prisma.user.findUnique({
+        where: { id: resolvedUserId },
+        select: { phone: true },
+      });
+      const buyerPhone = buyer?.phone ?? null;
+      const lines = [
+        `${purchasedCourse.title} — ${saleAmountStr}`,
+        `${userName ?? 'Buyer'}`,
+        buyerPhone ? `${buyerPhone}` : null,
+        userEmail ? `${userEmail}` : null,
+        `Txn: ${params.transactionId}`,
+      ].filter(Boolean);
+      notifyRecipients('sale', lines.join('\n'), purchasedCourse.slug).catch(
+        (err) => console.error('[fanbasis-webhook] SMS sale fan-out failed', err)
+      );
+    } catch (err) {
+      console.error('[fanbasis-webhook] SMS sale fan-out setup failed', err);
+    }
   }
 
   // Server-side Meta CAPI Purchase mirror. event_id is the Fanbasis
