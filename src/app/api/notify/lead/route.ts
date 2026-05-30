@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       accessToken: funnel.course.metaCapiAccessToken,
       testEventCode: funnel.course.metaTestEventCode,
       eventName: 'Lead',
-      eventId: `lead_${email ?? applicantName}_${Date.now()}`,
+      eventId: `lead_${(email ?? applicantName).trim().toLowerCase()}`,
       eventSourceUrl: m.sourceUrl,
       userData: {
         email,

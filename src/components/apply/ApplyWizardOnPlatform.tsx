@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "./ui/Button";
-import { trackPixelEvent, generateEventId } from "@/lib/meta-pixel";
+import { trackPixelEvent } from "@/lib/meta-pixel";
 import { Input, Textarea, Label, FieldError } from "./ui/Input";
 import { RadioGroup, RadioCard } from "./ui/RadioGroup";
 import {
@@ -240,11 +240,36 @@ export function ApplyWizardOnPlatform({ course, prefill }: ApplyWizardOnPlatform
     return () => clearTimeout(t);
   }, [step]);
 
+  // Fire the Meta Pixel `Lead` once, right after step 1 — the earliest
+  // point we have the applicant's email. Deterministic event_id
+  // (`lead_<email>`) lets the server-side CAPI Lead from /api/apply dedupe
+  // to a single Lead per applicant. No-op when the course has no Pixel.
+  const leadFired = useRef(false);
+  const fireLeadOnce = (email: string) => {
+    if (leadFired.current) return;
+    if (!course.metaPixelId) return;
+    const clean = email.trim().toLowerCase();
+    if (!clean) return;
+    leadFired.current = true;
+    trackPixelEvent(
+      'Lead',
+      {
+        value: course.price ? course.price / 100 : undefined,
+        currency: course.price ? 'USD' : undefined,
+        content_ids: [course.slug],
+        content_name: course.title,
+        content_category: 'application',
+      },
+      `lead_${clean}`,
+    );
+  };
+
   const partialCaptureFired = useRef(false);
   const firePartialCapture = () => {
     if (partialCaptureFired.current) return;
     partialCaptureFired.current = true;
     const values = getValues();
+    fireLeadOnce(values.email);
     fetch("/api/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -294,25 +319,6 @@ export function ApplyWizardOnPlatform({ course, prefill }: ApplyWizardOnPlatform
         throw new Error(body?.error || `Request failed (${res.status})`);
       }
       localStorage.removeItem(STORAGE_KEY);
-
-      // Fire Meta Pixel `Lead` event. value uses the course price as the
-      // lead's "potential value" for ad-bid optimization, currency USD.
-      // The server-side mirror fires from /api/apply with the same event_id
-      // so Meta dedupes. No-op when course has no Pixel configured.
-      if (course.metaPixelId) {
-        const eventId = generateEventId();
-        trackPixelEvent(
-          'Lead',
-          {
-            value: course.price ? course.price / 100 : undefined,
-            currency: course.price ? 'USD' : undefined,
-            content_ids: [course.slug],
-            content_name: course.title,
-            content_category: 'application',
-          },
-          eventId,
-        );
-      }
 
       if (sendToCheckoutAfter) {
         const params = new URLSearchParams({

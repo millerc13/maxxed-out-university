@@ -307,7 +307,7 @@ export async function POST(request: Request) {
       accessToken: metaCapiAccessToken,
       testEventCode: metaTestEventCode,
       eventName: 'Lead',
-      eventId: `lead_${data.email}_${Date.now()}`,
+      eventId: `lead_${data.email.trim().toLowerCase()}`,
       eventSourceUrl: referer,
       userData: {
         email: data.email,
