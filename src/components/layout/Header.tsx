@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { Facebook, Instagram, Youtube, Menu, X, User, LogOut, ChevronDown, BookOpen, LayoutDashboard, Settings, Wrench } from 'lucide-react';
 import { AdminViewToggle } from './AdminViewToggle';
+import { can } from '@/lib/permissions';
 
 const socialLinks = [
   { href: 'https://www.facebook.com/todd.pultz', icon: Facebook, label: 'Facebook', hoverClass: 'hover:bg-[#1877f2]' },
@@ -38,6 +39,9 @@ export function Header() {
   const isLoading = status === 'loading';
   const isAuthenticated = status === 'authenticated';
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
+  // Any staff role (ADMIN, INSTRUCTOR, MARKETING, SALES, SUPPORT) can reach
+  // the admin panel — its sections are capability-scoped once inside.
+  const isStaff = can((session?.user as any)?.role, 'admin:access');
   const userName = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
   const userInitial = userName.charAt(0).toUpperCase();
 
@@ -155,7 +159,7 @@ export function Header() {
                     <BookOpen className="w-4 h-4" />
                     Browse Courses
                   </Link>
-                  {isAdmin && (
+                  {isStaff && (
                     <Link
                       href="/admin"
                       className="flex items-center gap-2 px-4 py-2 text-sm text-text-body hover:bg-gray-50 hover:text-maxxed-blue"
@@ -225,7 +229,7 @@ export function Header() {
             })}
           {isAuthenticated ? (
             <>
-              {isAdmin && (
+              {isStaff && (
                 <>
                   <Link
                     href="/admin"
