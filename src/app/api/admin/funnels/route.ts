@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== 'ADMIN') return null;
-  return session;
-}
+import { sessionWithCapability, unauthorized } from '@/lib/api-auth';
 
 export async function GET() {
-  if (!await requireAdmin()) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Read — any staff role.
+  if (!await sessionWithCapability('admin:access')) return unauthorized();
 
   const funnels = await prisma.funnelDeployment.findMany({
     orderBy: { createdAt: 'desc' },
@@ -25,9 +18,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await requireAdmin()) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Create — content managers (ADMIN, INSTRUCTOR, MARKETING).
+  if (!await sessionWithCapability('content:manage')) return unauthorized();
 
   const { name, url, courseId } = await request.json();
 

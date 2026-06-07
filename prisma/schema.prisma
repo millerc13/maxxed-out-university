@@ -561,6 +561,11 @@ enum Role {
   STUDENT
   INSTRUCTOR
   ADMIN
+  // Staff roles — admin-area access scoped by capability (see
+  // src/lib/permissions.ts). None of these can view revenue or delete.
+  MARKETING // ad/creative ops: sees everything operational, no $ figures
+  SALES     // closers/setters: leads + per-deal $; no company revenue
+  SUPPORT   // customer support: read-mostly operational access
 }
 
 enum QuestionType {

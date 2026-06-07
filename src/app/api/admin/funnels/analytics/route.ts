@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { queryPostHog } from '@/lib/posthog';
+import { can } from '@/lib/permissions';
 
+// Read-only funnels analytics summary — any staff role may view.
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user || session.user.role !== 'ADMIN') return null;
+  if (!session?.user?.id || !can(session.user.role, 'admin:access')) return null;
   return session;
 }
 

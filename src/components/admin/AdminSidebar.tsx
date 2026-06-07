@@ -24,8 +24,9 @@ import {
   Settings,
 } from 'lucide-react';
 import { useAdminDrawer } from './AdminShell';
+import { can, capabilityForAdminPath } from '@/lib/permissions';
 
-function getNavItems(userEmail?: string | null) {
+function getNavItems(role?: string | null, userEmail?: string | null) {
   const baseItems = [
     { href: '/admin/quick-links', label: 'Quick Links', icon: Zap },
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -52,7 +53,12 @@ function getNavItems(userEmail?: string | null) {
     baseItems.splice(1, 0, { href: '/admin/sales', label: 'Sales Tracker', icon: TrendingUp });
   }
 
-  return baseItems;
+  // Hide nav entries the role can't open. The same capability map backs the
+  // middleware gate, so the sidebar never shows a link that would just
+  // bounce the user back to /admin.
+  return baseItems.filter((item) =>
+    can(role, capabilityForAdminPath(item.href) ?? 'admin:access')
+  );
 }
 
 /**
@@ -106,11 +112,12 @@ function NavList({ onNavigate, activeHref, navItems }: NavListProps) {
 interface AdminSidebarProps {
   user: {
     email?: string | null;
+    role?: string | null;
   };
 }
 
 export function AdminSidebar({ user }: AdminSidebarProps) {
-  const navItems = getNavItems(user.email);
+  const navItems = getNavItems(user.role, user.email);
   const activeHref = useActiveHref(navItems);
   const { open, setOpen } = useAdminDrawer();
 

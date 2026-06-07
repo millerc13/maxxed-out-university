@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== 'ADMIN') return null;
-  return session;
-}
+import { sessionWithCapability, unauthorized } from '@/lib/api-auth';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!await requireAdmin()) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Read — any staff role (MARKETING needs to view/edit funnels).
+  if (!await sessionWithCapability('admin:access')) return unauthorized();
 
   const { id } = await params;
 
@@ -35,9 +28,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!await requireAdmin()) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Edit — content managers (ADMIN, INSTRUCTOR, MARKETING).
+  if (!await sessionWithCapability('content:manage')) return unauthorized();
 
   const { id } = await params;
   const body = await request.json();
@@ -123,9 +115,8 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!await requireAdmin()) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // Delete — ADMIN only (destructive:delete). MARKETING cannot remove funnels.
+  if (!await sessionWithCapability('destructive:delete')) return unauthorized();
 
   const { id } = await params;
   await prisma.funnelDeployment.delete({ where: { id } });

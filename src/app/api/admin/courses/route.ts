@@ -1,27 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { syncSingleCourseToGHL } from '@/lib/ghl';
+import { sessionWithCapability, unauthorized } from '@/lib/api-auth';
 
-// Helper to check admin
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return null;
-  }
-  const role = session.user.role;
-  if (role !== 'ADMIN' && role !== 'INSTRUCTOR') {
-    return null;
-  }
-  return session;
-}
-
-// GET - List all courses
+// GET - List all courses (any staff role may view)
 export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await sessionWithCapability('admin:access');
+  if (!session) return unauthorized();
 
   const courses = await prisma.course.findMany({
     include: {
@@ -37,12 +22,10 @@ export async function GET() {
   return NextResponse.json(courses);
 }
 
-// POST - Create a new course
+// POST - Create a new course (content managers: ADMIN, INSTRUCTOR, MARKETING)
 export async function POST(request: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await sessionWithCapability('content:manage');
+  if (!session) return unauthorized();
 
   try {
     const body = await request.json();

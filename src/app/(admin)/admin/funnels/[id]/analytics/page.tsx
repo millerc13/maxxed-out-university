@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { FunnelAnalyticsTabs } from '@/components/admin/funnel-analytics/FunnelAnalyticsTabs';
+import { auth } from '@/lib/auth';
+import { can } from '@/lib/permissions';
 
 export default async function FunnelAnalyticsPage({
   params,
@@ -10,6 +12,8 @@ export default async function FunnelAnalyticsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
+  const canViewRevenue = can(session?.user?.role, 'revenue:view');
 
   const funnel = await prisma.funnelDeployment.findUnique({
     where: { id },
@@ -59,6 +63,7 @@ export default async function FunnelAnalyticsPage({
         funnelName={funnel.name}
         subdomain={funnel.subdomain}
         courseId={funnel.courseId}
+        canViewRevenue={canViewRevenue}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
+import { can, capabilityForAdminPath } from '@/lib/permissions';
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -56,11 +57,21 @@ export default auth((req) => {
     }
   }
 
-  // Check admin access
+  // Check admin access — capability-scoped per sub-path.
+  //   · No admin:access at all  → bounced to /dashboard (not staff)
+  //   · Staff but lacking the section's capability (e.g. MARKETING hitting
+  //     /admin/payments) → bounced to /admin (the dashboard), staying in
+  //     the admin area they ARE allowed to use.
+  // This is the single source of truth for page-level admin gating; the
+  // capability map lives in src/lib/permissions.ts.
   if (isAdminRoute && isLoggedIn) {
     const userRole = req.auth?.user?.role;
-    if (userRole !== 'ADMIN' && userRole !== 'INSTRUCTOR') {
+    if (!can(userRole, 'admin:access')) {
       return NextResponse.redirect(new URL('/dashboard', nextUrl));
+    }
+    const needed = capabilityForAdminPath(nextUrl.pathname);
+    if (needed && !can(userRole, needed)) {
+      return NextResponse.redirect(new URL('/admin', nextUrl));
     }
   }
 

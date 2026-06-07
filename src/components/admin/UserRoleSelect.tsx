@@ -12,6 +12,10 @@ const roles = [
   { value: 'STUDENT', label: 'Student', color: 'bg-gray-100 text-gray-700' },
   { value: 'INSTRUCTOR', label: 'Instructor', color: 'bg-purple-100 text-purple-700' },
   { value: 'ADMIN', label: 'Admin', color: 'bg-red-100 text-red-700' },
+  // Staff roles — scoped admin access, no revenue, no deletes.
+  { value: 'MARKETING', label: 'Marketing', color: 'bg-blue-100 text-blue-700' },
+  { value: 'SALES', label: 'Sales', color: 'bg-green-100 text-green-700' },
+  { value: 'SUPPORT', label: 'Support', color: 'bg-amber-100 text-amber-700' },
 ];
 
 export function UserRoleSelect({ userId, currentRole }: UserRoleSelectProps) {

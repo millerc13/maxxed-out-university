@@ -1,14 +1,15 @@
 import { DefaultSession } from 'next-auth';
+import type { Role } from '@/lib/permissions';
 
 declare module 'next-auth' {
   interface User {
-    role?: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+    role?: Role;
     mustChangePassword?: boolean;
   }
   interface Session {
     user: {
       id: string;
-      role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+      role: Role;
       mustChangePassword: boolean;
     } & DefaultSession['user'];
   }
@@ -17,7 +18,7 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     id: string;
-    role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+    role: Role;
     mustChangePassword: boolean;
   }
 }

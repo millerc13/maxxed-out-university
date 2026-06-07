@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { queryPostHog, subdomainToProgram } from '@/lib/posthog';
+import { can } from '@/lib/permissions';
 
+// Read-only funnel analytics — any staff role may view (no $ figures here).
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user || session.user.role !== 'ADMIN') return null;
+  if (!session?.user?.id || !can(session.user.role, 'admin:access')) return null;
   return session;
 }
 

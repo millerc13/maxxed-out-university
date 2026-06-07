@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { ROLE_CAPABILITIES } from '@/lib/permissions';
+
+// Assignable roles = every role the permission model knows about.
+const VALID_ROLES = Object.keys(ROLE_CAPABILITIES);
 
 // PUT - Update user role
 export async function PUT(
@@ -20,7 +24,7 @@ export async function PUT(
     const body = await request.json();
     const { role } = body;
 
-    if (!['STUDENT', 'INSTRUCTOR', 'ADMIN'].includes(role)) {
+    if (!VALID_ROLES.includes(role)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 

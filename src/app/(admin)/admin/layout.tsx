@@ -1,5 +1,5 @@
 import type { Viewport } from 'next';
-import { requireAdmin } from '@/lib/admin';
+import { requireStaff } from '@/lib/admin';
 import { AdminShell } from '@/components/admin/AdminShell';
 
 // Tints the iOS Safari address bar / Android status bar dark on
@@ -17,7 +17,9 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await requireAdmin();
+  // Any staff role may load the shell; per-section access is enforced by
+  // middleware (capability-scoped) and by per-page guards.
+  const session = await requireStaff();
 
   return <AdminShell user={session.user!}>{children}</AdminShell>;
 }

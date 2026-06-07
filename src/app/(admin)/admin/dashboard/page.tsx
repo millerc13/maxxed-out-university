@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
+import { can } from '@/lib/permissions';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Users,
@@ -26,6 +28,11 @@ function formatCurrency(cents: number) {
 }
 
 export default async function AdminDashboardPage() {
+  // Revenue figures are gated: staff without `revenue:view` (MARKETING,
+  // SALES, SUPPORT) see the operational stats but no dollar amounts.
+  const session = await auth();
+  const canViewRevenue = can(session?.user?.role, 'revenue:view');
+
   // Fetch stats. `totalEnrollments` excludes bundle-child rows: when a
   // student buys a bundle we auto-create an Enrollment for every child
   // course, which inflates the raw count by 30-40x. Counting only
@@ -161,29 +168,32 @@ export default async function AdminDashboardPage() {
         </p>
       </div>
 
-      {/* Revenue cards — gross / net / fees */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {revenueCards.map((stat) => (
-          <Card key={stat.label} className="overflow-hidden">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    {stat.label}
-                  </p>
-                  <p className="text-2xl font-extrabold text-gray-900 mt-1 tabular-nums">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{stat.sub}</p>
+      {/* Revenue cards — gross / net / fees. Hidden from staff without
+          revenue:view (e.g. MARKETING). */}
+      {canViewRevenue && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {revenueCards.map((stat) => (
+            <Card key={stat.label} className="overflow-hidden">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      {stat.label}
+                    </p>
+                    <p className="text-2xl font-extrabold text-gray-900 mt-1 tabular-nums">
+                      {stat.value}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">{stat.sub}</p>
+                  </div>
+                  <div className={`p-2.5 rounded-xl ${stat.color} shrink-0`}>
+                    <stat.icon className="w-5 h-5 text-white" />
+                  </div>
                 </div>
-                <div className={`p-2.5 rounded-xl ${stat.color} shrink-0`}>
-                  <stat.icon className="w-5 h-5 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">

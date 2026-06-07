@@ -13,6 +13,8 @@ interface Props {
   funnelName: string;
   subdomain: string | null;
   courseId: string | null;
+  /** Gate the Revenue tab — hidden from staff without revenue:view. */
+  canViewRevenue?: boolean;
 }
 
 const TABS = [
@@ -23,12 +25,15 @@ const TABS = [
   { value: 'revenue', label: 'Revenue', icon: DollarSign },
 ] as const;
 
-export function FunnelAnalyticsTabs({ funnelId }: Props) {
+export function FunnelAnalyticsTabs({ funnelId, canViewRevenue = false }: Props) {
+  // Drop the Revenue tab entirely (trigger + content) when not permitted —
+  // RevenueTab fetches /analytics/revenue, which is also blocked server-side.
+  const tabs = TABS.filter((t) => t.value !== 'revenue' || canViewRevenue);
   return (
     <div style={{ fontFamily: "'Fira Sans', system-ui, sans-serif" }}>
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full justify-start bg-[#E9EEF6] rounded-xl p-1.5 h-auto gap-1 overflow-x-auto">
-          {TABS.map(({ value, label, icon: Icon }) => (
+          {tabs.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}
@@ -52,9 +57,11 @@ export function FunnelAnalyticsTabs({ funnelId }: Props) {
         <TabsContent value="recordings" className="mt-6">
           <RecordingsTab funnelId={funnelId} />
         </TabsContent>
-        <TabsContent value="revenue" className="mt-6">
-          <RevenueTab funnelId={funnelId} />
-        </TabsContent>
+        {canViewRevenue && (
+          <TabsContent value="revenue" className="mt-6">
+            <RevenueTab funnelId={funnelId} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

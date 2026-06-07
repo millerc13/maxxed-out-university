@@ -1,29 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { syncSingleCourseToGHL, deleteGHLProductForCourse } from '@/lib/ghl';
+import { sessionWithCapability, unauthorized } from '@/lib/api-auth';
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return null;
-  }
-  const role = session.user.role;
-  if (role !== 'ADMIN' && role !== 'INSTRUCTOR') {
-    return null;
-  }
-  return session;
-}
-
-// GET - Get a single course
+// GET - Get a single course (any staff role may view)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await sessionWithCapability('admin:access');
+  if (!session) return unauthorized();
 
   const { id } = await params;
 
@@ -45,15 +31,13 @@ export async function GET(
   return NextResponse.json(course);
 }
 
-// PUT - Update a course
+// PUT - Update a course (content managers: ADMIN, INSTRUCTOR, MARKETING)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await sessionWithCapability('content:manage');
+  if (!session) return unauthorized();
 
   const { id } = await params;
 
@@ -195,15 +179,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Only ADMIN can delete (not INSTRUCTOR)
-  if (session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Only admins can delete courses' }, { status: 403 });
-  }
+  // Delete — ADMIN only (destructive:delete). No INSTRUCTOR/MARKETING.
+  const session = await sessionWithCapability('destructive:delete');
+  if (!session) return unauthorized();
 
   const { id } = await params;
 

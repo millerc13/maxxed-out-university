@@ -1,4 +1,4 @@
-import { requireAdmin } from '@/lib/admin';
+import { requireStaff } from '@/lib/admin';
 import { prisma } from '@/lib/prisma';
 import { QuickLinksClient } from '@/components/admin/QuickLinksClient';
 
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * component. Data is small (≈12 rows total) so we just inline-load it.
  */
 export default async function QuickLinksPage() {
-  await requireAdmin();
+  await requireStaff();
 
   // Public origin used to construct shareable URLs. NEXTAUTH_URL is the
   // canonical "where this app lives" var already used elsewhere; fall
