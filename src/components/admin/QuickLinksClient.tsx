@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Zap as ZapIcon,
   Rocket,
+  Plane,
   LogIn,
   Check,
   X,
@@ -53,6 +54,7 @@ type AccentKey = 'blue' | 'amber' | 'emerald' | 'violet' | 'gray';
 // canonical "what Todd reaches for first" sequence (apply-flow programs
 // surface above the direct-buy Blueprint).
 const FUNNEL_URLS: Card[] = [
+  { id: 'experience', title: 'Inner Circle Jet Experience', url: 'https://experience.maxxedout.com', icon: Plane, accent: 'gray' },
   { id: 'mentorship', title: '6-Month Mentorship', url: 'https://mentorship.maxxedout.com', icon: Rocket, accent: 'amber' },
   { id: 'business-mentorship', title: 'Business Accelerator & Mentorship', url: 'https://business-mentorship.maxxedout.com', icon: TrendingUp, accent: 'emerald' },
   { id: 'accelerator', title: 'Business Accelerator', url: 'https://accelerator.maxxedout.com', icon: ZapIcon, accent: 'violet' },
@@ -63,6 +65,7 @@ const FUNNEL_URLS: Card[] = [
 // using course slugs. Anything not in this list falls to the end,
 // then sorted by price desc (existing behavior for new courses).
 const PAYMENT_SLUG_ORDER: string[] = [
+  'inner-circle-experience',
   '6-month-mentorship',
   'business-accelerator-mentorship',
   'business-accelerator',
