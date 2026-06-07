@@ -37,6 +37,9 @@ export type Capability =
   /** See per-deal / per-lead dollar amounts (closer-facing). Narrower
    *  than revenue:view; reserved for SALES. */
   | 'deals:view'
+  /** View the platform Analytics page (student/course engagement, quiz
+   *  results, real-customer data). Withheld from MARKETING. */
+  | 'analytics:view'
   /** Create / edit content — courses, lessons, quizzes, funnels, docs,
    *  homepage, promo codes. Does NOT imply delete. */
   | 'content:manage'
@@ -53,6 +56,7 @@ export const ALL_CAPABILITIES: Capability[] = [
   'admin:access',
   'revenue:view',
   'deals:view',
+  'analytics:view',
   'content:manage',
   'users:manage',
   'settings:manage',
@@ -63,20 +67,21 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   // Full god mode.
   ADMIN: ALL_CAPABILITIES,
 
-  // Ad/creative ops (Waylon). Sees everything operational and can edit
-  // content/funnels — but NO revenue, NO settings, NO user management,
-  // and NO deletes (he literally can't reach a destructive endpoint).
+  // Ad/creative ops (Waylon). Sees funnels/courses and can edit them — but
+  // NO revenue, NO Analytics page, NO settings, NO user management, and NO
+  // deletes (he literally can't reach a destructive endpoint).
   MARKETING: ['admin:access', 'content:manage'],
 
-  // Closers/setters. Leads + per-deal dollar amounts (their commissions),
-  // but never company-wide revenue, settings, or deletes.
-  SALES: ['admin:access', 'deals:view'],
+  // Closers/setters. Leads + per-deal dollar amounts (their commissions)
+  // + analytics, but never company-wide revenue, settings, or deletes.
+  SALES: ['admin:access', 'deals:view', 'analytics:view'],
 
   // Customer support. Read-mostly operational access; no money, no deletes.
-  SUPPORT: ['admin:access'],
+  SUPPORT: ['admin:access', 'analytics:view'],
 
-  // Course authors. Manage content, nothing financial or destructive.
-  INSTRUCTOR: ['admin:access', 'content:manage'],
+  // Course authors. Manage content + see analytics; nothing financial or
+  // destructive.
+  INSTRUCTOR: ['admin:access', 'content:manage', 'analytics:view'],
 
   // Students have no admin capabilities.
   STUDENT: [],
@@ -115,6 +120,8 @@ const ADMIN_PATH_CAPABILITY: { prefix: string; capability: Capability }[] = [
   { prefix: '/admin/sales', capability: 'revenue:view' }, // also email-locked
   // Promo codes change pricing and the page only talks to ADMIN-only APIs.
   { prefix: '/admin/funnels/promo-codes', capability: 'settings:manage' },
+  // Analytics — student/customer engagement data; hidden from MARKETING.
+  { prefix: '/admin/analytics', capability: 'analytics:view' },
   // Platform configuration
   { prefix: '/admin/settings', capability: 'settings:manage' },
   { prefix: '/admin/webhooks', capability: 'settings:manage' },

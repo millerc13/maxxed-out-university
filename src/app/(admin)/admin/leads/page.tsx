@@ -1,4 +1,4 @@
-import { requireAdmin } from '@/lib/admin';
+import { requireStaff } from '@/lib/admin';
 import { prisma } from '@/lib/prisma';
 import { LeadsClient, type LeadRow, type CourseTab } from '@/components/admin/LeadsClient';
 
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * Todd to review in his phone between event sessions.
  */
 export default async function LeadsPage() {
-  await requireAdmin();
+  await requireStaff();
 
   // Pull recent Applications + their course titles in one shot. Cap at
   // 1000 — the leads table is small enough that pagination isn't worth
