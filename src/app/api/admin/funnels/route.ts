@@ -9,7 +9,7 @@ export async function GET() {
   const funnels = await prisma.funnelDeployment.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      course: { select: { id: true, title: true, slug: true, price: true } },
+      course: { select: { id: true, title: true, slug: true, price: true, metaPixelId: true } },
       config: true,
     },
   });

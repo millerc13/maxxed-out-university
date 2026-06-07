@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { queryPostHog, subdomainToProgram } from '@/lib/posthog';
+import { queryPostHog, funnelHost } from '@/lib/posthog';
 import { can } from '@/lib/permissions';
 
 // Read-only funnel analytics — any staff role may view (no $ figures here).
@@ -26,7 +26,7 @@ export async function GET(
   });
   if (!funnel) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const program = subdomainToProgram(funnel.subdomain);
+  const host = funnelHost(funnel.subdomain) ?? '__none__';
 
   const kpis = await queryPostHog(`
     SELECT
@@ -34,7 +34,7 @@ export async function GET(
       countIf(event = 'checkout_started') as checkout_starts,
       countIf(event = 'enrollment_completed') as enrollments
     FROM events
-    WHERE properties.program = '${program}'
+    WHERE properties.$host = '${host}'
       AND timestamp >= now() - interval 30 day
   `);
 
@@ -45,7 +45,7 @@ export async function GET(
       countIf(event = 'checkout_started') as checkouts,
       countIf(event = 'enrollment_completed') as enrollments
     FROM events
-    WHERE properties.program = '${program}'
+    WHERE properties.$host = '${host}'
       AND timestamp >= now() - interval 30 day
     GROUP BY day
     ORDER BY day

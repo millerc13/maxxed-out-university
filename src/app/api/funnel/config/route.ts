@@ -84,8 +84,17 @@ export async function GET(request: NextRequest) {
     })
   ).map((p) => p.provider);
 
+  // Effective Meta Pixel: a per-funnel override (FunnelConfig.metaPixelId)
+  // wins over the linked course's pixel. Returned in the existing
+  // `course.metaPixelId` field so the funnel app picks it up with no change.
+  const effectivePixelId =
+    deployment.config?.metaPixelId?.trim() || deployment.course?.metaPixelId || null;
+  const course = deployment.course
+    ? { ...deployment.course, metaPixelId: effectivePixelId }
+    : null;
+
   return NextResponse.json({
-    course: deployment.course ?? null,
+    course,
     featuredCourses: deployment.featuredCourses ?? [],
     enabledProviders: enabledProviders.length > 0 ? enabledProviders : ['stripe'],
     config: {

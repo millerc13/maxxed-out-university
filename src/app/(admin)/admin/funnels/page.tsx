@@ -1,17 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ExternalLink, Trash2, Copy, Check, RefreshCw, Tag, Globe, Activity, Zap, ChevronRight, BarChart2 } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Copy, Check, Tag, Globe, Activity, Zap, BarChart2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { FunnelsSummary } from '@/components/admin/funnel-analytics/FunnelsSummary';
+import { FunnelThumb } from '@/components/admin/FunnelThumb';
 
 interface Course {
   id: string;
   title: string;
   slug: string;
   price: number | null;
+  metaPixelId?: string | null;
 }
 
 interface Funnel {
@@ -23,6 +25,7 @@ interface Funnel {
   createdAt: string;
   updatedAt: string;
   course: Course | null;
+  config?: { metaPixelId?: string | null } | null;
 }
 
 export default function FunnelsPage() {
@@ -118,26 +121,6 @@ export default function FunnelsPage() {
         </div>
       </div>
 
-      {/* PostHog Analytics Summary */}
-      {!loading && funnels.length > 0 && <FunnelsSummary />}
-
-      {/* Stats - compact inline */}
-      {!loading && funnels.length > 0 && (
-        <div className="flex items-center gap-6">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex items-center gap-2.5">
-              <div className={`p-2 rounded-lg ${stat.color}`}>
-                <stat.icon className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-gray-900 leading-none">{stat.value}</p>
-                <p className="text-xs text-gray-500">{stat.label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreate(false)}>
@@ -190,13 +173,19 @@ export default function FunnelsPage() {
         </div>
       )}
 
-      {/* Funnel List */}
+      {/* Funnel List — cards with live landing-page thumbnails */}
       {loading ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-gray-400 text-sm">Loading…</div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="w-full bg-gray-100 animate-pulse" style={{ aspectRatio: '16 / 10' }} />
+              <div className="p-4 space-y-2">
+                <div className="h-4 bg-gray-100 rounded animate-pulse w-2/3" />
+                <div className="h-3 bg-gray-100 rounded animate-pulse w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : funnels.length === 0 ? (
         <Card>
           <CardContent className="p-0">
@@ -208,104 +197,176 @@ export default function FunnelsPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h2 className="font-bold text-gray-900">All Funnels</h2>
-              <span className="text-sm text-gray-500">{funnels.length} deployment{funnels.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="divide-y">
-              {funnels.map((f) => (
-                <div
-                  key={f.id}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-gray-900">All Funnels</h2>
+            <span className="text-sm text-gray-500">{funnels.length} deployment{funnels.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            {funnels.map((f) => (
+              <div
+                key={f.id}
+                className="group bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-gray-300 transition-all flex flex-col"
+              >
+                {/* Live thumbnail → opens the editor */}
+                <button
+                  type="button"
                   onClick={() => router.push(`/admin/funnels/${f.id}`)}
-                  className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="relative block w-full text-left cursor-pointer"
+                  title="Edit this funnel"
                 >
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    {/* Status dot */}
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${f.active ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900">{f.name}</p>
-                      {f.url && (
-                        <p className="text-sm text-gray-500 truncate max-w-xs">{f.url}</p>
-                      )}
-                    </div>
-                  </div>
+                  <FunnelThumb url={f.url} />
+                </button>
 
-                  <div className="flex items-center gap-8 flex-shrink-0">
-                    {/* Course */}
-                    <div className="text-right hidden sm:block w-48">
-                      {f.course ? (
-                        <>
-                          <p className="text-sm text-gray-900 truncate">{f.course.title}</p>
-                          <p className="text-xs text-gray-400">{formatPrice(f.course.price)}</p>
-                        </>
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">No course</p>
-                      )}
-                    </div>
-
-                    {/* Status Badge */}
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                      f.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>
+                {/* Body */}
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-bold text-gray-900 truncate">{f.name}</h3>
+                    <span
+                      className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        f.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${f.active ? 'bg-green-500' : 'bg-gray-400'}`} />
                       {f.active ? 'Active' : 'Inactive'}
                     </span>
-
-                    {/* API Key */}
-                    <div className="hidden lg:flex items-center gap-1.5">
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono truncate max-w-[100px]">
-                        {f.apiKey.slice(0, 12)}…
-                      </code>
-                      <button
-                        onClick={(e) => copyKey(e, f.apiKey)}
-                        className="text-gray-400 hover:text-gray-600 p-1"
-                      >
-                        {copiedKey === f.apiKey ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-
-                    {/* Updated */}
-                    <p className="text-xs text-gray-400 hidden md:block w-20 text-right">
-                      {new Date(f.updatedAt).toLocaleDateString()}
-                    </p>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1">
-                      <Link
-                        href={`/admin/funnels/${f.id}/analytics`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-1.5 text-gray-400 hover:text-[#1E40AF] rounded-lg hover:bg-blue-50 transition-colors duration-150 cursor-pointer"
-                        title="View analytics"
-                      >
-                        <BarChart2 className="w-4 h-4" />
-                      </Link>
-                      {f.url && (
-                        <a
-                          href={f.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors duration-150"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                      <button
-                        onClick={(e) => deleteFunnel(e, f.id, f.name)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors duration-150"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <ChevronRight className="w-4 h-4 text-gray-300 ml-1" />
-                    </div>
                   </div>
+                  {f.url ? (
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs text-gray-500 hover:text-maxxed-blue truncate mt-0.5"
+                    >
+                      {f.url.replace(/^https?:\/\//, '')}
+                    </a>
+                  ) : (
+                    <span className="text-xs text-gray-400 mt-0.5">No URL set</span>
+                  )}
+
+                  <div className="mt-2.5 flex items-center justify-between gap-2 text-sm">
+                    <span className="text-gray-600 truncate">
+                      {f.course ? f.course.title : <span className="italic text-gray-400">No course</span>}
+                    </span>
+                    {f.course && <span className="font-bold text-gray-900 shrink-0">{formatPrice(f.course.price)}</span>}
+                  </div>
+
+                  {/* Easy action buttons */}
+                  <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-4 gap-1.5">
+                    <CardBtn icon={Pencil} label="Edit" primary onClick={() => router.push(`/admin/funnels/${f.id}`)} />
+                    <CardBtn icon={BarChart2} label="Stats" onClick={() => router.push(`/admin/funnels/${f.id}/analytics`)} />
+                    <CardBtn icon={ExternalLink} label="Live" href={f.url || undefined} />
+                    <CardBtn icon={Trash2} label="Delete" danger onClick={(e) => deleteFunnel(e, f.id, f.name)} />
+                  </div>
+
+                  {/* Footer: API key (left) · Meta Pixel (right) */}
+                  {(() => {
+                    const pixel = f.config?.metaPixelId || f.course?.metaPixelId || null;
+                    return (
+                      <div className="mt-2.5 flex items-center justify-between gap-2">
+                        <button
+                          onClick={(e) => copyKey(e, f.apiKey)}
+                          className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-gray-600"
+                          title="Copy API key"
+                        >
+                          {copiedKey === f.apiKey ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                          <span className="font-mono">{f.apiKey.slice(0, 12)}…</span>
+                        </button>
+                        <span
+                          className="inline-flex items-center gap-1.5 text-[11px] shrink-0"
+                          title={pixel ? 'Meta Pixel ID' : 'No Meta Pixel set'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${pixel ? 'bg-green-500' : 'bg-gray-300'}`} />
+                          <span className="text-gray-400">Pixel</span>
+                          <span className={`font-mono ${pixel ? 'text-gray-600' : 'text-gray-300'}`}>
+                            {pixel || '—'}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
+      {/* Stats + analytics — below the funnel cards */}
+      {!loading && funnels.length > 0 && (
+        <div className="flex flex-wrap items-center gap-6">
+          {stats.map((stat) => (
+            <div key={stat.label} className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-lg ${stat.color}`}>
+                <stat.icon className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900 leading-none">{stat.value}</p>
+                <p className="text-xs text-gray-500">{stat.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && funnels.length > 0 && <FunnelsSummary />}
     </div>
+  );
+}
+
+/** Compact icon+label action button for a funnel card. Renders an external
+ *  link when `href` is set, a disabled stub when a link button has no URL,
+ *  otherwise a normal button. */
+function CardBtn({
+  icon: Icon,
+  label,
+  onClick,
+  href,
+  primary,
+  danger,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick?: (e: React.MouseEvent) => void;
+  href?: string;
+  primary?: boolean;
+  danger?: boolean;
+}) {
+  const base =
+    'flex flex-col items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition-colors';
+  const tone = primary
+    ? 'bg-maxxed-blue text-white hover:bg-blue-800 cursor-pointer'
+    : danger
+    ? 'text-red-600 hover:bg-red-50 cursor-pointer'
+    : 'text-gray-600 hover:bg-gray-100 cursor-pointer';
+
+  if (href !== undefined) {
+    if (!href) {
+      return (
+        <span className={`${base} text-gray-300 cursor-not-allowed`}>
+          <Icon className="w-4 h-4" />
+          {label}
+        </span>
+      );
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className={`${base} ${tone}`}
+      >
+        <Icon className="w-4 h-4" />
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={`${base} ${tone}`}>
+      <Icon className="w-4 h-4" />
+      {label}
+    </button>
   );
 }

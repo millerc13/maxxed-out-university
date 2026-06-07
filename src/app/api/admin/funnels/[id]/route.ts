@@ -40,8 +40,12 @@ export async function PUT(
     featureCardsLabel, featureCardsHeadline, featureCardsSub,
     bulletsLabel, bulletsHeadline, bulletsSub,
     vslVideoUrl, instructorImageUrl,
-    template, subdomain,
+    template, subdomain, metaPixelId,
   } = body;
+
+  // Normalize the pixel: digits only, empty → null (inherit course pixel).
+  const normalizedPixel =
+    metaPixelId === undefined ? undefined : (String(metaPixelId).replace(/[^\d]/g, '') || null);
 
   // Build config create/update objects dynamically
   const configCreate: Record<string, unknown> = {
@@ -64,6 +68,7 @@ export async function PUT(
     vslVideoUrl: vslVideoUrl ?? null,
     instructorImageUrl: instructorImageUrl ?? null,
     template: template ?? 'classic',
+    metaPixelId: normalizedPixel ?? null,
     // Course is the single source of truth for checkoutAfterApply.
     // Always create with null so the legacy override column is unused.
     checkoutAfterApplyOverride: null,
@@ -80,6 +85,7 @@ export async function PUT(
   })) {
     if (val !== undefined) configUpdate[key] = val;
   }
+  if (normalizedPixel !== undefined) configUpdate.metaPixelId = normalizedPixel;
 
   const funnel = await prisma.funnelDeployment.update({
     where: { id },

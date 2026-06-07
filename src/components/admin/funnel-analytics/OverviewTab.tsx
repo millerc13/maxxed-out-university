@@ -113,6 +113,7 @@ export function OverviewTab({ funnelId }: { funnelId: string }) {
                   width={35}
                 />
                 <Tooltip
+                  itemStyle={{ color: '#fff' }}
                   contentStyle={{
                     background: '#1E3A8A',
                     border: 'none',

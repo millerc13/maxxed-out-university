@@ -144,6 +144,7 @@ export function EngagementTab({ funnelId }: { funnelId: string }) {
                     width={110}
                   />
                   <Tooltip
+                    itemStyle={{ color: '#fff' }}
                     contentStyle={{
                       background: '#1E3A8A',
                       border: 'none',
@@ -191,6 +192,7 @@ export function EngagementTab({ funnelId }: { funnelId: string }) {
                     width={50}
                   />
                   <Tooltip
+                    itemStyle={{ color: '#fff' }}
                     contentStyle={{
                       background: '#1E3A8A',
                       border: 'none',

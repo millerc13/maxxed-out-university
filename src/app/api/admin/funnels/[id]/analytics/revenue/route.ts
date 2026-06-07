@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { queryPostHog, subdomainToProgram } from '@/lib/posthog';
+import { queryPostHog, funnelHost } from '@/lib/posthog';
 
 async function requireAdmin() {
   const session = await auth();
@@ -24,7 +24,7 @@ export async function GET(
   });
   if (!funnel) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const program = subdomainToProgram(funnel.subdomain);
+  const host = funnelHost(funnel.subdomain) ?? '__none__';
 
   const enrollments = funnel.courseId
     ? await prisma.enrollment.findMany({
@@ -57,7 +57,7 @@ export async function GET(
       countIf(event = 'promo_code_failed') as failed
     FROM events
     WHERE event IN ('promo_code_applied', 'promo_code_failed')
-      AND properties.program = '${program}'
+      AND properties.$host = '${host}'
       AND timestamp >= now() - interval 30 day
     GROUP BY code
     ORDER BY applied DESC

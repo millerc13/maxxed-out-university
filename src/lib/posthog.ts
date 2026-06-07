@@ -8,6 +8,23 @@ export function subdomainToProgram(subdomain: string | null): string {
   return 'Unknown';
 }
 
+/**
+ * Production host for a funnel subdomain. Funnel analytics attribute events
+ * by `properties.$host` (reliably populated on every event — including
+ * downstream checkout/enrollment that fire on the funnel's own /success
+ * page) rather than the `program` super-property, which the funnel app
+ * leaves "Unknown"/null on the vast majority of events.
+ */
+export function funnelHost(subdomain: string | null): string | null {
+  if (!subdomain) return null;
+  return `${subdomain}.maxxedout.com`;
+}
+
+/** Single-quote-escape a value for safe inlining into a HogQL string literal. */
+export function hogqlString(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 export async function queryPostHog(hogql: string): Promise<{ results: unknown[][]; columns: string[] }> {
   const apiKey = process.env.POSTHOG_PERSONAL_API_KEY;
   const projectId = process.env.POSTHOG_PROJECT_ID;

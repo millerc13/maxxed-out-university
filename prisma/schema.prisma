@@ -515,6 +515,10 @@ model FunnelConfig {
   bulletsHeadline       String?                            // e.g. "What's Inside This Course:"
   bulletsSub            String?                            // e.g. "Everything you need to find..."
   template              String           @default("classic") // "classic" | "dark" | "bold"
+  // Per-funnel Meta Pixel ID override. When set, /api/funnel/config returns
+  // this in place of the linked course's pixel, so the funnel deployment
+  // tracks against it. Null = inherit the course's pixel (unchanged behavior).
+  metaPixelId           String?
   // Per-funnel override of the linked Course.checkoutAfterApply default.
   // null = inherit from course; true/false = force this funnel one way.
   checkoutAfterApplyOverride Boolean?

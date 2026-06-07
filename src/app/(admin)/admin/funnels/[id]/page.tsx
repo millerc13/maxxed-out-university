@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen, Megaphone } from 'lucide-react';
+import { FunnelMetaTab } from '@/components/admin/funnel-analytics/FunnelMetaTab';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface Course {
@@ -52,6 +53,7 @@ interface FunnelData {
     vslVideoUrl: string | null;
     instructorImageUrl: string | null;
     template: string | null;
+    metaPixelId: string | null;
     checkoutAfterApplyOverride: boolean | null;
   } | null;
 }
@@ -840,7 +842,7 @@ export default function FunnelEditorPage() {
   const [saved, setSaved] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'settings' | 'content' | 'preview'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'content' | 'marketing' | 'preview'>('settings');
   const [showAllCourses, setShowAllCourses] = useState(false);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [previewWidth, setPreviewWidth] = useState(0);
@@ -1056,7 +1058,7 @@ export default function FunnelEditorPage() {
           <div className="flex gap-0 overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
             {([
               { key: 'settings', label: 'Settings', icon: Settings },
-              { key: 'content', label: 'Content', icon: FileText },
+              { key: 'marketing', label: 'Meta', icon: Megaphone },
               { key: 'preview', label: 'Preview', icon: Eye },
             ] as const).map((tab) => (
               <button
@@ -1120,12 +1122,12 @@ export default function FunnelEditorPage() {
                       className="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maxxed-blue font-mono"
                     />
                     <span className="bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg px-3 py-2 text-sm text-gray-500 font-mono whitespace-nowrap truncate max-w-[55%]">
-                      .join.maxxedout.com
+                      .maxxedout.com
                     </span>
                   </div>
                   {subdomain && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Funnel app will serve this config when accessed at <span className="font-mono text-gray-600">{subdomain}.join.maxxedout.com</span>
+                      The live funnel at <span className="font-mono text-gray-600">{subdomain}.maxxedout.com</span> loads this funnel&apos;s content + pixel by matching this subdomain.
                     </p>
                   )}
                 </div>
@@ -1671,6 +1673,15 @@ export default function FunnelEditorPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── TAB: Meta (Pixel — synced with the linked course) ── */}
+      {activeTab === 'marketing' && (
+        <FunnelMetaTab
+          courseId={courseId || null}
+          courseTitle={selectedCourse?.title}
+          subdomain={subdomain}
+        />
       )}
 
       {/* ── TAB: Preview ── */}
