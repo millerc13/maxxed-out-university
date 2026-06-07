@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSession } from 'next-auth/react';
+import { can } from '@/lib/permissions';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen, Megaphone } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ChevronDown, Save, ExternalLink, RefreshCw, Check, Copy, Eye, Settings, FileText, MessageSquare, Star, ArrowRight, Shield, BookOpen, Megaphone, Lock } from 'lucide-react';
 import { FunnelMetaTab } from '@/components/admin/funnel-analytics/FunnelMetaTab';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -836,6 +838,10 @@ function MiniPreviewForYouIf({ forYouIf, template }: { forYouIf: string[]; templ
 export default function FunnelEditorPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
+  // View-only roles (e.g. MARKETING) can't save funnel content; they may
+  // still edit the Meta Pixel on the Meta tab (its own pixel:manage save).
+  const canEdit = can((session?.user as { role?: string } | undefined)?.role, 'content:manage');
   const [funnel, setFunnel] = useState<FunnelData | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [saving, setSaving] = useState(false);
@@ -1058,9 +1064,12 @@ export default function FunnelEditorPage() {
           <div className="flex gap-0 overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
             {([
               { key: 'settings', label: 'Settings', icon: Settings },
+              // Content editing is for editors only (content:manage); view-only
+              // roles like MARKETING don't get it.
+              ...(canEdit ? [{ key: 'content', label: 'Content', icon: FileText }] : []),
               { key: 'marketing', label: 'Meta', icon: Megaphone },
               { key: 'preview', label: 'Preview', icon: Eye },
-            ] as const).map((tab) => (
+            ] as { key: 'settings' | 'content' | 'marketing' | 'preview'; label: string; icon: typeof Settings }[]).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -1079,27 +1088,42 @@ export default function FunnelEditorPage() {
             ))}
           </div>
 
-          {/* Save — always visible */}
+          {/* Save — hidden for view-only roles (they can still edit the
+              Meta Pixel via the Meta tab, which has its own save). */}
           <div className="flex items-center gap-3 pb-2">
-            {saveError && <p className="text-red-500 text-sm font-medium">{saveError}</p>}
-            {saved && <p className="text-green-600 text-sm font-medium flex items-center gap-1"><Check className="w-4 h-4" /> Saved</p>}
-            {!saveError && !saved && activeTab !== 'preview' && (
-              <p className="text-gray-400 text-sm hidden md:block">Unsaved changes won&apos;t go live</p>
+            {canEdit ? (
+              <>
+                {saveError && <p className="text-red-500 text-sm font-medium">{saveError}</p>}
+                {saved && <p className="text-green-600 text-sm font-medium flex items-center gap-1"><Check className="w-4 h-4" /> Saved</p>}
+                {!saveError && !saved && activeTab !== 'preview' && (
+                  <p className="text-gray-400 text-sm hidden md:block">Unsaved changes won&apos;t go live</p>
+                )}
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-5 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
+                >
+                  {saving ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving…</> : <><Save className="w-4 h-4" /> Save Changes</>}
+                </button>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-xs font-semibold">
+                <Lock className="w-3.5 h-3.5" /> View only
+              </span>
             )}
-            <button
-              onClick={save}
-              disabled={saving}
-              className="flex items-center gap-2 px-5 py-2 bg-maxxed-blue text-white rounded-lg text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
-            >
-              {saving ? <><RefreshCw className="w-4 h-4 animate-spin" /> Saving…</> : <><Save className="w-4 h-4" /> Save Changes</>}
-            </button>
           </div>
         </div>
       </div>
 
       {/* ── TAB: Settings ── */}
       {activeTab === 'settings' && (
-        <div className="space-y-6">
+        <fieldset disabled={!canEdit} className="space-y-6 m-0 p-0 border-0 min-w-0">
+          {!canEdit && (
+            <div className="flex items-center gap-2 rounded-lg bg-gray-100 text-gray-600 px-4 py-3 text-sm font-medium ring-1 ring-gray-200">
+              <Lock className="w-4 h-4 shrink-0" />
+              View only — these settings are locked.
+            </div>
+          )}
           <Card>
             <CardContent className="p-0">
               <div className="px-6 py-4 border-b"><h2 className="font-bold text-gray-900">General</h2></div>
@@ -1275,7 +1299,7 @@ export default function FunnelEditorPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </fieldset>
       )}
 
       {/* ── TAB: Content ── */}

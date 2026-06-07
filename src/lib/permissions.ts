@@ -45,6 +45,10 @@ export type Capability =
   /** Create / edit content — courses, lessons, quizzes, funnels, docs,
    *  homepage, promo codes. Does NOT imply delete. */
   | 'content:manage'
+  /** Edit ONLY the Meta Pixel ID (via the pixel-only endpoint). Lets a
+   *  view-only role like MARKETING manage tracking without touching any
+   *  other content. ADMIN has it via ALL_CAPABILITIES. */
+  | 'pixel:manage'
   /** Create / edit users, enrollments, CSV import. */
   | 'users:manage'
   /** Platform configuration — payment providers, settings, webhooks,
@@ -61,6 +65,7 @@ export const ALL_CAPABILITIES: Capability[] = [
   'analytics:view',
   'leads:view',
   'content:manage',
+  'pixel:manage',
   'users:manage',
   'settings:manage',
   'destructive:delete',
@@ -70,10 +75,10 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   // Full god mode.
   ADMIN: ALL_CAPABILITIES,
 
-  // Ad/creative ops (Waylon). Sees funnels/courses + analytics and can edit
-  // content — but NO revenue, NO settings, NO user management, and NO
-  // deletes (he literally can't reach a destructive endpoint).
-  MARKETING: ['admin:access', 'content:manage', 'analytics:view'],
+  // Ad/creative ops (Waylon). VIEW-ONLY everywhere he can reach, EXCEPT he
+  // may edit the Meta Pixel ID (pixel:manage). No content editing, no
+  // revenue, no leads, no settings, no users, no deletes.
+  MARKETING: ['admin:access', 'analytics:view', 'pixel:manage'],
 
   // Closers/setters. Leads + per-deal dollar amounts (their commissions)
   // + analytics, but never company-wide revenue, settings, or deletes.
