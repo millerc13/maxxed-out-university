@@ -8,7 +8,7 @@ import { sendAlreadyOwnedEmail } from '@/lib/resend';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { courseId, guestEmail, guestName, guestPhone, promoCode, successUrl: callerSuccessUrl } = body;
+    const { courseId, guestEmail, guestName, guestPhone, promoCode, successUrl: callerSuccessUrl, eventId: callerEventId } = body;
 
     if (!courseId) {
       return NextResponse.json({ error: 'courseId is required' }, { status: 400 });
@@ -128,6 +128,12 @@ export async function POST(request: NextRequest) {
         userId: isGuest ? '' : (session?.user?.id ?? ''),
         promoCodeId: resolvedPromoCodeId ?? '',
         originalPrice: course.price.toString(),
+        // Shared Meta event_id minted by the funnel at checkout. The webhook
+        // reads it back and uses it as the CAPI Purchase event_id so the
+        // browser-side Purchase (which carries the same id via the success
+        // URL) dedupes against the server-side one. A 36-char UUID — keeps
+        // the whole api_metadata blob well under Fanbasis's ~240-char cap.
+        ...(callerEventId ? { eventId: String(callerEventId) } : {}),
       },
     });
 

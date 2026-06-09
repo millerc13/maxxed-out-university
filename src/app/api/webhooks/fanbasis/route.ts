@@ -280,6 +280,10 @@ async function handlePurchase(payload: Record<string, unknown>) {
     guestName: buyerName,
     promoCodeId: metadata.promoCodeId || '',
     originalPrice: metadata.originalPrice || '',
+    // Shared Meta event_id minted by the funnel at checkout (mirrored into
+    // the success URL for the browser Purchase). Empty for legacy sessions
+    // created before this was wired — we fall back to the txn id below.
+    capiEventId: metadata.eventId || '',
   });
 }
 
@@ -294,6 +298,7 @@ async function enrollFromFanbasis(params: {
   guestName: string;
   promoCodeId: string;
   originalPrice: string;
+  capiEventId: string;
 }) {
   console.log('[fanbasis-webhook] enrollFromFanbasis start', {
     email: params.email,
@@ -465,7 +470,10 @@ async function enrollFromFanbasis(params: {
       accessToken: purchasedCourse.metaCapiAccessToken,
       testEventCode: purchasedCourse.metaTestEventCode,
       eventName: 'Purchase',
-      eventId: params.transactionId,
+      // Prefer the funnel-minted shared id so the browser Purchase (same id
+      // via the success URL) dedupes against this server event. Fall back to
+      // the Fanbasis txn id for sessions created before this was wired.
+      eventId: params.capiEventId || params.transactionId,
       userData: {
         email: userEmail || undefined,
         firstName: firstName || undefined,
