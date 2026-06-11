@@ -2,8 +2,25 @@ import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import { can, capabilityForAdminPath } from '@/lib/permissions';
 
+const CANONICAL_HOST = 'university.maxxedout.com';
+
 export default auth((req) => {
   const { nextUrl } = req;
+
+  // Canonical-host redirect. In production the app is also reachable at its
+  // Vercel aliases (maxxed-out-university.vercel.app, the git-branch alias,
+  // etc.). When a page loads there the Meta Pixel fires with that host, so
+  // Meta flags ".vercel.app" as a new data source. 308-redirect any
+  // non-canonical production host to university.maxxedout.com so the Pixel
+  // only ever reports the real domain. Preview deploys (VERCEL_ENV !==
+  // 'production') and localhost are left alone, and /api is excluded by the
+  // matcher so server-to-server calls/webhooks aren't redirected.
+  const host = req.headers.get('host') ?? '';
+  if (process.env.VERCEL_ENV === 'production' && host && host !== CANONICAL_HOST) {
+    const dest = new URL(nextUrl.pathname + nextUrl.search, `https://${CANONICAL_HOST}`);
+    return NextResponse.redirect(dest, 308);
+  }
+
   const isLoggedIn = !!req.auth;
 
   // Protected routes
