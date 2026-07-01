@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const course = await prisma.course.findUnique({
       where: { id: courseId, published: true },
-      select: { id: true, title: true, price: true, slug: true },
+      select: { id: true, title: true, price: true, salePrice: true, slug: true },
     });
 
     if (!course) {
@@ -84,11 +84,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate promo code server-side — never trust the discounted price from the client.
-    let finalAmount = course.price;
+    // A fixed salePrice override (e.g. the Blueprint "July Independence" $499)
+    // IS the charge — no promo stacking on top. Only fall through to promo-code
+    // discounting when there's no override. Never trust a price from the client.
+    let finalAmount = course.salePrice ?? course.price;
     let resolvedPromoCodeId: string | null = null;
 
-    if (promoCode) {
+    if (course.salePrice == null && promoCode) {
       const promo = await prisma.promoCode.findUnique({
         where: { code: promoCode.toUpperCase().trim() },
         include: { courses: { select: { id: true } } },

@@ -97,6 +97,10 @@ model Course {
   thumbnail    String?
   previewVideo String?
   price        Int?
+  // Fixed sale/override price in cents. When set, this IS the amount charged
+  // (no promo discounting stacked on top) — used for flat sale pricing like the
+  // Blueprint "July Independence" $499. Null = normal price + promo behavior.
+  salePrice    Int?
   published    Boolean          @default(false)
   comingSoon   Boolean          @default(false)
   isBundle     Boolean          @default(false)
