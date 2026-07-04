@@ -112,13 +112,16 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get('origin') || process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
     // Callers (e.g. funnel proxy) can provide their own success URL
     const successUrl = callerSuccessUrl || `${origin}/checkout/success?provider=fanbasis&courseId=${course.id}`;
+    // Carry the actually-charged amount to the browser Purchase so its reported
+    // value reflects the sale ($499), not the DB list price ($2,497).
+    const successUrlWithAmount = `${successUrl}${successUrl.includes('?') ? '&' : '?'}amount=${finalAmount}`;
 
     const checkoutSession = await createCheckoutSession({
       title: course.title,
       description: `Maxxed Out University — ${course.title}`,
       amountCents: finalAmount,
       type: 'onetime_non_reusable',
-      successUrl,
+      successUrl: successUrlWithAmount,
       webhookUrl: `${origin}/api/webhooks/fanbasis`,
       // Fanbasis stores api_metadata as a stringified JSON in a short varchar
       // column — anything past ~240 chars gets silently truncated, which made
