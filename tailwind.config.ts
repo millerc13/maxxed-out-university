@@ -91,6 +91,28 @@ export default {
           muted: '#888',
           light: '#aaa',
         },
+        // --- Ported from maxxed-webinar for the webinar admin only. All FREE
+        //     names in this config; the CSS-var-driven ones resolve from the
+        //     webinar :root block added to globals.css. ---
+        brand: {
+          DEFAULT: 'rgb(var(--brand) / <alpha-value>)',
+          dark: 'rgb(var(--brand-dark) / <alpha-value>)',
+          darker: '#0000AA',
+          accent: '#D4AF37',
+          tint: 'rgb(var(--brand-tint) / <alpha-value>)',
+        },
+        gold: '#D4AF37',
+        cyan: '#00C2FF',
+        night: '#070B15',
+        canvas: 'rgb(var(--canvas) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        ink: {
+          DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
+          body: 'rgb(var(--ink-body) / <alpha-value>)',
+          muted: 'rgb(var(--ink-muted) / <alpha-value>)',
+          light: 'rgb(var(--ink-light) / <alpha-value>)',
+        },
+        theater: '#0a0a0a',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -102,6 +124,8 @@ export default {
         'card-hover': '0 15px 40px rgba(0,0,0,0.12)',
         hero: '0 20px 60px rgba(0,0,0,0.2)',
         'header': '0 2px 10px rgba(0,0,0,0.05)',
+        // Webinar admin CTA glow (ported from maxxed-webinar).
+        cta: '0 8px 24px rgba(0,0,255,0.22)',
       },
       keyframes: {
         'scroll-left': {
@@ -132,6 +156,10 @@ export default {
         'gradient-dark': 'linear-gradient(135deg, #1a2a6a, #0d1545)',
         'gradient-hero': 'linear-gradient(135deg, #0000FF, #0000CC)',
         'gradient-hero-overlay': 'radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 100%)',
+        // Ported from maxxed-webinar for the webinar admin. `webinar-hero` is
+        // namespaced to avoid clobbering university's own `gradient-hero`.
+        'gradient-night': 'linear-gradient(180deg, #070B15 0%, #0A1128 100%)',
+        'gradient-webinar-hero': 'linear-gradient(160deg, #0A1128 0%, #0B1C4D 45%, #041030 100%)',
       },
     },
   },

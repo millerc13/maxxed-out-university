@@ -22,6 +22,7 @@ import {
   X,
   TrendingUp,
   Settings,
+  Video,
 } from 'lucide-react';
 import { useAdminDrawer } from './AdminShell';
 import { can, capabilityForAdminPath } from '@/lib/permissions';
@@ -34,6 +35,7 @@ function getNavItems(role?: string | null, userEmail?: string | null) {
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
     { href: '/admin/funnels', label: 'Funnels', icon: MonitorPlay },
     { href: '/admin/funnels/promo-codes', label: 'Promo Codes', icon: Tag },
+    { href: '/admin/webinar', label: 'Webinar', icon: Video },
     { href: '/admin/payments', label: 'Payments', icon: CreditCard },
     { href: '/admin/courses', label: 'Courses', icon: BookOpen },
     { href: '/admin/quizzes', label: 'Quizzes', icon: FileQuestion },

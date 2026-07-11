@@ -63,6 +63,18 @@
     --text-dark: 0 0% 13%; /* #222 */
     --text-body: 0 0% 33%; /* #555 */
     --text-light: 0 0% 53%; /* #888 */
+
+    /* --- Ported from maxxed-webinar for the webinar admin (light values;
+       space-separated RGB triplets, consumed as rgb(var(--x) / <alpha>)). --- */
+    --canvas: 245 245 245;
+    --surface: 255 255 255;
+    --ink: 34 34 34;
+    --ink-body: 85 85 85;
+    --ink-muted: 136 136 136;
+    --ink-light: 170 170 170;
+    --brand: 0 0 255;
+    --brand-dark: 0 0 204;
+    --brand-tint: 238 240 255;
   }
 }
 
@@ -118,6 +130,24 @@
 
   .bg-dark-footer {
     background-color: #0a0a0a;
+  }
+}
+
+/* --- Webinar admin component classes (ported from maxxed-webinar globals.css).
+   Scoped under .webinar-admin so the bespoke `card`/`btn-*`/`eyebrow` names can
+   never affect university's own markup; used only by the ported admin pages. --- */
+@layer components {
+  .webinar-admin .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-extrabold uppercase tracking-widest text-white shadow-cta transition-all hover:bg-brand-dark hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0;
+  }
+  .webinar-admin .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border-2 border-brand px-6 py-3 text-sm font-extrabold uppercase tracking-widest text-brand transition-all hover:bg-brand hover:text-white;
+  }
+  .webinar-admin .card {
+    @apply rounded-xl border border-black/5 bg-surface shadow-card dark:border-white/10;
+  }
+  .webinar-admin .eyebrow {
+    @apply text-xs font-extrabold uppercase tracking-[0.2em] text-brand;
   }
 }
 

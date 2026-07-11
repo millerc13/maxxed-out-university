@@ -128,6 +128,9 @@ const ADMIN_PATH_CAPABILITY: { prefix: string; capability: Capability }[] = [
   { prefix: '/admin/sales', capability: 'revenue:view' }, // also email-locked
   // Promo codes change pricing and the page only talks to ADMIN-only APIs.
   { prefix: '/admin/funnels/promo-codes', capability: 'settings:manage' },
+  // Webinar admin — ported from maxxed-webinar. Editor capability; the pages
+  // proxy to the webinar app's admin APIs with a server-side bearer.
+  { prefix: '/admin/webinar', capability: 'content:manage' },
   // Analytics — student/customer engagement data; hidden from MARKETING.
   { prefix: '/admin/analytics', capability: 'analytics:view' },
   // Leads — captured applications; hidden from MARKETING.
