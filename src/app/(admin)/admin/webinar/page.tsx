@@ -157,9 +157,17 @@ export default async function WebinarDashboardPage() {
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink">Webinar</h1>
           <p className="mt-1 text-ink-muted">Funnels, bots, reminders, and GHL sync — real numbers only.</p>
         </div>
-        <a href="#new-webinar" className="btn-primary inline-flex items-center gap-2 px-4 py-2.5 text-sm">
-          <IconPlus className="h-4 w-4" /> New webinar
-        </a>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/webinar/analytics"
+            className="inline-flex items-center gap-2 rounded-lg border border-brand/30 px-4 py-2.5 text-sm font-bold text-brand transition hover:bg-brand-tint"
+          >
+            <IconTrend className="h-4 w-4" /> Analytics
+          </Link>
+          <a href="#new-webinar" className="btn-primary inline-flex items-center gap-2 px-4 py-2.5 text-sm">
+            <IconPlus className="h-4 w-4" /> New webinar
+          </a>
+        </div>
       </div>
 
       {!data && (
