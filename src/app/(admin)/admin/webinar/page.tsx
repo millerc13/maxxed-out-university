@@ -195,7 +195,7 @@ export default async function WebinarDashboardPage() {
                 </span>
                 <div className="min-w-0">
                   <p className="text-2xl font-extrabold tabular-nums text-ink">{s.value}</p>
-                  <p className="truncate text-xs font-semibold uppercase tracking-wide text-ink-muted">{s.label}</p>
+                  <p className="text-xs font-semibold uppercase leading-tight tracking-wide text-ink-muted">{s.label}</p>
                 </div>
               </div>
             ))}
@@ -227,7 +227,7 @@ export default async function WebinarDashboardPage() {
           {/* Ops row: upcoming sessions + pipelines */}
           <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
             {/* Upcoming sessions with bot readiness */}
-            <div className="card p-5">
+            <div className="card min-w-0 p-5">
               <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-ink">
                 <IconCalendar className="h-4 w-4 text-brand" /> Upcoming sessions
               </h2>
@@ -240,7 +240,7 @@ export default async function WebinarDashboardPage() {
                     className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-black/5 px-3 py-2.5 text-sm transition hover:border-brand/40 dark:border-white/10"
                   >
                     <span className="rounded bg-brand-tint px-2 py-0.5 text-xs font-extrabold tabular-nums text-brand">T-{timeUntil(new Date(s.startsAt))}</span>
-                    <span className="min-w-0 flex-1 truncate font-bold text-ink">{s.webinarTitle}</span>
+                    <span className="min-w-[9rem] flex-1 truncate font-bold text-ink">{s.webinarTitle}</span>
                     <span className="text-xs text-ink-muted">{s.label}</span>
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold uppercase ${s.mode === 'simulive' ? 'bg-brand-tint text-brand' : 'bg-black/5 text-ink-muted dark:bg-white/10'}`}>
                       {s.mode === 'simulive' ? 'Simulive' : 'Zoom'}
@@ -273,7 +273,7 @@ export default async function WebinarDashboardPage() {
             </div>
 
             {/* Pipelines: reminders + GHL */}
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="card p-5">
                 <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-ink">
                   <IconClock className="h-4 w-4 text-brand" /> Reminder pipeline
@@ -355,7 +355,7 @@ export default async function WebinarDashboardPage() {
               >
                 {/* Live landing-page preview (scaled iframe of the real funnel).
                     Drafts 404 publicly — skip the iframe so the console stays clean. */}
-                <div className="relative w-36 flex-none overflow-hidden bg-night">
+                <div className="relative hidden w-36 flex-none overflow-hidden bg-night sm:block">
                   {w.status === 'published' && (
                     <iframe
                       src={`${base}/${w.slug}`}

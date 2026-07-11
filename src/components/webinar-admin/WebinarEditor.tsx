@@ -389,7 +389,7 @@ function SettingsTab({ id, initial, flash }: { id: string; initial: AnyRec; flas
       <Field label="Title"><input className={input} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
       <Field label="Subtitle"><input className={input} value={f.subtitle} onChange={(e) => setF({ ...f, subtitle: e.target.value })} /></Field>
       <Field label="Host name"><input className={input} value={f.hostName} onChange={(e) => setF({ ...f, hostName: e.target.value })} /></Field>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Field label="Template">
           <select className={input} value={f.template} onChange={(e) => setF({ ...f, template: e.target.value })}>
             <option value="classic">classic</option>
@@ -972,7 +972,7 @@ function RegistrantsTab({ id, flash }: { id: string; flash: (m: string) => void 
         </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-black/10">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[820px] text-left text-sm">
           <thead className="bg-canvas text-xs uppercase tracking-wide text-ink-muted">
             <tr>
               <th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Session</th><th className="p-3">Tier</th><th className="p-3">A/B</th><th className="p-3">Status</th><th className="p-3">GHL</th><th className="p-3">Mark</th>
