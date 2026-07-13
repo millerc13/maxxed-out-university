@@ -54,19 +54,33 @@ type Tab = (typeof TABS)[number];
 
 export function WebinarEditor({ initial, appBaseUrl }: { initial: AnyRec; appBaseUrl: string }) {
   const id = initial.id as string;
-  const [tab, setTab] = useState<Tab>("Overview");
+  // Default to Sessions so opening a webinar on mobile lands straight on its
+  // sessions (the operator's most common need); Overview is one tap away.
+  const [tab, setTab] = useState<Tab>("Sessions");
   const [toast, setToast] = useState("");
+  // When jumping to Registrants from a session card, pre-filter to that
+  // session's date (matched on session label). "" = show all.
+  const [regSession, setRegSession] = useState("");
 
   // Deep-link the active tab via ?tab= so admins can share/bookmark e.g. …?tab=Reminders.
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get("tab");
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get("tab");
     if (p && (TABS as readonly string[]).includes(p)) setTab(p as Tab);
+    // Deep-link a pre-filtered registrant view: ?tab=Registrants&session=<label>
+    const s = params.get("session");
+    if (s) setRegSession(s);
   }, []);
   const selectTab = (t: Tab) => {
     setTab(t);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", t);
     window.history.replaceState(null, "", url);
+  };
+  // Go to the registrant list, optionally pre-filtered to one session's date.
+  const goRegistrants = (sessionLabel = "") => {
+    setRegSession(sessionLabel);
+    selectTab("Registrants");
   };
 
   const flash = (m: string) => {
@@ -105,24 +119,79 @@ export function WebinarEditor({ initial, appBaseUrl }: { initial: AnyRec; appBas
         </div>
       </div>
 
-      {/* Tab pills */}
-      <div className="mt-6 flex flex-wrap gap-1.5">
-        {TABS.map((t) => {
-          const Icon = TAB_ICONS[t];
-          const active = tab === t;
-          return (
-            <button
-              key={t}
-              onClick={() => selectTab(t)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                active ? "bg-brand text-white shadow-card" : "text-ink-body hover:bg-brand-tint hover:text-brand"
-              }`}
+      {/* Section nav.
+          Mobile: two large quick-tiles for the primary destinations (Sessions,
+          Registrants) plus a full "jump to section" dropdown for the rest —
+          replaces a wrapping pill cloud that was hard to tap on a phone.
+          Desktop (lg+): the icon pill row. */}
+      <div className="mt-5 lg:mt-6">
+        <div className="space-y-2.5 lg:hidden">
+          <div className="grid grid-cols-2 gap-2.5">
+            {(["Sessions", "Registrants"] as Tab[]).map((t) => {
+              const Icon = TAB_ICONS[t];
+              const active = tab === t;
+              const sub = t === "Sessions" ? `${initial.sessions?.length ?? 0} scheduled` : "View list";
+              return (
+                <button
+                  key={t}
+                  onClick={() => (t === "Registrants" ? goRegistrants("") : selectTab(t))}
+                  aria-pressed={active}
+                  className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition active:scale-[0.98] ${
+                    active
+                      ? "border-brand bg-brand text-white shadow-card"
+                      : "border-black/10 bg-surface text-ink hover:border-brand/40 dark:border-white/15"
+                  }`}
+                >
+                  <span className={`flex h-9 w-9 flex-none items-center justify-center rounded-lg ${active ? "bg-white/20" : "bg-brand-tint text-brand"}`}>
+                    {Icon && <Icon className="h-5 w-5" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold leading-tight">{t}</span>
+                    <span className={`block text-[11px] leading-tight ${active ? "text-white/75" : "text-ink-muted"}`}>{sub}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative">
+            <select
+              value={tab}
+              onChange={(e) => { const t = e.target.value as Tab; if (t === "Registrants") goRegistrants(""); else selectTab(t); }}
+              aria-label="Jump to section"
+              className="w-full appearance-none rounded-xl border border-black/10 bg-surface px-4 py-3 pr-10 text-sm font-bold text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-white/15"
             >
-              {Icon && <Icon className="h-4 w-4" />}
-              {t}
-            </button>
-          );
-        })}
+              {TABS.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <svg
+              viewBox="0 0 24 24"
+              className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand"
+              fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="hidden flex-wrap gap-1.5 lg:flex">
+          {TABS.map((t) => {
+            const Icon = TAB_ICONS[t];
+            const active = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => selectTab(t)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                  active ? "bg-brand text-white shadow-card" : "text-ink-body hover:bg-brand-tint hover:text-brand"
+                }`}
+              >
+                {Icon && <Icon className="h-4 w-4" />}
+                {t}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {toast && <div className="mt-4 rounded-lg border border-brand/40 bg-brand-tint px-3 py-2 text-sm font-semibold text-brand">{toast}</div>}
@@ -131,12 +200,12 @@ export function WebinarEditor({ initial, appBaseUrl }: { initial: AnyRec; appBas
         {tab === "Overview" && <OverviewTab id={id} slug={initial.slug} status={initial.status} />}
         {tab === "Settings" && <SettingsTab id={id} initial={initial} flash={flash} />}
         {tab === "Content" && <ContentEditor id={id} initialContent={initial.content ?? {}} title={initial.title} slug={initial.slug} appBaseUrl={appBaseUrl} flash={flash} />}
-        {tab === "Sessions" && <SessionsTab id={id} slug={initial.slug} appBaseUrl={appBaseUrl} initialSessions={initial.sessions} tz={initial.defaultTimezone} flash={flash} />}
+        {tab === "Sessions" && <SessionsTab id={id} slug={initial.slug} appBaseUrl={appBaseUrl} initialSessions={initial.sessions} tz={initial.defaultTimezone} flash={flash} goRegistrants={goRegistrants} />}
         {tab === "Bots" && <BotsManager webinarId={id} flash={flash} />}
         {tab === "Tickets" && <TicketsTab id={id} initialTiers={initial.tiers} flash={flash} />}
         {tab === "Reminders" && <RemindersTab id={id} initialReminders={initial.reminderTemplates} sessions={initial.sessions ?? []} tz={initial.defaultTimezone} flash={flash} />}
         {tab === "GHL" && <GhlTab id={id} initial={initial} flash={flash} />}
-        {tab === "Registrants" && <RegistrantsTab id={id} flash={flash} />}
+        {tab === "Registrants" && <RegistrantsTab id={id} flash={flash} initialSession={regSession} />}
       </div>
     </div>
   );
@@ -423,10 +492,11 @@ function SettingsTab({ id, initial, flash }: { id: string; initial: AnyRec; flas
   );
 }
 
-function SessionsTab({ id, slug, appBaseUrl, initialSessions, tz, flash }: { id: string; slug: string; appBaseUrl: string; initialSessions: AnyRec[]; tz: string; flash: (m: string) => void }) {
+function SessionsTab({ id, slug, appBaseUrl, initialSessions, tz, flash, goRegistrants }: { id: string; slug: string; appBaseUrl: string; initialSessions: AnyRec[]; tz: string; flash: (m: string) => void; goRegistrants: (label?: string) => void }) {
   const [sessions, setSessions] = useState<AnyRec[]>(initialSessions);
   const [n, setN] = useState({ startsAt: "", joinUrl: "", vipJoinUrl: "", qaUrl: "", zoomMeetingId: "", capacity: "" });
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   async function add() {
     if (!n.startsAt) return flash("Pick a date/time");
@@ -447,56 +517,134 @@ function SessionsTab({ id, slug, appBaseUrl, initialSessions, tz, flash }: { id:
     }
   }
   async function del(sid: string) {
+    if (!window.confirm("Delete this session? Its registrations and reminder jobs are removed too. This cannot be undone.")) return;
     await api(`/api/webinar-admin/webinars/${id}/sessions/${sid}`, "DELETE");
     setSessions(sessions.filter((s) => s.id !== sid));
+    flash("Session deleted");
   }
+
+  const totalReg = sessions.reduce((sum, s) => sum + (s.registeredCount ?? 0), 0);
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        {sessions.map((s) => (
-          <div key={s.id} className="rounded-lg border border-black/10 bg-surface p-3 text-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">
-                  {s.label ?? s.startsAt}
-                  <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${s.mode === "simulive" ? "bg-brand-accent/20 text-brand-accent" : "bg-black/5 text-ink-muted"}`}>
-                    {s.mode === "simulive" ? "Simulive" : "Live Zoom"}
-                  </span>
-                </p>
-                <p className="text-xs text-ink-light">{s.sessionCode} · {s.registeredCount} registered {s.zoomMeetingId ? `· zoom ${s.zoomMeetingId}` : "· no zoom id"}</p>
+      {/* Fast path to the FULL registrant list (per-session buttons live on each
+          card below). */}
+      <button
+        onClick={() => goRegistrants("")}
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-brand/30 bg-brand-tint/50 px-4 py-3 text-left transition hover:bg-brand-tint active:scale-[0.99]"
+      >
+        <span className="flex items-center gap-3">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand/15 text-brand">
+            <IconUsers className="h-5 w-5" />
+          </span>
+          <span>
+            <span className="block text-sm font-bold text-ink">All registrants</span>
+            <span className="block text-xs text-ink-muted"><span className="tabular-nums font-semibold text-ink-body">{totalReg}</span> across {sessions.length} session{sessions.length === 1 ? "" : "s"}</span>
+          </span>
+        </span>
+        <IconArrowRight className="h-5 w-5 flex-none text-brand" />
+      </button>
+
+      {/* Session cards */}
+      <div className="space-y-2.5">
+        {sessions.map((s) => {
+          const d = new Date(s.startsAt);
+          const dateStr = fmtTz(d, tz, { weekday: "short", month: "short", day: "numeric" });
+          const timeStr = fmtTz(d, tz, { hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+          const isSim = s.mode === "simulive";
+          const open = expanded === s.id;
+          return (
+            <div key={s.id} className="overflow-hidden rounded-xl border border-black/10 bg-surface dark:border-white/10">
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${isSim ? "bg-brand-tint text-brand" : "bg-black/5 text-ink-muted dark:bg-white/10"}`}>
+                      {isSim ? "Simulive" : "Live Zoom"}
+                    </span>
+                    <p className="mt-1.5 text-base font-extrabold leading-tight text-ink">{Number.isNaN(d.getTime()) ? (s.label ?? "—") : dateStr}</p>
+                    {!Number.isNaN(d.getTime()) && <p className="text-sm font-bold tabular-nums text-brand">{timeStr}</p>}
+                  </div>
+                  <div className="flex-none rounded-lg bg-black/5 px-3 py-1.5 text-center dark:bg-white/10">
+                    <p className="text-2xl font-extrabold leading-none tabular-nums text-ink">{s.registeredCount ?? 0}</p>
+                    <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-ink-muted">registered</p>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-muted">
+                  <span className="font-semibold">{s.sessionCode}</span>
+                  {s.mode === "live_zoom" && (
+                    <span className={s.zoomMeetingId ? "" : "font-bold text-red-500"}>
+                      {s.zoomMeetingId ? `Zoom ${s.zoomMeetingId}` : "no zoom id"}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {/* Primary, unmistakable blue action → this date's registrants. */}
+                  <button
+                    onClick={() => goRegistrants(s.label ?? "")}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-sm font-bold text-white shadow-card transition hover:bg-brand/90 active:scale-[0.99]"
+                  >
+                    <IconUsers className="h-4 w-4" /> See registrants ({s.registeredCount ?? 0})
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      className={`flex-1 rounded-lg border py-2 text-xs font-bold transition ${open ? "border-brand bg-brand-tint text-brand" : "border-black/10 text-ink-body hover:border-brand hover:text-brand dark:border-white/15"}`}
+                      onClick={() => setExpanded(open ? null : s.id)}
+                    >
+                      {open ? "Close setup" : "Session setup"}
+                    </button>
+                    <button
+                      className="rounded-lg border border-red-400/40 px-3 py-2 text-xs font-bold text-red-500 transition hover:bg-red-500/10"
+                      onClick={() => del(s.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button className={btnGhost} onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
-                  {expanded === s.id ? "Close" : "Session setup"}
-                </button>
-                <button className={btnGhost} onClick={() => del(s.id)}>Delete</button>
-              </div>
+              {open && (
+                <div className="border-t border-black/10 bg-canvas/40 p-4 dark:border-white/10">
+                  <SimuliveEditor
+                    webinarId={id}
+                    slug={slug}
+                    appBaseUrl={appBaseUrl}
+                    session={{ id: s.id, mode: s.mode, replayUrl: s.replayUrl, videoDurationSec: s.videoDurationSec, simChatEnabled: s.simChatEnabled, viewerBase: s.viewerBase, autoPlayBot: s.autoPlayBot, botVideoUrl: s.botVideoUrl, botStatus: s.botStatus, zoomChatBots: s.zoomChatBots }}
+                    flash={flash}
+                  />
+                </div>
+              )}
             </div>
-            {expanded === s.id && (
-              <SimuliveEditor
-                webinarId={id}
-                slug={slug}
-                appBaseUrl={appBaseUrl}
-                session={{ id: s.id, mode: s.mode, replayUrl: s.replayUrl, videoDurationSec: s.videoDurationSec, simChatEnabled: s.simChatEnabled, viewerBase: s.viewerBase, autoPlayBot: s.autoPlayBot, botVideoUrl: s.botVideoUrl, botStatus: s.botStatus, zoomChatBots: s.zoomChatBots }}
-                flash={flash}
-              />
-            )}
+          );
+        })}
+        {sessions.length === 0 && (
+          <div className="rounded-xl border border-dashed border-black/15 bg-surface p-6 text-center text-sm text-ink-muted dark:border-white/15">
+            No sessions yet — add one below.
           </div>
-        ))}
-        {sessions.length === 0 && <p className="text-sm text-ink-muted">No sessions yet.</p>}
+        )}
       </div>
-      <div className="rounded-lg border border-black/10 bg-surface p-4">
-        <p className="mb-2 text-sm font-semibold">Add session ({tz})</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input className={input} type="datetime-local" value={n.startsAt} onChange={(e) => setN({ ...n, startsAt: e.target.value })} />
-          <input className={input} placeholder="Zoom meeting/webinar ID" value={n.zoomMeetingId} onChange={(e) => setN({ ...n, zoomMeetingId: e.target.value })} />
-          <input className={input} placeholder="Join URL (free)" value={n.joinUrl} onChange={(e) => setN({ ...n, joinUrl: e.target.value })} />
-          <input className={input} placeholder="VIP join URL" value={n.vipJoinUrl} onChange={(e) => setN({ ...n, vipJoinUrl: e.target.value })} />
-          <input className={input} placeholder="Q&A URL" value={n.qaUrl} onChange={(e) => setN({ ...n, qaUrl: e.target.value })} />
-          <input className={input} placeholder="Capacity (optional)" value={n.capacity} onChange={(e) => setN({ ...n, capacity: e.target.value })} />
-        </div>
-        <button className={`${btn} mt-3`} onClick={add}>Add session</button>
+
+      {/* Add session — collapsed by default to keep the list clean on mobile. */}
+      <div className="rounded-xl border border-black/10 bg-surface dark:border-white/10">
+        <button
+          onClick={() => setShowAdd((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-sm font-bold text-ink"
+        >
+          <span className="flex items-center gap-2"><IconCalendar className="h-4 w-4 text-brand" /> Add session</span>
+          <span className="text-ink-muted">{showAdd ? "–" : "+"}</span>
+        </button>
+        {showAdd && (
+          <div className="border-t border-black/10 p-4 dark:border-white/10">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Times in {tz}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input className={input} type="datetime-local" value={n.startsAt} onChange={(e) => setN({ ...n, startsAt: e.target.value })} />
+              <input className={input} placeholder="Zoom meeting/webinar ID" value={n.zoomMeetingId} onChange={(e) => setN({ ...n, zoomMeetingId: e.target.value })} />
+              <input className={input} placeholder="Join URL (free)" value={n.joinUrl} onChange={(e) => setN({ ...n, joinUrl: e.target.value })} />
+              <input className={input} placeholder="VIP join URL" value={n.vipJoinUrl} onChange={(e) => setN({ ...n, vipJoinUrl: e.target.value })} />
+              <input className={input} placeholder="Q&A URL" value={n.qaUrl} onChange={(e) => setN({ ...n, qaUrl: e.target.value })} />
+              <input className={input} placeholder="Capacity (optional)" value={n.capacity} onChange={(e) => setN({ ...n, capacity: e.target.value })} />
+            </div>
+            <button className={`${btn} mt-3 w-full sm:w-auto`} onClick={add}>Add session</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -912,33 +1060,49 @@ const REG_STATUS_STYLE: Record<string, string> = {
   no_show: "bg-red-100 text-red-600",
 };
 
-function RegistrantsTab({ id, flash }: { id: string; flash: (m: string) => void }) {
+function RegistrantsTab({ id, flash, initialSession = "" }: { id: string; flash: (m: string) => void; initialSession?: string }) {
   const [rows, setRows] = useState<AnyRec[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  // Pre-filtered to one session's date when arriving from a "See registrants" card button.
+  const [sessionFilter, setSessionFilter] = useState(initialSession);
 
   async function load() {
     setLoading(true);
     try {
       const data = await api(`/api/webinar-admin/webinars/${id}/registrants`, "GET");
-      setRows(data.registrants);
+      setRows(data.registrants ?? []);
     } catch (e) {
       flash(String(e));
+      setRows([]);
     } finally {
       setLoading(false);
     }
   }
+  // Auto-load so tapping "Registrants" lands straight on the list — no extra tap.
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   async function mark(rid: string, status: string) {
-    await api(`/api/webinar-admin/registrants/${rid}/attendance`, "POST", { status });
     setRows((rows ?? []).map((r) => (r.id === rid ? { ...r, status } : r)));
+    try {
+      await api(`/api/webinar-admin/registrants/${rid}/attendance`, "POST", { status });
+    } catch (e) {
+      flash(String(e));
+      load();
+    }
   }
 
   if (rows === null) {
     return (
-      <button className={btn} onClick={load} disabled={loading}>
-        {loading ? "Loading…" : "Load registrants"}
-      </button>
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-black/5 dark:bg-white/5 md:h-12" />
+        ))}
+      </div>
     );
   }
 
@@ -946,32 +1110,91 @@ function RegistrantsTab({ id, flash }: { id: string; flash: (m: string) => void 
   const filtered = rows.filter(
     (r) =>
       (statusFilter === "all" || r.status === statusFilter) &&
+      (sessionFilter === "" || r.session === sessionFilter) &&
       (!term || `${r.name ?? ""} ${r.email ?? ""}`.toLowerCase().includes(term)),
   );
   const statuses = ["all", ...Array.from(new Set(rows.map((r) => r.status)))];
+  const sessionOpts = Array.from(new Set(rows.map((r) => r.session).filter(Boolean)));
 
   return (
     <div>
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            className={`${input} sm:max-w-xs`}
-            placeholder="Search name or email…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <select className={`${input} sm:max-w-[10rem]`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            {statuses.map((s) => (
-              <option key={s} value={s}>{s === "all" ? "All statuses" : s}</option>
-            ))}
-          </select>
+      <div className="mb-3 space-y-2">
+        <input
+          className={input}
+          placeholder="Search name or email…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="relative">
+            <select className={`${input} appearance-none pr-9`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              {statuses.map((s) => (
+                <option key={s} value={s}>{s === "all" ? "All statuses" : String(s).replace("_", " ")}</option>
+              ))}
+            </select>
+            <svg viewBox="0 0 24 24" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+          </div>
+          <div className="relative">
+            <select className={`${input} appearance-none pr-9`} value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} aria-label="Filter by date">
+              <option value="">All dates</option>
+              {sessionOpts.map((s) => (
+                <option key={String(s)} value={String(s)}>{String(s)}</option>
+              ))}
+            </select>
+            <svg viewBox="0 0 24 24" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-ink-muted">{filtered.length} of {rows.length}</span>
-          <a className={btnGhost} href={`/api/webinar-admin/webinars/${id}/registrants?format=csv`}>Export CSV</a>
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-xs font-semibold text-ink-muted">
+            <span className="tabular-nums">{filtered.length}</span> of <span className="tabular-nums">{rows.length}</span>
+            {sessionFilter && <span className="ml-1 rounded-full bg-brand-tint px-2 py-0.5 font-bold text-brand">on {sessionFilter}</span>}
+          </span>
+          <a className={`${btnGhost} flex-none`} href={`/api/webinar-admin/webinars/${id}/registrants?format=csv`}>Export CSV</a>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-black/10">
+
+      {/* Mobile: card list — no sideways scroll, full-width mark buttons. */}
+      <div className="space-y-2 md:hidden">
+        {filtered.map((r) => (
+          <div key={r.id} className="rounded-xl border border-black/10 bg-surface p-3 dark:border-white/10">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-ink">{r.name || "—"}</p>
+                <p className="truncate text-sm text-ink-body">{r.email}</p>
+              </div>
+              <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${REG_STATUS_STYLE[r.status] ?? "bg-black/5 text-ink-muted"}`}>
+                {String(r.status).replace("_", " ")}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-muted">
+              {r.session && <span>{r.session}</span>}
+              <span>{r.tier}</span>
+              {r.variant && <span className="font-extrabold uppercase text-brand">{r.variant}</span>}
+              <span>GHL {r.ghlContactId ? <span className="font-bold text-emerald-600">✓</span> : "—"}</span>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                className={`flex-1 rounded-lg border py-2 text-xs font-bold transition ${r.status === "attended" ? "border-emerald-500 bg-emerald-500/10 text-emerald-600" : "border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"}`}
+                onClick={() => mark(r.id, "attended")}
+              >
+                Attended
+              </button>
+              <button
+                className={`flex-1 rounded-lg border py-2 text-xs font-bold transition ${r.status === "no_show" ? "border-red-500 bg-red-500/10 text-red-500" : "border-red-400/40 text-red-500 hover:bg-red-500/10"}`}
+                onClick={() => mark(r.id, "no_show")}
+              >
+                No-show
+              </button>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <p className="rounded-xl border border-dashed border-black/15 p-6 text-center text-ink-muted dark:border-white/15">No registrants match.</p>
+        )}
+      </div>
+
+      {/* Desktop: full table */}
+      <div className="hidden overflow-x-auto rounded-xl border border-black/10 md:block">
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead className="bg-canvas text-xs uppercase tracking-wide text-ink-muted">
             <tr>

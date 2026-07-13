@@ -234,11 +234,11 @@ export default async function WebinarDashboardPage() {
               <div className="mt-3 space-y-2.5">
                 {data.upcoming.length === 0 && <p className="text-sm text-ink-muted">Nothing scheduled.</p>}
                 {data.upcoming.map((s) => (
-                  <Link
+                  <div
                     key={s.id}
-                    href={`/admin/webinar/${s.webinarId}`}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-black/5 px-3 py-2.5 text-sm transition hover:border-brand/40 dark:border-white/10"
+                    className="relative flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-black/5 px-3 py-2.5 text-sm transition hover:border-brand/40 dark:border-white/10"
                   >
+                    <Link href={`/admin/webinar/${s.webinarId}`} className="absolute inset-0 z-0" aria-label={`Open ${s.webinarTitle}`} />
                     <span className="rounded bg-brand-tint px-2 py-0.5 text-xs font-extrabold tabular-nums text-brand">T-{timeUntil(new Date(s.startsAt))}</span>
                     <span className="min-w-[9rem] flex-1 truncate font-bold text-ink">{s.webinarTitle}</span>
                     <span className="text-xs text-ink-muted">{s.label}</span>
@@ -253,11 +253,13 @@ export default async function WebinarDashboardPage() {
                     {s.zoomChatBots && (
                       <span className="rounded bg-gold/15 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-amber-600 dark:text-gold">Chat crew</span>
                     )}
-                    <span className="flex items-center gap-1 text-xs font-semibold text-ink-body">
-                      <IconUsers className="h-3.5 w-3.5 text-brand" />
-                      {s.registeredCount}
-                    </span>
-                  </Link>
+                    <Link
+                      href={`/admin/webinar/${s.webinarId}?tab=Registrants&session=${encodeURIComponent(s.label ?? '')}`}
+                      className="relative z-10 ml-auto inline-flex items-center gap-1.5 rounded-lg bg-brand px-2.5 py-1 text-[11px] font-bold text-white shadow-card transition hover:bg-brand/90 active:scale-[0.98]"
+                    >
+                      <IconUsers className="h-3.5 w-3.5" /> {s.registeredCount} · See registrants
+                    </Link>
+                  </div>
                 ))}
               </div>
               {data.activeBots.length > 0 && (
@@ -348,11 +350,12 @@ export default async function WebinarDashboardPage() {
             const next = w.sessions.find((s) => s.status === 'scheduled' && new Date(s.startsAt) > now);
             const hasSimulive = w.sessions.some((s) => s.mode === 'simulive');
             return (
-              <Link
+              <div
                 key={w.id}
-                href={`/admin/webinar/${w.id}`}
-                className="card group flex overflow-hidden transition hover:-translate-y-0.5 hover:shadow-card-hover"
+                className="card group relative flex overflow-hidden transition hover:-translate-y-0.5 hover:shadow-card-hover"
               >
+                {/* Stretched link: the whole card still opens the editor. */}
+                <Link href={`/admin/webinar/${w.id}`} className="absolute inset-0 z-0" aria-label={`Open ${w.title}`} />
                 {/* Live landing-page preview (scaled iframe of the real funnel).
                     Drafts 404 publicly — skip the iframe so the console stays clean. */}
                 <div className="relative hidden w-36 flex-none overflow-hidden bg-night sm:block">
@@ -392,8 +395,16 @@ export default async function WebinarDashboardPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Blue, unmistakable path to this webinar's registrant list. */}
+                  <Link
+                    href={`/admin/webinar/${w.id}?tab=Registrants`}
+                    className="relative z-10 mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand py-2 text-xs font-bold text-white shadow-card transition hover:bg-brand/90 active:scale-[0.99] sm:w-auto sm:self-start sm:px-4"
+                  >
+                    <IconUsers className="h-3.5 w-3.5" /> See registrants ({registered})
+                  </Link>
                 </div>
-              </Link>
+              </div>
             );
           })}
         {webinars.length === 0 && <p className="text-sm text-ink-muted">No webinars yet.</p>}
