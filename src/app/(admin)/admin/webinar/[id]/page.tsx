@@ -10,7 +10,7 @@ import { WebinarEditor } from '@/components/webinar-admin/WebinarEditor';
 export const dynamic = 'force-dynamic';
 
 export default async function EditWebinarPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireCapability('content:manage');
+  await requireCapability('webinar:manage');
   const { id } = await params;
 
   const base = process.env.WEBINAR_APP_URL;

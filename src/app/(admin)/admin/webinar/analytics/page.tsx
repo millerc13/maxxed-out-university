@@ -10,7 +10,7 @@ import { WebinarAnalyticsClient } from '@/components/webinar-admin/WebinarAnalyt
 export const dynamic = 'force-dynamic';
 
 export default async function WebinarAnalyticsPage() {
-  await requireCapability('content:manage');
+  await requireCapability('webinar:manage');
 
   return (
     <div className="webinar-admin">

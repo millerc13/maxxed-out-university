@@ -45,6 +45,12 @@ export type Capability =
   /** Create / edit content — courses, lessons, quizzes, funnels, docs,
    *  homepage, promo codes. Does NOT imply delete. */
   | 'content:manage'
+  /** Access the webinar admin (ported from maxxed-webinar): dashboard,
+   *  registrants, sessions, reminders, bots, funnel analytics. Kept separate
+   *  from content:manage so ad/creative ops (MARKETING) can run the webinar
+   *  funnel without gaining edit rights across courses, quizzes, or promo
+   *  codes. ADMIN has it via ALL_CAPABILITIES. */
+  | 'webinar:manage'
   /** Edit ONLY the Meta Pixel ID (via the pixel-only endpoint). Lets a
    *  view-only role like MARKETING manage tracking without touching any
    *  other content. ADMIN has it via ALL_CAPABILITIES. */
@@ -65,6 +71,7 @@ export const ALL_CAPABILITIES: Capability[] = [
   'analytics:view',
   'leads:view',
   'content:manage',
+  'webinar:manage',
   'pixel:manage',
   'users:manage',
   'settings:manage',
@@ -75,10 +82,12 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   // Full god mode.
   ADMIN: ALL_CAPABILITIES,
 
-  // Ad/creative ops (Waylon). VIEW-ONLY everywhere he can reach, EXCEPT he
-  // may edit the Meta Pixel ID (pixel:manage). No content editing, no
-  // revenue, no leads, no settings, no users, no deletes.
-  MARKETING: ['admin:access', 'analytics:view', 'pixel:manage'],
+  // Ad/creative ops (Waylon). VIEW-ONLY across course content, EXCEPT he may
+  // edit the Meta Pixel ID (pixel:manage) and run the webinar admin
+  // (webinar:manage) — webinars are his ad funnel (registrants, sessions,
+  // pixel, funnel analytics). Still no course/quiz/promo editing, no revenue,
+  // no leads, no settings, no users, no deletes.
+  MARKETING: ['admin:access', 'analytics:view', 'pixel:manage', 'webinar:manage'],
 
   // Closers/setters. Leads + per-deal dollar amounts (their commissions)
   // + analytics, but never company-wide revenue, settings, or deletes.
@@ -87,9 +96,10 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   // Customer support. Read-mostly operational access; no money, no deletes.
   SUPPORT: ['admin:access', 'analytics:view', 'leads:view'],
 
-  // Course authors. Manage content + see analytics; nothing financial or
-  // destructive.
-  INSTRUCTOR: ['admin:access', 'content:manage', 'analytics:view'],
+  // Course authors. Manage content + webinars + see analytics; nothing
+  // financial or destructive. (webinar:manage preserves the access they had
+  // when the webinar admin was gated on content:manage.)
+  INSTRUCTOR: ['admin:access', 'content:manage', 'webinar:manage', 'analytics:view'],
 
   // Students have no admin capabilities.
   STUDENT: [],
@@ -128,9 +138,10 @@ const ADMIN_PATH_CAPABILITY: { prefix: string; capability: Capability }[] = [
   { prefix: '/admin/sales', capability: 'revenue:view' }, // also email-locked
   // Promo codes change pricing and the page only talks to ADMIN-only APIs.
   { prefix: '/admin/funnels/promo-codes', capability: 'settings:manage' },
-  // Webinar admin — ported from maxxed-webinar. Editor capability; the pages
-  // proxy to the webinar app's admin APIs with a server-side bearer.
-  { prefix: '/admin/webinar', capability: 'content:manage' },
+  // Webinar admin — ported from maxxed-webinar. Its own capability so it can
+  // be granted to ad ops (MARKETING) without unlocking course/quiz/promo
+  // editing. The pages proxy to the webinar app's admin APIs with a bearer.
+  { prefix: '/admin/webinar', capability: 'webinar:manage' },
   // Analytics — student/customer engagement data; hidden from MARKETING.
   { prefix: '/admin/analytics', capability: 'analytics:view' },
   // Leads — captured applications; hidden from MARKETING.

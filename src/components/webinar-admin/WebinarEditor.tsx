@@ -97,7 +97,7 @@ export function WebinarEditor({ initial, appBaseUrl }: { initial: AnyRec; appBas
 
   return (
     <div>
-      <Link href="/admin" className="inline-flex items-center gap-1 text-sm font-semibold text-ink-muted transition hover:text-brand">
+      <Link href="/admin/webinar" className="inline-flex items-center gap-1 text-sm font-semibold text-ink-muted transition hover:text-brand">
         ← All webinars
       </Link>
 

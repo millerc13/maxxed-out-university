@@ -36,7 +36,7 @@ const STRIP_RES = new Set(['content-encoding', 'content-length', 'transfer-encod
 
 async function proxy(req: NextRequest, path: string[]) {
   // Editor capability required for every verb (reads + writes). ADMIN + INSTRUCTOR.
-  const session = await sessionWithCapability('content:manage');
+  const session = await sessionWithCapability('webinar:manage');
   if (!session) return unauthorized();
 
   if (!BASE || !TOKEN) {

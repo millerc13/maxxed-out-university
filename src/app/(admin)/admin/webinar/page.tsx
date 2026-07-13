@@ -91,7 +91,7 @@ type RawWebinar = {
 };
 
 export default async function WebinarDashboardPage() {
-  await requireCapability('content:manage');
+  await requireCapability('webinar:manage');
 
   const base = process.env.WEBINAR_APP_URL;
   if (!base) throw new Error('WEBINAR_APP_URL is not configured');
