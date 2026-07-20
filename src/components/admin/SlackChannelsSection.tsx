@@ -49,6 +49,7 @@ const SOURCE_OPTIONS: Array<{ value: string; label: string; short: string }> = [
   { value: 'accelerator', label: 'Business Accelerator', short: 'ACC' },
   { value: 'university', label: 'University /apply', short: 'UNI' },
   { value: 'dd-healthcare', label: 'DD Healthcare', short: 'DD' },
+  { value: 'medicaid-cohort', label: 'Medicaid 12-week cohort', short: 'COH' },
   { value: 'experience', label: 'Inner Circle Experience', short: 'IC' },
 ];
 

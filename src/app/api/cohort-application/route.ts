@@ -39,6 +39,13 @@ const schema = z.object({
   consentText: z.string().trim().max(1000).optional(),
 });
 
+/**
+ * Routing key for this specific cohort intake. A future cohort (real-estate,
+ * a later Medicaid round) should use its OWN source so Slack channels can be
+ * split per cohort instead of everything landing in one room.
+ */
+const COHORT_SOURCE = 'medicaid-cohort';
+
 const GHL_API_BASE = process.env.GHL_API_BASE || 'https://services.leadconnectorhq.com';
 
 /** Lean GHL upsert — tags the contact so closers can filter by tier in the CRM. */
@@ -139,6 +146,7 @@ export async function POST(request: Request) {
       isVip,
       // Required phone + visible disclosure above the button ⇒ submitting is
       // the affirmative act. Record what they agreed to and when.
+      source: COHORT_SOURCE,
       smsConsent: true,
       smsConsentText: d.consentText ?? null,
       smsConsentAt: new Date(),
@@ -184,7 +192,7 @@ export async function POST(request: Request) {
       return o ? `${o.label} (${o.points} pts)` : v;
     };
 
-    await notifySlackChannels('cohort_application', 'cohort', {
+    await notifySlackChannels('cohort_application', COHORT_SOURCE, {
       headline: `TIER ${tier} · ${score}/28 pts${isVip ? ' · ★ VIP BUYER' : ''} — ${d.name}`,
       emoji: tier === 'A' ? '🔥' : '🎯',
       contactName: d.name,
