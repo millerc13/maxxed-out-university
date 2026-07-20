@@ -15,6 +15,7 @@ const VALID_EVENT_TYPES = new Set([
   'dd_application',
   'abandoned_checkout',
   'contract_signed',
+  'cohort_application',
 ]);
 
 const SLACK_WEBHOOK_RE = /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9_/-]+$/;

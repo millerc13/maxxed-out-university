@@ -8,6 +8,8 @@ import {
   US_STATES,
   scoreApplication,
   closerLine,
+  TIER_ACTION,
+  type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
 import { sendSmsToRecipient, notifyRecipients, normalizePhoneE164 } from '@/lib/sms';
@@ -170,22 +172,42 @@ export async function POST(request: Request) {
 
     // Team alerts, tier-first so closers can triage from the notification.
     await notifyRecipients('lead', line, 'university').catch(() => {});
-    await notifySlackChannels(
-      'lead',
-      'cohort',
-      {
-        headline: `Cohort application — TIER ${tier} (${score} pts)${isVip ? ' · VIP ✅' : ''}`,
-        contactName: d.name,
-        email: d.email,
-        fields: [
-          { label: 'Phone', value: app.phone },
-          { label: 'State', value: d.state },
-          { label: 'Tier', value: `${tier} — ${score} pts` },
-          ...(reasons.length ? [{ label: 'Why', value: reasons.join('; ') }] : []),
-          ...(d.note ? [{ label: 'Note', value: d.note }] : []),
-        ],
-      }
-    ).catch(() => {});
+
+    // Slack — its own event type so this never spams existing `lead` channels.
+    // Sends EVERY form field: closers should be able to work the call straight
+    // from the notification without opening the dashboard.
+    const labelOf = <T extends { value: string; label: string; points: number }>(
+      opts: readonly T[],
+      v: string
+    ) => {
+      const o = opts.find((x) => x.value === v);
+      return o ? `${o.label} (${o.points} pts)` : v;
+    };
+
+    await notifySlackChannels('cohort_application', 'cohort', {
+      headline: `TIER ${tier} · ${score}/28 pts${isVip ? ' · ★ VIP BUYER' : ''} — ${d.name}`,
+      emoji: tier === 'A' ? '🔥' : '🎯',
+      contactName: d.name,
+      email: d.email,
+      phone: app.phone,
+      fields: [
+        { label: 'Tier', value: `${tier} — ${TIER_ACTION[tier as Tier]}` },
+        { label: 'Score', value: `${score} / 28` },
+        { label: 'State', value: d.state },
+        { label: 'Q: Where are you right now with this?', value: labelOf(READINESS_OPTIONS, d.readiness) },
+        { label: 'Q: $10,000 investment', value: labelOf(INVESTMENT_OPTIONS, d.investment) },
+        { label: 'Q: Current work situation', value: labelOf(WORK_OPTIONS, d.work) },
+        { label: 'Q: Anything we should know?', value: d.note?.trim() || '—' },
+        { label: 'VIP ($27 buyer)', value: isVip ? 'YES — auto Tier A' : 'No' },
+        ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),
+        { label: 'SMS consent', value: 'Given on submit' },
+        { label: 'Submitted', value: new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }) + ' ET' },
+      ],
+      link: {
+        url: `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/admin/cohort`,
+        label: 'Open the call sheet',
+      },
+    }).catch(() => {});
   });
 
   return NextResponse.json({ ok: true, id: app.id, tier, score });

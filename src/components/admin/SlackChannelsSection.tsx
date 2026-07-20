@@ -38,6 +38,7 @@ const EVENT_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'dd_application', label: 'DD applications' },
   { value: 'abandoned_checkout', label: 'Abandoned checkouts' },
   { value: 'contract_signed', label: 'Contracts signed' },
+  { value: 'cohort_application', label: 'Cohort applications (webinar)' },
 ];
 
 const SOURCE_OPTIONS: Array<{ value: string; label: string; short: string }> = [

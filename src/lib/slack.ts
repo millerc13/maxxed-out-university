@@ -21,7 +21,8 @@ export type SlackEventType =
   | 'sale'
   | 'dd_application'
   | 'abandoned_checkout'
-  | 'contract_signed';
+  | 'contract_signed'
+  | 'cohort_application';
 
 export interface SlackEventPayload {
   /** Title text shown in notifications + bold first line. */
@@ -53,6 +54,7 @@ const EVENT_DEFAULTS: Record<SlackEventType, { emoji: string; banner: string }> 
   dd_application: { emoji: '📋', banner: 'DD Application Submitted' },
   abandoned_checkout: { emoji: '🛒', banner: 'Abandoned Checkout' },
   contract_signed: { emoji: '✍️', banner: 'Contract Signed' },
+  cohort_application: { emoji: '🎯', banner: 'Cohort Application' },
 };
 
 function buildBlockKitMessage(eventType: SlackEventType, p: SlackEventPayload): BlockKitMessage {
