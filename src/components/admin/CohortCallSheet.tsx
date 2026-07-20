@@ -193,13 +193,22 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
                   </span>
                 </div>
 
-                {/* Summary chips — readable, not a run-on line */}
+                {/* Summary answers — each labelled with its question, because
+                    "Most of it" tells a closer nothing on its own. */}
                 {!open && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {[readiness?.short, investment?.short, work?.short].filter(Boolean).map((s) => (
-                      <span key={s} className="rounded-md bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
-                        {s}
-                      </span>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {[
+                      { q: 'Readiness', a: readiness?.short, pts: readiness?.points },
+                      { q: '$10k', a: investment?.short, pts: investment?.points },
+                      { q: 'Work', a: work?.short, pts: work?.points },
+                    ].map((c) => (
+                      <div key={c.q} className="rounded-lg bg-gray-50 px-2.5 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                          {c.q}
+                          {c.pts != null && <span className="ml-1 font-black text-gray-300">{c.pts}p</span>}
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold leading-tight text-gray-800">{c.a}</p>
+                      </div>
                     ))}
                   </div>
                 )}
