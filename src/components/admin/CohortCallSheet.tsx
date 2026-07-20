@@ -185,12 +185,6 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
                     </span>
                   </div>
 
-                  <span
-                    className={`mt-1 flex-none text-gray-300 transition-transform ${open ? 'rotate-180' : ''}`}
-                    aria-hidden
-                  >
-                    ▾
-                  </span>
                 </div>
 
                 {/* Summary answers — each labelled with its question, because
@@ -228,6 +222,15 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
                     </p>
                   </div>
                 )}
+
+                {/* Explicit affordance — a bare chevron didn't read as
+                    "there's more here". Part of the header tap target. */}
+                <span className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-gray-50 py-2.5 text-xs font-bold text-blue-700">
+                  {open ? 'Hide details' : 'View full application'}
+                  <span className={`text-[10px] transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden>
+                    ▼
+                  </span>
+                </span>
               </button>
 
               {/* ---- Expanded: the full application ---- */}
