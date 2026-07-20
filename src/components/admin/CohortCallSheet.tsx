@@ -198,25 +198,35 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
                 {!open && (
                   <div className="mt-3 grid grid-cols-3 gap-2">
                     {[
-                      { q: 'Readiness', a: readiness?.short, pts: readiness?.points },
+                      { q: 'Stage', a: readiness?.short, pts: readiness?.points },
                       { q: '$10k', a: investment?.short, pts: investment?.points },
                       { q: 'Work', a: work?.short, pts: work?.points },
                     ].map((c) => (
-                      <div key={c.q} className="rounded-lg bg-gray-50 px-2.5 py-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                          {c.q}
-                          {c.pts != null && <span className="ml-1 font-black text-gray-300">{c.pts}p</span>}
-                        </p>
-                        <p className="mt-0.5 text-xs font-semibold leading-tight text-gray-800">{c.a}</p>
+                      <div key={c.q} className="min-w-0 rounded-lg bg-gray-50 px-2 py-2">
+                        {/* Label truncates and the points badge never shrinks —
+                            at 320px the badge was getting clipped mid-character. */}
+                        <div className="flex items-baseline gap-1">
+                          <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                            {c.q}
+                          </span>
+                          {c.pts != null && (
+                            <span className="flex-none text-[10px] font-black text-gray-300">{c.pts}p</span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-[11px] font-semibold leading-tight text-gray-800 [overflow-wrap:anywhere] sm:text-xs">{c.a}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
                 {r.note && !open && (
-                  <p className="mt-3 line-clamp-2 border-l-[3px] border-blue-400 bg-blue-50/60 px-3 py-2 text-sm italic text-gray-800">
-                    “{r.note}”
-                  </p>
+                  // Clamp on an inner element — clamping the padded box itself
+                  // let a third line bleed past the edge on narrow screens.
+                  <div className="mt-3 border-l-[3px] border-blue-400 bg-blue-50/60 px-3 py-2">
+                    <p className="line-clamp-2 break-words text-sm italic leading-snug text-gray-800">
+                      “{r.note}”
+                    </p>
+                  </div>
                 )}
               </button>
 
