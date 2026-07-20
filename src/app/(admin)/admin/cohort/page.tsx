@@ -52,7 +52,9 @@ export default async function CohortApplicationsPage() {
   const vipCount = rows.filter((r) => r.isVip).length;
 
   return (
-    <div className="pb-16">
+    // Cap the reading width — the admin shell is full-bleed, and an unconstrained
+    // call-sheet card stretches to ~2000px with all the content stranded on the left.
+    <div className="mx-auto max-w-4xl pb-16">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-blue-600">Call sheet</p>

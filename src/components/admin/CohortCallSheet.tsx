@@ -157,6 +157,34 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
                       {r.state} · {timeAgo(r.createdAt)}
                     </p>
                   </div>
+
+                  {/* Desktop: contact + compact actions live here, so the wide
+                      layout is used instead of leaving a void on the right. */}
+                  <div className="hidden flex-none items-center gap-2 sm:flex">
+                    <div className="mr-1 text-right">
+                      <p className="text-sm font-bold text-gray-900">{r.phone}</p>
+                      <p className="max-w-[220px] truncate text-xs text-gray-500">{r.email}</p>
+                    </div>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${r.phone}`; }}
+                      className="cursor-pointer rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
+                    >
+                      📞 Call
+                    </span>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); window.location.href = `sms:${r.phone}`; }}
+                      className="cursor-pointer rounded-lg border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700 transition hover:border-blue-500 hover:text-blue-700"
+                    >
+                      💬
+                    </span>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); window.location.href = `mailto:${r.email}`; }}
+                      className="cursor-pointer rounded-lg border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700 transition hover:border-blue-500 hover:text-blue-700"
+                    >
+                      ✉️
+                    </span>
+                  </div>
+
                   <span
                     className={`mt-1 flex-none text-gray-300 transition-transform ${open ? 'rotate-180' : ''}`}
                     aria-hidden
@@ -226,8 +254,9 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
                 </div>
               )}
 
-              {/* ---- Actions: always visible, big tap targets ---- */}
-              <div className="mt-3 grid grid-cols-3 gap-px border-t border-gray-100 bg-gray-100">
+              {/* ---- Mobile actions: full-width thumb targets (desktop uses the
+                   compact group in the header instead) ---- */}
+              <div className="mt-3 grid grid-cols-3 gap-px border-t border-gray-100 bg-gray-100 sm:hidden">
                 <a
                   href={`tel:${r.phone}`}
                   className="flex items-center justify-center gap-1.5 bg-white py-3.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50"
@@ -250,9 +279,9 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
 
               {open && (
                 <div className="space-y-1 border-t border-gray-100 bg-gray-50 px-4 py-3 text-sm">
-                  <p className="font-semibold text-gray-900">{r.phone}</p>
-                  <p className="break-all text-gray-600">{r.email}</p>
-                  <p className="pt-1 text-xs text-gray-500">{TIER_ACTION[r.tier as Tier]}</p>
+                  <p className="font-semibold text-gray-900 sm:hidden">{r.phone}</p>
+                  <p className="break-all text-gray-600 sm:hidden">{r.email}</p>
+                  <p className="text-xs text-gray-500">{TIER_ACTION[r.tier as Tier]}</p>
                 </div>
               )}
             </div>
