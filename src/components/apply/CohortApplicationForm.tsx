@@ -201,7 +201,6 @@ export function CohortApplicationForm() {
         >
           {state === 'loading' ? 'Submitting…' : 'Submit My Application →'}
         </button>
-        <p className="text-center text-xs text-gray-500">Takes about 2 minutes.</p>
       </div>
     </form>
   );
