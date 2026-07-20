@@ -14,7 +14,33 @@ export const alt = 'Apply for the 12-Week Cohort — Maxxed Out';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
+/**
+ * The LIGHT logo variant (the one AdminHeader uses on its dark bar) — the
+ * site-header version is near-black and would disappear on this navy card.
+ */
+const LOGO_URL =
+  'https://storage.googleapis.com/msgsndr/ZTzlr9OKa82mgQ8vn680/media/69277b484ee4a3826c4e244a.png';
+
+/**
+ * Inlined as a data URI rather than passed as a remote src: the OG renderer
+ * fetches at request time, and a slow/failed CDN call would otherwise produce
+ * a card with a missing logo. Returns null on failure so we fall back to the
+ * wordmark instead of rendering a broken image.
+ */
+async function loadLogo(): Promise<string | null> {
+  try {
+    const res = await fetch(LOGO_URL, { cache: 'force-cache' });
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    return `data:image/png;base64,${Buffer.from(buf).toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image() {
+  const logo = await loadLogo();
+
   return new ImageResponse(
     (
       <div
@@ -32,17 +58,24 @@ export default async function Image() {
         {/* Brand + urgency */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div
-              style={{
-                display: 'flex',
-                fontSize: 34,
-                fontWeight: 900,
-                color: '#ffffff',
-                letterSpacing: 2,
-              }}
-            >
-              MAXXED OUT
-            </div>
+            {logo ? (
+              // Explicit width AND height at the source's 2.526:1 ratio — left to
+              // infer it, Satori scaled the 15000px-wide original and aliased badly.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt="Maxxed Out" width={202} height={80} style={{ objectFit: 'contain' }} />
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  fontSize: 34,
+                  fontWeight: 900,
+                  color: '#ffffff',
+                  letterSpacing: 2,
+                }}
+              >
+                MAXXED OUT
+              </div>
+            )}
           </div>
           <div
             style={{
