@@ -9,33 +9,32 @@ datasource db {
 }
 
 model User {
-  id                 String           @id @default(cuid())
-  email              String           @unique
+  id                  String               @id @default(cuid())
+  email               String               @unique
   // Alternate emails this user can sign in with. Used when the email
   // on file is wrong (typo from a manual import, etc.) but the user
   // knows themselves by a different one. The credentials login falls
   // back to matching here if the primary email lookup misses.
-  emailAliases       String[]         @default([])
-  name               String?
-  passwordHash       String?
-  mustChangePassword Boolean          @default(false)
-  image              String?
-  role               Role             @default(STUDENT)
-  phone              String?
-  ghlContactId       String?
-  emailVerified      DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  accounts           Account[]
-  certificates       Certificate[]
-  enrollments        Enrollment[]
-  progress           LessonProgress[]
-  magicLinks         MagicLink[]
+  emailAliases        String[]             @default([])
+  name                String?
+  passwordHash        String?
+  mustChangePassword  Boolean              @default(false)
+  image               String?
+  role                Role                 @default(STUDENT)
+  phone               String?
+  ghlContactId        String?
+  emailVerified       DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  accounts            Account[]
+  certificates        Certificate[]
+  enrollments         Enrollment[]
+  progress            LessonProgress[]
+  magicLinks          MagicLink[]
   passwordResetTokens PasswordResetToken[]
-  sessions           Session[]
-  documentSignatures DocumentSignature[]
-  applications       Application[]
-
+  sessions            Session[]
+  documentSignatures  DocumentSignature[]
+  applications        Application[]
 }
 
 model Account {
@@ -89,106 +88,106 @@ model PasswordResetToken {
 }
 
 model Course {
-  id           String           @id @default(cuid())
-  title        String
-  slug         String           @unique
-  description  String?
-  shortDesc    String?
-  thumbnail    String?
-  previewVideo String?
-  price        Int?
+  id                   String              @id @default(cuid())
+  title                String
+  slug                 String              @unique
+  description          String?
+  shortDesc            String?
+  thumbnail            String?
+  previewVideo         String?
+  price                Int?
   // Fixed sale/override price in cents. When set, this IS the amount charged
   // (no promo discounting stacked on top) — used for flat sale pricing like the
   // Blueprint "July Independence" $499. Null = normal price + promo behavior.
-  salePrice    Int?
-  published    Boolean          @default(false)
-  comingSoon   Boolean          @default(false)
-  isBundle     Boolean          @default(false)
-  bundleId     String?
-  externalUrl  String?
+  salePrice            Int?
+  published            Boolean             @default(false)
+  comingSoon           Boolean             @default(false)
+  isBundle             Boolean             @default(false)
+  bundleId             String?
+  externalUrl          String?
   // When true, the public course page shows an "Apply Now" button instead
   // of price+buy. Doesn't require externalUrl — without one, the button
   // routes to /apply/[slug] (the on-platform 5-step apply flow). With
   // externalUrl, it redirects there. Independent of `price`, which is
   // still used for any checkout that happens after the apply form.
-  applyMode    Boolean    @default(false)
+  applyMode            Boolean             @default(false)
   // When true, the on-platform /apply/[slug] flow ends with a checkout
   // step (lead is captured in GHL first, then optional payment).
   // Funnels using this course inherit this default unless their
   // FunnelConfig.checkoutAfterApplyOverride is set.
-  checkoutAfterApply Boolean    @default(false)
+  checkoutAfterApply   Boolean             @default(false)
   // When true, /api/apply creates a GHL opportunity for this course's
   // submissions (which triggers the closer-notify automation in GHL ->
   // dashboard.maxxedout.com webhook -> closer SMS). Default true to
   // preserve current behavior; admin flips to false for QA / testing
   // a course without spamming closers.
-  notifyClosersOnApply Boolean  @default(true)
+  notifyClosersOnApply Boolean             @default(true)
   // When true, every funnel + checkout surface for this course shows a
   // "Have more questions? Book a call with a team member" CTA pointing
   // to the Calendly booking link. Default ON for every course; admin
   // can flip OFF per-course in CourseForm.
-  bookACallEnabled Boolean      @default(true)
-  order        Int              @default(0)
+  bookACallEnabled     Boolean             @default(true)
+  order                Int                 @default(0)
   // Catalog section + position. Null section means the course doesn't appear
   // on / or /courses (admin-only / hidden product). Both pages render from
   // these fields; the legacy price-tier classifier was removed.
-  homepageSectionId String?
-  homepageOrder     Int               @default(0)
+  homepageSectionId    String?
+  homepageOrder        Int                 @default(0)
   // Editable hero stat row shown on /courses/[slug]. Each entry:
   // { iconName: string, iconColor?: string, label: string }. When empty
   // the page falls back to the legacy hardcoded stats (lessons /
   // certificate / lifetime access).
-  heroStats         Json              @default("[]")
+  heroStats            Json                @default("[]")
   // Bullet list shown under the course thumbnail on the checkout page.
   // String[] — empty falls back to the legacy hardcoded defaults
   // (Immediate access / 1-on-1 with Todd / Certificate / Lifetime / 30d
   // refund). Edit per-course from the admin form.
-  checkoutBullets   Json              @default("[]")
+  checkoutBullets      Json                @default("[]")
   // ── Delivery (post-purchase messaging) ──────────────────────────────
   // Admin-editable copy that fires when a buyer completes checkout for
   // this course. Supports {{firstName}} {{courseTitle}} {{shortUrl}}
   // {{activateUrl}} tokens. NULL → webhooks fall back to a sensible
   // default chosen by the course's apply-flow vs self-serve nature.
-  welcomeSmsBody       String?  @db.Text
+  welcomeSmsBody       String?             @db.Text
   welcomeEmailSubject  String?
-  welcomeEmailBody     String?  @db.Text
+  welcomeEmailBody     String?             @db.Text
   // When true, every successful checkout for this course also triggers
   // an automatic e-sign contract send (sendStandardEnrollmentDocument).
   // OFF by default — closers compose custom contracts for high-ticket
   // programs; admin enables only on courses where one-size-fits-all is OK.
-  autoSendContract  Boolean          @default(false)
+  autoSendContract     Boolean             @default(false)
   // ── Meta Ads tracking (per-course Pixel + Conversions API) ──────────
   // metaPixelId is the Pixel/Dataset ID from Meta Events Manager (also
   // the Dataset ID for Conversions API). Sent to client-side fbq() init
   // and to CAPI server-side calls. NULL → tracking is off for this
   // course's surfaces (funnel landings, /apply, /checkout, /sign,
   // success page) — they render no Pixel script and no CAPI events.
-  metaPixelId           String?
+  metaPixelId          String?
   // System User access token with `ads_management` (or at minimum
   // permission to write to the dataset). Used SERVER-SIDE only by
   // Conversions API — never serialized to the client. Generated in Meta
   // Business Suite → Settings → System Users → Generate Token.
-  metaCapiAccessToken   String?
+  metaCapiAccessToken  String?
   // Optional test-event code (TEST12345 etc) from Events Manager → Test
   // Events. When set, CAPI events are tagged with this so they appear in
   // the test view and DON'T affect ad delivery. Clear to go live.
-  metaTestEventCode     String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  bundle            Course?          @relation("BundleChildren", fields: [bundleId], references: [id])
-  childCourses      Course[]         @relation("BundleChildren")
-  certificates      Certificate[]
-  enrollments       Enrollment[]
-  modules           Module[]
-  products          ProductMapping[]
-  quizzes           Quiz[]
-  funnels           FunnelDeployment[]
-  featuredInFunnels FunnelDeployment[] @relation("FunnelFeaturedCourses")
-  promoCodes        PromoCode[]        @relation("PromoCodeCourses")
-  tools             Tool[]
-  homepageSection   HomepageSection? @relation(fields: [homepageSectionId], references: [id], onDelete: SetNull)
-  documentSignatures DocumentSignature[]
-  applications      Application[]
+  metaTestEventCode    String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  bundle               Course?             @relation("BundleChildren", fields: [bundleId], references: [id])
+  childCourses         Course[]            @relation("BundleChildren")
+  certificates         Certificate[]
+  enrollments          Enrollment[]
+  modules              Module[]
+  products             ProductMapping[]
+  quizzes              Quiz[]
+  funnels              FunnelDeployment[]
+  featuredInFunnels    FunnelDeployment[]  @relation("FunnelFeaturedCourses")
+  promoCodes           PromoCode[]         @relation("PromoCodeCourses")
+  tools                Tool[]
+  homepageSection      HomepageSection?    @relation(fields: [homepageSectionId], references: [id], onDelete: SetNull)
+  documentSignatures   DocumentSignature[]
+  applications         Application[]
 
   @@index([bundleId])
   @@index([homepageSectionId, homepageOrder])
@@ -272,7 +271,7 @@ model Enrollment {
   source        String?
   transactionId String?
   metadata      Json?
-  originalPrice Int?       // price before any promo discount (in cents)
+  originalPrice Int? // price before any promo discount (in cents)
   promoCodeId   String?
   promoCode     PromoCode? @relation(fields: [promoCodeId], references: [id])
   course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -334,22 +333,22 @@ model ProductMapping {
 // for university applications. Admin manages this list at
 // /admin/notifications. Set to a test number while doing QA.
 model NotificationRecipient {
-  id            String   @id @default(cuid())
-  phone         String   // E.164 (e.g. "+19375551234")
-  label         String?  // human-friendly tag, e.g. "CJ (test)" / "Closer A"
-  notifyOnLead  Boolean  @default(true)
-  notifyOnSale  Boolean  @default(true)
-  active        Boolean  @default(true)
+  id           String   @id @default(cuid())
+  phone        String // E.164 (e.g. "+19375551234")
+  label        String? // human-friendly tag, e.g. "CJ (test)" / "Closer A"
+  notifyOnLead Boolean  @default(true)
+  notifyOnSale Boolean  @default(true)
+  active       Boolean  @default(true)
   // Source filter — which traffic source this recipient gets alerts for.
   // Slugs: "blueprint" | "mentorship" | "donewithyou" | "university".
   // Empty array (default) = receive from ALL sources. Non-empty = only
   // listed sources fan out to this recipient.
-  sources       String[] @default([])
+  sources      String[] @default([])
   // Cached after the first successful send so we don't have to
   // re-upsert the GHL contact on every notification.
-  ghlContactId  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ghlContactId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 // Slack channel subscription. Each row = one Slack incoming webhook URL,
@@ -366,18 +365,18 @@ model NotificationRecipient {
 //             aliases. dd_application events ignore this filter — they
 //             always go to channels that opted into 'dd_application'.
 model SlackChannel {
-  id           String   @id @default(cuid())
+  id         String   @id @default(cuid())
   // Human-friendly label shown in admin (e.g. "DD Applications", "BAM Funnel").
-  name         String
+  name       String
   // Optional display-only Slack channel string (e.g. "#dd-applications").
-  channel      String?
+  channel    String?
   // Slack incoming webhook URL — sensitive, never serialized to client.
-  webhookUrl   String
-  eventTypes   String[] @default([])
-  sources      String[] @default([])
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  webhookUrl String
+  eventTypes String[] @default([])
+  sources    String[] @default([])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // Round-robin assignment counter for funnels that distribute leads
@@ -480,54 +479,54 @@ model QuizAttempt {
 }
 
 model FunnelDeployment {
-  id              String       @id @default(cuid())
+  id              String        @id @default(cuid())
   name            String
   url             String
-  apiKey          String       @unique @default(cuid())
-  subdomain       String?      @unique
+  apiKey          String        @unique @default(cuid())
+  subdomain       String?       @unique
   courseId        String?
-  active          Boolean      @default(true)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  course          Course?      @relation(fields: [courseId], references: [id])
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  course          Course?       @relation(fields: [courseId], references: [id])
   config          FunnelConfig?
-  featuredCourses Course[]     @relation("FunnelFeaturedCourses")
+  featuredCourses Course[]      @relation("FunnelFeaturedCourses")
 
   @@index([apiKey])
   @@index([subdomain])
 }
 
 model FunnelConfig {
-  id                    String           @id @default(cuid())
-  deploymentId          String           @unique
-  headline              String?
-  subheadline           String?
-  bulletPoints          Json             @default("[]")
-  testimonials          Json             @default("[]")
-  ctaText               String?
-  featureCards          Json             @default("[]")   // { title, body }[]
-  forYouIf              Json             @default("[]")   // string[]
-  coursesLabel          String?                            // e.g. "The Curriculum"
-  coursesHeadline       String?                            // e.g. "Courses Included"
-  coursesSubheadline    String?                            // e.g. "Everything you need..."
-  featureCardsLabel     String?                            // e.g. "Inside This Course"
-  featureCardsHeadline  String?                            // e.g. "What You'll Learn"
-  featureCardsSub       String?                            // e.g. "No hype. No fluff..."
-  vslVideoUrl           String?                            // hero VSL video URL or embed
-  instructorImageUrl    String?                            // instructor photo URL
-  bulletsLabel          String?                            // e.g. "Inside This Course"
-  bulletsHeadline       String?                            // e.g. "What's Inside This Course:"
-  bulletsSub            String?                            // e.g. "Everything you need to find..."
-  template              String           @default("classic") // "classic" | "dark" | "bold"
+  id                         String           @id @default(cuid())
+  deploymentId               String           @unique
+  headline                   String?
+  subheadline                String?
+  bulletPoints               Json             @default("[]")
+  testimonials               Json             @default("[]")
+  ctaText                    String?
+  featureCards               Json             @default("[]") // { title, body }[]
+  forYouIf                   Json             @default("[]") // string[]
+  coursesLabel               String? // e.g. "The Curriculum"
+  coursesHeadline            String? // e.g. "Courses Included"
+  coursesSubheadline         String? // e.g. "Everything you need..."
+  featureCardsLabel          String? // e.g. "Inside This Course"
+  featureCardsHeadline       String? // e.g. "What You'll Learn"
+  featureCardsSub            String? // e.g. "No hype. No fluff..."
+  vslVideoUrl                String? // hero VSL video URL or embed
+  instructorImageUrl         String? // instructor photo URL
+  bulletsLabel               String? // e.g. "Inside This Course"
+  bulletsHeadline            String? // e.g. "What's Inside This Course:"
+  bulletsSub                 String? // e.g. "Everything you need to find..."
+  template                   String           @default("classic") // "classic" | "dark" | "bold"
   // Per-funnel Meta Pixel ID override. When set, /api/funnel/config returns
   // this in place of the linked course's pixel, so the funnel deployment
   // tracks against it. Null = inherit the course's pixel (unchanged behavior).
-  metaPixelId           String?
+  metaPixelId                String?
   // Per-funnel override of the linked Course.checkoutAfterApply default.
   // null = inherit from course; true/false = force this funnel one way.
   checkoutAfterApplyOverride Boolean?
-  updatedAt             DateTime         @updatedAt
-  deployment            FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  updatedAt                  DateTime         @updatedAt
+  deployment                 FunnelDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 }
 
 model PromoCode {
@@ -535,8 +534,8 @@ model PromoCode {
   code          String       @unique
   description   String?
   discountType  DiscountType
-  discountValue Int          // percentage (0-100) or fixed amount in cents
-  maxUses       Int?         // null = unlimited
+  discountValue Int // percentage (0-100) or fixed amount in cents
+  maxUses       Int? // null = unlimited
   currentUses   Int          @default(0)
   expiresAt     DateTime?
   applyToAll    Boolean      @default(true)
@@ -550,14 +549,14 @@ model PromoCode {
 }
 
 model PaymentProvider {
-  id           String   @id @default(cuid())
-  provider     String   @unique // "stripe" or "fanbasis"
-  enabled      Boolean  @default(false)
-  isDefault    Boolean  @default(false)
-  config       Json     @default("{}")  // provider-specific config (keys stored encrypted in env)
-  displayName  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  provider    String   @unique // "stripe" or "fanbasis"
+  enabled     Boolean  @default(false)
+  isDefault   Boolean  @default(false)
+  config      Json     @default("{}") // provider-specific config (keys stored encrypted in env)
+  displayName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 enum DiscountType {
@@ -572,8 +571,8 @@ enum Role {
   // Staff roles — admin-area access scoped by capability (see
   // src/lib/permissions.ts). None of these can view revenue or delete.
   MARKETING // ad/creative ops: sees everything operational, no $ figures
-  SALES     // closers/setters: leads + per-deal $; no company revenue
-  SUPPORT   // customer support: read-mostly operational access
+  SALES // closers/setters: leads + per-deal $; no company revenue
+  SUPPORT // customer support: read-mostly operational access
 }
 
 enum QuestionType {
@@ -582,14 +581,13 @@ enum QuestionType {
   TRUE_FALSE
 }
 
-
 model Tool {
   id          String   @id @default(cuid())
   title       String
   slug        String   @unique
   description String?  @db.Text
   icon        String?
-  courseId     String
+  courseId    String
   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   published   Boolean  @default(false)
   order       Int      @default(0)
@@ -597,28 +595,27 @@ model Tool {
   updatedAt   DateTime @updatedAt
 }
 
-
 // Short-link redirect for prefilled checkouts. Mastermind /stage-offers
 // mints these via POST /api/checkout-links so the SMS/email payload is a
 // short https://university.maxxedout.com/c/<token> URL instead of a 150-char
 // URL with all the prefill query params exposed.
 model CheckoutLink {
-  id              String    @id @default(cuid())
-  token           String    @unique
-  courseId        String
-  email           String
-  name            String?
-  phone           String?
-  promoCode       String?
-  expiresAt       DateTime?
-  clickedAt       DateTime?       // first time anyone visited the short URL
-  clickCount      Int       @default(0)
-  paidAt          DateTime?       // set by webhook when this link's email + course completes payment
-  transactionId   String?
-  sentOfferId     String?         // mastermind dashboard_sent_offers.id (cross-system reference)
-  createdByEmail  String?         // who triggered the send from mastermind
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  token          String    @unique
+  courseId       String
+  email          String
+  name           String?
+  phone          String?
+  promoCode      String?
+  expiresAt      DateTime?
+  clickedAt      DateTime? // first time anyone visited the short URL
+  clickCount     Int       @default(0)
+  paidAt         DateTime? // set by webhook when this link's email + course completes payment
+  transactionId  String?
+  sentOfferId    String? // mastermind dashboard_sent_offers.id (cross-system reference)
+  createdByEmail String? // who triggered the send from mastermind
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([token])
   @@index([email, courseId])
@@ -645,121 +642,121 @@ model CheckoutLink {
 // + 'expired' if signingTokenExpiresAt passes without a sign.
 
 model ContractTemplate {
-  id          String   @id @default(cuid())
+  id             String   @id @default(cuid())
   // Human-friendly name shown in admin (e.g. "Coaching Agreement v1").
-  name        String
+  name           String
   // Markdown body. Tokens look like {{Course.Name}}, {{Customer.FirstName}},
   // {{Payment.Total}}, {{Payment.Schedule}}. Admin edits this in the UI.
-  body        String   @db.Text
+  body           String   @db.Text
   // List of token names used by the body, declared so the admin compose
   // form knows which fields to expose. Example: ["Course.Name", "Payment.Total"].
-  tokens      Json     @default("[]")
+  tokens         Json     @default("[]")
   // Only one template can be active at a time — the auto-trigger uses it.
-  active      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  active         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   // For audit — who edited it last.
   lastEditedById String?
 
-  signatures  DocumentSignature[]
+  signatures DocumentSignature[]
 
   @@index([active])
 }
 
 model DocumentSignature {
-  id              String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // ── Recipient identity ─────────────────────────────────────
   // userId is nullable so admins can fire docs to non-User emails
   // (off-list custom deals). recipientEmail is always set.
-  userId          String?
-  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  recipientEmail  String
-  recipientName   String?
-  recipientPhone  String?
+  userId         String?
+  user           User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  recipientEmail String
+  recipientName  String?
+  recipientPhone String?
 
   // ── What the doc is for ────────────────────────────────────
   // courseId is nullable so admins can fire generic / off-catalog
   // docs. courseTitle is a snapshot so course renames don't
   // rewrite history.
-  courseId        String?
-  course          Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  courseTitle     String
+  courseId    String?
+  course      Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  courseTitle String
 
   // ── Template + content ─────────────────────────────────────
   contractTemplateId String
-  contractTemplate ContractTemplate @relation(fields: [contractTemplateId], references: [id])
+  contractTemplate   ContractTemplate @relation(fields: [contractTemplateId], references: [id])
   // Token values that were substituted (audit trail / reproducibility).
-  tokens          Json
+  tokens             Json
   // Verbatim rendered HTML at the moment of send — never mutated, even
   // if the source template later changes. The canonical "what they signed"
   // record.
-  renderedHtml    String   @db.Text
+  renderedHtml       String           @db.Text
   // Verbatim rendered markdown (for re-rendering / re-export).
-  renderedMarkdown String  @db.Text
+  renderedMarkdown   String           @db.Text
 
   // ── State machine ──────────────────────────────────────────
-  status          String   @default("draft")
-  origin          String   // 'auto_self_checkout' | 'manual_admin'
+  status String @default("draft")
+  origin String // 'auto_self_checkout' | 'manual_admin'
 
   // ── Signing security ───────────────────────────────────────
   // 32-byte hex token used in the /sign/[token] URL. Cleared on
   // sign / cancel / expire — one-time-use.
-  signingToken    String?  @unique
+  signingToken          String?   @unique
   signingTokenExpiresAt DateTime?
 
   // ── Snapshot of payment context ────────────────────────────
   paymentTotalCents Int?
-  paymentPlan     Json?
+  paymentPlan       Json?
 
   // ── Free-text admin notes ──────────────────────────────────
   // Optional context the admin typed in the Compose form (special
   // terms agreed by phone, why this is being sent, etc.). Surfaced
   // in /admin/documents and also substituted into the contract via
   // the {{Notes}} token.
-  notes           String?  @db.Text
+  notes String? @db.Text
 
   // ── Tamper-evidence hash ───────────────────────────────────
   // SHA-256 of: renderedHtml + JSON.stringify(tokens) + signedName +
   // signedAt.toISOString() + signedFromIp. Stored at signing time.
-  signatureHash   String?
+  signatureHash String?
 
   // ── Audit trail (append-only JSON array) ───────────────────
-  auditEvents     Json     @default("[]")
+  auditEvents Json @default("[]")
 
   // ── Captured at signing ────────────────────────────────────
-  signedName      String?
-  signedAt        DateTime?
-  signedFromIp    String?
-  signedFromUa    String?  @db.Text
-  signedFromTz    String?
-  signedScreenW   Int?
-  signedScreenH   Int?
+  signedName          String?
+  signedAt            DateTime?
+  signedFromIp        String?
+  signedFromUa        String?   @db.Text
+  signedFromTz        String?
+  signedScreenW       Int?
+  signedScreenH       Int?
   // PNG data URL of the actual signature mark — either a stylized
   // type-to-sign render OR a finger/mouse-drawn canvas image. Null
   // means we fall back to the typed name in cursive font (legacy
   // path). Included in signatureHash so it's tamper-evident.
-  signedSignaturePng String? @db.Text
+  signedSignaturePng  String?   @db.Text
   // 'typed' | 'drawn' — how the signedSignaturePng was produced.
   // Surfaces in the audit trail and the admin viewer.
   signedSignatureMode String?
 
   // ── Other lifecycle timestamps ─────────────────────────────
-  sentAt          DateTime?
-  firstViewedAt   DateTime?
-  declinedAt      DateTime?
-  cancelledAt     DateTime?
+  sentAt        DateTime?
+  firstViewedAt DateTime?
+  declinedAt    DateTime?
+  cancelledAt   DateTime?
 
   // ── PDF cache pointer ──────────────────────────────────────
   // R2 object key once generated. null until first download.
-  pdfR2Key        String?
-  pdfGeneratedAt  DateTime?
+  pdfR2Key       String?
+  pdfGeneratedAt DateTime?
 
   // ── Provenance ─────────────────────────────────────────────
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
   // Who triggered a manual send (null for auto).
-  createdByUserId String?
+  createdByUserId         String?
   // For auto-send, the Enrollment that triggered this.
   enrollmentTransactionId String?
 
@@ -780,25 +777,25 @@ model DocumentSignature {
 // Lives separately from Enrollment because applying ≠ owning the
 // course — the high-ticket flow has a closer review step in between.
 model Application {
-  id          String   @id @default(cuid())
+  id           String   @id @default(cuid())
   // Linked to the User row when the applicant is logged in or has an
   // account by the same email. Nullable so funnel applies (where the
   // user may not exist on the university yet) still write a row.
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  email       String
-  name        String?
-  phone       String?
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email        String
+  name         String?
+  phone        String?
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   // Where the apply form lived: "university" (on-platform) or
   // "blueprint" / "mentorship" / "donewithyou" / "accelerator" / etc.
   // for funnel subdomains. Useful for analytics + debugging.
-  source      String   @default("university")
+  source       String   @default("university")
   // Free-form payload of additional fields collected by the wizard
   // (vision, biggest obstacle, current stage, etc.). Schema is owned
   // by /lib/apply-schema.ts; we store the raw answers for closer review.
-  payload     Json     @default("{}")
+  payload      Json     @default("{}")
   // GHL contact id resolved at submit time so we can re-link to the
   // CRM record without re-querying GHL.
   ghlContactId String?
@@ -808,9 +805,9 @@ model Application {
   // back to GHL on every page load.
   assignedToId String?
   // Lifecycle: submitted → reviewed → enrolled → declined / cancelled
-  status      String   @default("submitted")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status       String   @default("submitted")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([email, courseId])
   @@index([userId])
@@ -825,36 +822,36 @@ model Application {
 // ============================================================================
 
 model SalesLead {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
+  id    String  @id @default(cuid())
+  name  String
+  email String?
+  phone String?
 
   // Sales activity tracking (matches Excel structure)
   contactDate DateTime? // When they were contacted
-  contactTime String?   // Time of contact (e.g., "2:00 PM")
-  didShow     Boolean?  // Did the prospect show up/engage?
-  didClose    Boolean?  // Did they close/buy?
+  contactTime String? // Time of contact (e.g., "2:00 PM")
+  didShow     Boolean? // Did the prospect show up/engage?
+  didClose    Boolean? // Did they close/buy?
 
   // Deal details
-  dealValue   Int?      // Deal amount in cents
-  product     String?   // What they bought
-  source      String?   // Where they came from
+  dealValue Int? // Deal amount in cents
+  product   String? // What they bought
+  source    String? // Where they came from
 
   // Commission tracking (flexible rates)
-  commissionRate   Decimal? @default(0.10) @db.Decimal(5,4) // Custom commission rate
-  commissionAmount Int?     // Commission earned in cents
+  commissionRate   Decimal?  @default(0.10) @db.Decimal(5, 4) // Custom commission rate
+  commissionAmount Int? // Commission earned in cents
   commissionDue    DateTime? // When commission is due
-  commissionPaid   Boolean  @default(false) // Has commission been paid?
+  commissionPaid   Boolean   @default(false) // Has commission been paid?
 
   // Additional tracking
   notes       String?
   convertedAt DateTime? // When they converted to customer
 
   // Metadata
-  recordedBy  String   @default("Rebecca Nardi")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  recordedBy String   @default("Rebecca Nardi")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([didShow])
   @@index([didClose])
@@ -867,67 +864,114 @@ model SalesLead {
 // data. A "session" is a named bucket she creates ("Sales for Todd Pultz",
 // etc). Each session owns its own entries.
 model SalesTrackerSession {
-  id        String   @id @default(cuid())
-  name      String
+  id          String   @id @default(cuid())
+  name        String
   // Per-tag color overrides for this session, keyed by tag string.
   // E.g. { "MIAMI": "rose", "NASHVILLE": "blue" }. Tags missing from
   // this map fall back to the deterministic hash-based palette in
   // tagStyles(). Stored as JSON to avoid a separate join table for
   // what is effectively a small object per session.
-  tagColors Json     @default("{}")
+  tagColors   Json     @default("{}")
   // Per-slot chart picks for the Analytics dashboard. Keys are slot
   // ids (status / funnel / trend1 / trend2 / trend3 / ranking),
   // values are chart ids from CHART_REGISTRY. Missing keys fall back
   // to DEFAULT_SLOTS so an empty object renders the original layout.
-  chartLayout Json   @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  chartLayout Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  entries   SalesTrackerEntry[]
+  entries SalesTrackerEntry[]
 
   @@index([createdAt])
 }
 
 model SalesTrackerEntry {
-  id        String   @id @default(cuid())
+  id        String              @id @default(cuid())
   sessionId String
   session   SalesTrackerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   // Position within the session — drives display order in the grid so
   // Rebecca's manual ordering survives reloads.
-  position  Int      @default(0)
+  position Int @default(0)
 
   // Optional grouping label, like "MIAMI", "NASHVILLE", or
   // "Production 35k with Tim". Free-form string; the editor groups
   // entries by tag and renders a colored header row above each group,
   // matching the section bars in Rebecca's Excel sheet.
-  tag         String?
+  tag String?
 
-  name        String?
-  email       String?
-  phone       String?
+  name  String?
+  email String?
+  phone String?
 
   contactDate DateTime?
-  contactTime String?   // free-form ("2:00 PM"), matches Excel habit
+  contactTime String? // free-form ("2:00 PM"), matches Excel habit
 
   // Tri-state strings ("YES" | "NO" | "PENDING") rather than nullable bool
   // so the grid can show three states without ambiguity.
-  didShow     String?
-  didClose    String?
+  didShow  String?
+  didClose String?
 
-  dealAmountCents      Int?
-  commissionRate       Decimal? @db.Decimal(5,4)
+  dealAmountCents       Int?
+  commissionRate        Decimal?  @db.Decimal(5, 4)
   // When null the UI shows the auto-calculated amount; when set it's a
   // manual override Rebecca typed in.
   commissionAmountCents Int?
-  commissionDue        DateTime?
-  commissionPaid       Boolean  @default(false)
+  commissionDue         DateTime?
+  commissionPaid        Boolean   @default(false)
 
-  notes       String?
+  notes String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([sessionId, position])
   @@index([sessionId, tag])
+}
+
+/// Cohort application — the form Todd drops in chat live during the webinar
+/// (~68 min mark). Deliberately its own model rather than reusing Application:
+/// that requires a courseId (no $10k cohort Course exists) and this one carries
+/// its own scoring/triage columns so the closer dashboard can sort by tier in
+/// SQL. Scoring rules live in src/lib/cohort-scoring.ts.
+model CohortApplication {
+  id String @id @default(cuid())
+
+  // Contact FIRST — a partial abandon still leaves a callable lead.
+  name  String
+  phone String
+  email String
+  state String
+
+  // Scored answers — stored as option values; labels resolve via cohort-scoring.
+  readiness  String // Q5
+  investment String // Q6
+  work       String // Q7
+  note       String? // Q8, optional + unscored, but read it before dialing
+
+  // Computed at submit.
+  score Int     @default(0) // 0..28
+  tier  String  @default("D") // A | B | C | D
+  isVip Boolean @default(false) // bought the $27 webinar VIP upgrade
+
+  // Consent — captured by the act of submitting (the disclosure sits directly
+  // under the required phone field, so there is no checkbox to miss). Storing
+  // the exact text + timestamp gives a clean audit trail of what was agreed to.
+  smsConsent     Boolean   @default(false)
+  smsConsentText String?
+  smsConsentAt   DateTime?
+
+  // Ops
+  source       String    @default("webinar-live")
+  ghlContactId String?
+  status       String    @default("new") // new | called | booked | enrolled | nurture
+  calledAt     DateTime?
+  closerNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tier, score])
+  @@index([createdAt])
+  @@index([email])
 }
