@@ -13,10 +13,31 @@ const LOGO_SRC =
  */
 export const dynamic = 'force-dynamic';
 
+const OG_TITLE = 'Apply for the 12-Week Cohort';
+const OG_DESC = 'Takes about 2 minutes. Todd and his team are calling applicants tonight.';
+
+/**
+ * This link is pasted into Zoom chat live during the class, so the unfurl must
+ * describe the application — without these the page inherited the site-wide
+ * "Training Center | MaxxedOut" card. noindex still applies: it keeps the page
+ * out of search results but does not affect link previews.
+ */
 export const metadata: Metadata = {
-  title: 'Apply for the 12-Week Cohort',
-  description: 'Takes about 2 minutes. Todd and his team are calling applicants tonight.',
+  title: OG_TITLE,
+  description: OG_DESC,
   robots: { index: false, follow: false },
+  openGraph: {
+    title: OG_TITLE,
+    description: OG_DESC,
+    type: 'website',
+    siteName: 'Maxxed Out',
+    url: 'https://university.maxxedout.com/apply/cohort',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: OG_TITLE,
+    description: OG_DESC,
+  },
 };
 
 export default function CohortApplyPage() {
