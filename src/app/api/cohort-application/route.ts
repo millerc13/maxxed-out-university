@@ -11,8 +11,8 @@ import {
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
-import { nextCohortCloser, cohortSendUrl, cohortCallUrl } from '@/lib/cohort-assign';
-import { sendSmsToRecipient, normalizePhoneE164 } from '@/lib/sms';
+import { nextCohortCloser, cohortSendUrl } from '@/lib/cohort-assign';
+import { sendSmsToRecipient, normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
 import { notifySlackChannels } from '@/lib/slack';
 import {
   COHORT_CHECKOUT_URL,
@@ -230,15 +230,21 @@ export async function POST(request: Request) {
       // Repeated right above the buttons: by the time a reader scrolls past all
       // the form fields, the assignee at the top is off screen — and these
       // buttons text and email a real applicant.
-      actionsNote: `🎯 This lead belongs to *${assignedTo}* — ${d.name}`,
+      //
+      // The number is a tel: link rather than a button because Slack rejects a
+      // tel: URL on a button outright (invalid_blocks) — as a link it dials in
+      // one tap with no browser hop in between. Bold and alone on its line is
+      // as prominent as Slack gets; mrkdwn has no font sizing.
+      actionsNote: [
+        `🎯 This lead belongs to *${assignedTo}* — ${d.name}`,
+        `📞 *<tel:${app.phone}|${formatPhoneUS(app.phone)}>*  ← tap to call`,
+      ].join('\n'),
       // Each button opens a signed one-tap confirm page that performs the send.
       // Slack URL buttons can't POST, and a bare GET would let link unfurlers
       // and mobile prefetch fire real messages at applicants.
-      // Slack caps an actions block at 5 elements — this is exactly 5.
-      // 📞 Call is https, not tel: — Slack rejects a tel: button URL outright.
+      // Slack caps an actions block at 5 elements.
       links: [
-        { url: cohortCallUrl(app.id), label: '📞 Call Now', style: 'primary' as const },
-        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout' },
+        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout', style: 'primary' as const },
         { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
         { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
         { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },

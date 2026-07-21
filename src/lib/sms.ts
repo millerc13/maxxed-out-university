@@ -32,6 +32,14 @@ export function normalizePhoneE164(input: string | null | undefined): string {
   return trimmed; // unknown shape — pass through, caller handles failures
 }
 
+/** E.164 back to a readable US number ("+19375551234" -> "(937) 555-1234").
+ *  Anything not a US 11-digit number is returned untouched. */
+export function formatPhoneUS(input: string | null | undefined): string {
+  const e164 = normalizePhoneE164(input);
+  const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(e164);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : input?.trim() || '';
+}
+
 interface SendResult {
   ok: boolean;
   error?: string;
