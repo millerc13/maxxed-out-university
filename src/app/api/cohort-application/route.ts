@@ -17,6 +17,7 @@ import { notifySlackChannels, buildBlockKitMessage } from '@/lib/slack';
 import { hasSlackBot, cohortChannelId, postMessage } from '@/lib/slack-bot';
 import { slackSigningSecret } from '@/lib/slack-verify';
 import { cohortPriceLabel, cohortPromoPriceLabel, COHORT_PROMO_CODE } from '@/lib/cohort-checkout';
+import { PLAN_PAYMENT_DOLLARS, planPriceLabel } from '@/lib/cohort-payment-plan';
 
 export const runtime = 'nodejs';
 
@@ -288,6 +289,26 @@ export async function POST(request: Request) {
                 title: 'Email the coupon?',
                 text: `Send *${d.name}* the *${COHORT_PROMO_CODE}* code (${cohortPromoPriceLabel()}) by email.`,
                 confirm: 'Send coupon',
+              },
+            },
+            {
+              actionId: 'cohort_plan:sms',
+              value: app.id,
+              label: `💳 Text Plan (3×$${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')})`,
+              confirm: {
+                title: 'Text the payment plan?',
+                text: `Send *${d.name}* the 3-payment plan: *$${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')} today* to hold their seat, then Sep 14 and Oct 12. Total ${planPriceLabel()} (vs ${cohortPriceLabel()} paid in full).`,
+                confirm: 'Send plan',
+              },
+            },
+            {
+              actionId: 'cohort_plan:email',
+              value: app.id,
+              label: '✉️ Email Plan',
+              confirm: {
+                title: 'Email the payment plan?',
+                text: `Send *${d.name}* the 3-payment plan by email. ${planPriceLabel()}, first payment today.`,
+                confirm: 'Send plan',
               },
             },
             {

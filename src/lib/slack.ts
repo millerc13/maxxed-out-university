@@ -137,14 +137,16 @@ export function buildBlockKitMessage(
         }
       : null;
 
-  // Slack caps an actions block at 5 elements. Merge `link` + `links` so callers
-  // can offer several one-tap actions (e.g. checkout link AND the call sheet).
-  const allLinks = [...(p.link ? [p.link] : []), ...(p.links ?? [])].slice(0, 5);
-  const linkBlock =
-    allLinks.length > 0
-      ? {
+  // Slack caps an actions block at 5 ELEMENTS, not 5 buttons per message — so
+  // more than five actions are chunked across consecutive actions blocks rather
+  // than silently dropped (the old .slice(0, 5) lost every button past the
+  // fifth, which is how the checkout buttons went missing once before).
+  const allLinks = [...(p.link ? [p.link] : []), ...(p.links ?? [])];
+  const linkChunks: SlackButton[][] = [];
+  for (let i = 0; i < allLinks.length; i += 5) linkChunks.push(allLinks.slice(i, i + 5));
+  const linkBlocks = linkChunks.map((chunk) => ({
           type: 'actions',
-          elements: allLinks.map((l) => ({
+          elements: chunk.map((l) => ({
             type: 'button',
             text: { type: 'plain_text', text: l.label, emoji: true },
             ...(l.url ? { url: l.url } : {}),
@@ -162,8 +164,7 @@ export function buildBlockKitMessage(
               : {}),
             ...(l.style ? { style: l.style } : {}),
           })),
-        }
-      : null;
+  }));
 
   const occurredAt = p.occurredAt ?? new Date();
   const contextLine = `${headline} · ${occurredAt.toLocaleString('en-US', {
@@ -187,10 +188,10 @@ export function buildBlockKitMessage(
   if (contactBlock) blocks.push(contactBlock);
   if (customFieldsBlock) blocks.push(customFieldsBlock);
   // Only worth a block when there are buttons for it to caption.
-  if (p.actionsNote && linkBlock) {
+  if (p.actionsNote && linkBlocks.length > 0) {
     blocks.push({ type: 'section', text: { type: 'mrkdwn', text: p.actionsNote } });
   }
-  if (linkBlock) blocks.push(linkBlock);
+  blocks.push(...linkBlocks);
   blocks.push({
     type: 'context',
     elements: [{ type: 'mrkdwn', text: contextLine }],

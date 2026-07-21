@@ -1,7 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySlackRequest } from '@/lib/slack-verify';
-import { sendCohortCheckout } from '@/lib/cohort-send';
+import { sendCohortCheckout, sendCohortPlan } from '@/lib/cohort-send';
 import { collapseAndMove } from '@/lib/cohort-contacted';
 import { markButtonDone, appendSentLog } from '@/lib/slack-message-edit';
 import { updateMessage } from '@/lib/slack-bot';
@@ -52,6 +52,8 @@ const DONE_LABEL: Record<string, string> = {
   'cohort_send:sms:1': '✅ Texted Coupon',
   'cohort_send:email:0': '✅ Emailed Checkout',
   'cohort_send:email:1': '✅ Emailed Coupon',
+  'cohort_plan:sms': '✅ Texted Plan',
+  'cohort_plan:email': '✅ Emailed Plan',
 };
 
 export async function POST(request: Request) {
@@ -93,6 +95,32 @@ export async function POST(request: Request) {
       if (responseUrl) await respond(responseUrl, '⚠️ Could not find that application.');
       return;
     }
+
+    /**
+     * Relabels the pressed button and appends a log line to the card.
+     * Only on success — a failed send must keep looking un-pressed, or a closer
+     * reads "✅ Texted" and never retries.
+     */
+    const markCard = async (ok: boolean, pressedActionId: string, resendConfirm: string) => {
+      const msgTs = payload.message?.ts;
+      const msgChannel = payload.channel?.id;
+      const blocks = payload.message?.blocks;
+      if (!ok || !msgTs || !msgChannel || !Array.isArray(blocks)) return;
+      const label = DONE_LABEL[pressedActionId] ?? '✅ Sent';
+      const when = new Date().toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+      let next = markButtonDone(blocks as never, pressedActionId, label, `Already ${resendConfirm}`);
+      next = appendSentLog(next, `${label} · ${pressedBy} · ${when} ET`);
+      await updateMessage({
+        channel: msgChannel,
+        ts: msgTs,
+        text: payload.message?.text || `Cohort application — ${app.name}`,
+        blocks: next,
+      });
+    };
 
     if (actionId === 'cohort_contacted') {
       if (app.contactedAt) {
@@ -140,6 +168,31 @@ export async function POST(request: Request) {
       return;
     }
 
+    // cohort_plan:<channel> — the 3-payment plan. Its link is minted per
+    // applicant, so a Fanbasis failure surfaces instead of silently sending
+    // nothing: the closer has to know the plan link never went out.
+    const pm = /^cohort_plan:(sms|email|both)$/.exec(actionId);
+    if (pm) {
+      const planChannel = pm[1] as CohortChannel;
+      let planResult;
+      try {
+        planResult = await sendCohortPlan({ app, channel: planChannel });
+      } catch (e) {
+        if (responseUrl) {
+          await respond(
+            responseUrl,
+            `⚠️ Could not create the payment plan link for ${app.name}: ${
+              e instanceof Error ? e.message : 'unknown error'
+            }. Nothing was sent.`,
+          );
+        }
+        return;
+      }
+      if (responseUrl) await respond(responseUrl, planResult.summary(pressedBy));
+      await markCard(planResult.ok, actionId, `Plan ${planChannel === 'email' ? 'emailed' : 'texted'} to *${app.name}*. Send again?`);
+      return;
+    }
+
     // cohort_send:<channel>:<promo>
     const m = /^cohort_send:(sms|email|both):(0|1)$/.exec(actionId);
     if (!m) return;
@@ -149,35 +202,9 @@ export async function POST(request: Request) {
     const result = await sendCohortCheckout({ app, channel, withPromo });
     if (responseUrl) await respond(responseUrl, result.summary(pressedBy));
 
-    // Rewrite the card so the channel shows what's already gone out. Only on
-    // success — a failed send must keep its button looking un-pressed, or a
-    // closer reads "✅ Texted" and never retries.
-    const msgTs = payload.message?.ts;
-    const msgChannel = payload.channel?.id;
-    const blocks = payload.message?.blocks;
-    if (result.ok && msgTs && msgChannel && Array.isArray(blocks)) {
-      const label = DONE_LABEL[actionId] ?? '✅ Sent';
-      const when = new Date().toLocaleString('en-US', {
-        timeZone: 'America/New_York',
-        hour: 'numeric',
-        minute: '2-digit',
-      });
-      const what = withPromo ? `${COHORT_PROMO_CODE} coupon` : 'checkout link';
-      const how = channel === 'email' ? 'emailed' : 'texted';
-      let next = markButtonDone(
-        blocks as never,
-        actionId,
-        label,
-        `Already ${how} to *${app.name}* at ${when} ET. Send the ${what} again?`
-      );
-      next = appendSentLog(next, `${label.replace('✅ ', '✅ ')} · ${pressedBy} · ${when} ET`);
-      await updateMessage({
-        channel: msgChannel,
-        ts: msgTs,
-        text: payload.message?.text || `Cohort application — ${app.name}`,
-        blocks: next,
-      });
-    }
+    const what = withPromo ? `${COHORT_PROMO_CODE} coupon` : 'checkout link';
+    const how = channel === 'email' ? 'emailed' : 'texted';
+    await markCard(result.ok, actionId, `${how} to *${app.name}*. Send the ${what} again?`);
   });
 
   return NextResponse.json({ ok: true });
