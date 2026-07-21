@@ -192,7 +192,7 @@ function sourceOf(payload: Record<string, unknown>): Record<string, unknown> {
  * Infer event type from payload. Checks top-level `type`/`event_type` first
  * (both shapes), then nested `data.event_type` (live), then shape-based inference.
  */
-function inferEventType(payload: Record<string, unknown>): string {
+export function inferEventType(payload: Record<string, unknown>): string {
   const topType = (payload.type as string) || (payload.event_type as string) || '';
   if (topType) return topType;
   const src = sourceOf(payload);
@@ -209,7 +209,7 @@ function inferEventType(payload: Record<string, unknown>): string {
 /**
  * Normalize both Fanbasis payload shapes into a uniform purchase object.
  */
-function extractPurchaseDetails(payload: Record<string, unknown>) {
+export function extractPurchaseDetails(payload: Record<string, unknown>) {
   const src = sourceOf(payload);
 
   const buyer = src.buyer as {
@@ -736,7 +736,7 @@ async function enrollFromFanbasis(params: {
  * payment is still on the books. A channel that didn't update is recoverable;
  * a payment we never wrote down is not.
  */
-async function handleCohortPurchase(
+export async function handleCohortPurchase(
   payload: Record<string, unknown>,
   opts: { isRenewal: boolean },
 ) {
