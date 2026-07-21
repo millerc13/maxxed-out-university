@@ -227,6 +227,10 @@ export async function POST(request: Request) {
           value: `${cohortPriceLabel()} · code *${COHORT_PROMO_CODE}* = ${COHORT_PROMO_PERCENT}% off → ${cohortPromoPriceLabel()}`,
         },
       ],
+      // Repeated right above the buttons: by the time a reader scrolls past all
+      // the form fields, the assignee at the top is off screen — and these
+      // buttons text and email a real applicant.
+      actionsNote: `🎯 This lead belongs to *${assignedTo}* — ${d.name}`,
       // Each button opens a signed one-tap confirm page that performs the send.
       // Slack URL buttons can't POST, and a bare GET would let link unfurlers
       // and mobile prefetch fire real messages at applicants.

@@ -45,6 +45,13 @@ export interface SlackEventPayload {
    * button green — use it for the one thing you want clicked.
    */
   links?: { url: string; label: string; style?: 'primary' | 'danger' }[];
+  /**
+   * Line rendered immediately above the buttons. The fields block can run long
+   * enough that whoever the lead belongs to has scrolled off screen by the time
+   * a reader reaches the actions — restating it here is what stops the wrong
+   * person tapping.
+   */
+  actionsNote?: string;
   /** ISO timestamp the event occurred. Defaults to now. */
   occurredAt?: Date;
 }
@@ -131,6 +138,10 @@ function buildBlockKitMessage(eventType: SlackEventType, p: SlackEventPayload): 
   ];
   if (contactBlock) blocks.push(contactBlock);
   if (customFieldsBlock) blocks.push(customFieldsBlock);
+  // Only worth a block when there are buttons for it to caption.
+  if (p.actionsNote && linkBlock) {
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: p.actionsNote } });
+  }
   if (linkBlock) blocks.push(linkBlock);
   blocks.push({
     type: 'context',
