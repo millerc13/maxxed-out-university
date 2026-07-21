@@ -5,6 +5,7 @@ import {
   inferEventType,
 } from '@/app/api/webhooks/fanbasis/route';
 import { isCohortPurchase } from '@/lib/cohort-purchase';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -38,6 +39,20 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
+
+  // Persist the raw payload BEFORE processing. The first sandbox run showed
+  // Fanbasis fires two webhooks per purchase with different ids and different
+  // amount units, which is only diagnosable with the bytes it actually sent.
+  await prisma.webhookLog
+    .create({
+      data: {
+        source: 'fanbasis',
+        event: 'test-endpoint:raw',
+        payload: payload as object,
+        status: 'received',
+      },
+    })
+    .catch(() => {});
 
   const eventType = inferEventType(payload);
   const { metadata } = extractPurchaseDetails(payload);
