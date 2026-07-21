@@ -5,6 +5,7 @@ import { createMagicLink } from '@/lib/magiclink';
 import { sendMagicLinkEmail, sendCourseAddedEmail } from '@/lib/resend';
 import { enrollInBundle, enrollIncludedBundles } from '@/lib/enrollment';
 import { notifyMastermindEnrolled } from '@/lib/mastermind-callback';
+import { isCohortPurchase, recordCohortPayment, announceCohortPurchase } from '@/lib/cohort-purchase';
 
 export const runtime = 'nodejs';
 
@@ -131,11 +132,27 @@ export async function POST(request: NextRequest) {
       case 'payment.canceled':
         console.log(`[fanbasis-webhook] ${inferredEventType}`, { reqId, payload: JSON.stringify(payload) });
         break;
-      case 'subscription.created':
       case 'subscription.renewed':
-      case 'subscription.completed':
+      case 'subscription.completed': {
+        // Plan payments 2 and 3 arrive here, not as payment.succeeded.
+        const { metadata: subMeta } = extractPurchaseDetails(payload);
+        if (isCohortPurchase(subMeta)) {
+          await handleCohortPurchase(payload, { isRenewal: true });
+        } else {
+          console.log(`[fanbasis-webhook] ${inferredEventType} (not a cohort sub)`, { reqId });
+        }
+        break;
+      }
+      case 'subscription.created':
+        // The first charge also arrives as payment.succeeded, which is where it
+        // is recorded. Handling it here too would double-count it.
+        console.log(`[fanbasis-webhook] subscription.created (first charge handled via payment.succeeded)`, { reqId });
+        break;
       case 'subscription.canceled':
-        console.log(`[fanbasis-webhook] ${inferredEventType} (logged, not processed)`, { reqId });
+        console.warn(`[fanbasis-webhook] subscription.canceled — a cohort plan may have lapsed`, {
+          reqId,
+          payload: JSON.stringify(payload).slice(0, 600),
+        });
         break;
       default:
         console.warn(`[fanbasis-webhook] Unknown event — unable to infer from shape`, { reqId, payloadKeys: Object.keys(payload) });
@@ -254,6 +271,14 @@ async function handlePurchase(payload: Record<string, unknown>) {
     courseId: metadata.courseId,
     userId: metadata.userId,
   });
+
+  // Cohort sales carry no courseId — they are not course enrollments — so they
+  // must be routed before the courseId gate below, which would otherwise drop
+  // every cohort payment as "cannot enroll".
+  if (isCohortPurchase(metadata)) {
+    await handleCohortPurchase(payload, { isRenewal: false });
+    return;
+  }
 
   if (!buyerEmail || !metadata.courseId) {
     console.error('[fanbasis-webhook] Missing buyer.email or metadata.courseId — cannot enroll', {
@@ -693,4 +718,73 @@ async function enrollFromFanbasis(params: {
     courseId: params.courseId,
     transactionId: params.transactionId,
   });
+}
+
+/**
+ * Cohort sale — record the money, announce it in #cohort-purchases, and remove
+ * the lead's card from #cohort-applications.
+ *
+ * Recording happens FIRST and independently of Slack: if Slack is down, the
+ * payment is still on the books. A channel that didn't update is recoverable;
+ * a payment we never wrote down is not.
+ */
+async function handleCohortPurchase(
+  payload: Record<string, unknown>,
+  opts: { isRenewal: boolean },
+) {
+  const { buyerName, buyerEmail, productTitle, paymentId, metadata } = extractPurchaseDetails(payload);
+  const src = sourceOf(payload);
+
+  // Amount arrives under several names across the two wire formats.
+  const rawAmount =
+    (src.amount as number | string | undefined) ??
+    (src.total_amount as number | string | undefined) ??
+    (payload.amount as number | string | undefined) ??
+    (payload.total_amount as number | string | undefined);
+  const amountCents = (() => {
+    if (rawAmount == null) return 0;
+    const n = typeof rawAmount === 'string' ? Number(rawAmount) : rawAmount;
+    if (!Number.isFinite(n)) return 0;
+    // Fanbasis sends dollars as a decimal string ("3500.00") on the sandbox
+    // shape and cents as an integer elsewhere. A decimal point means dollars.
+    return String(rawAmount).includes('.') ? Math.round(n * 100) : Math.round(n);
+  })();
+
+  if (!paymentId) {
+    console.error('[fanbasis-webhook] Cohort purchase with no payment id — cannot dedupe, skipping', {
+      buyerEmail,
+      metadata,
+    });
+    return;
+  }
+
+  const input = {
+    paymentId: String(paymentId),
+    buyerEmail: buyerEmail || '',
+    buyerName,
+    amountCents,
+    metadata,
+    eventType: opts.isRenewal ? 'subscription.renewed' : 'payment.succeeded',
+    isRenewal: opts.isRenewal,
+    provider: 'Fanbasis (Commas)',
+    productTitle,
+  };
+
+  const result = await recordCohortPayment(input);
+  console.log('[fanbasis-webhook] Cohort payment recorded', {
+    paymentId: input.paymentId,
+    buyerEmail: input.buyerEmail,
+    amountCents,
+    ...result,
+  });
+
+  if (result.duplicate) return; // retry — already announced
+
+  const slack = await announceCohortPurchase(input, result);
+  if (!slack.posted) {
+    console.error('[fanbasis-webhook] Cohort purchase recorded but Slack announce failed', {
+      paymentId: input.paymentId,
+      error: slack.error,
+    });
+  }
 }

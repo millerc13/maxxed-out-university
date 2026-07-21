@@ -970,6 +970,18 @@ model CohortApplication {
   calledAt     DateTime?
   closerNotes  String?
 
+  /// Payment state, maintained by the Fanbasis webhook.
+  /// `paymentPlan` distinguishes 3×$3,500 from the $10,000 pay-in-full, so a
+  /// first plan payment isn't mistaken for a completed sale.
+  paymentPlan     Boolean   @default(false)
+  paidTotalCents  Int       @default(0)
+  paymentsMade    Int       @default(0)
+  /// Set when the FULL amount has been collected — not on the first payment.
+  paidInFullAt    DateTime?
+  /// First payment of any kind. This is what "they bought" means for the team.
+  firstPaidAt     DateTime?
+  payments        CohortPayment[]
+
   /// Slack message this lead was announced in, so the "Contacted" button can
   /// collapse it. Only populated when posted via bot token — an incoming
   /// webhook returns no message id and its messages can never be edited.
@@ -986,4 +998,33 @@ model CohortApplication {
   @@index([tier, score])
   @@index([createdAt])
   @@index([email])
+}
+
+/// One Fanbasis payment against a cohort sale — the initial charge and every
+/// plan renewal each get a row.
+///
+/// `paymentId` is UNIQUE, which is the whole idempotency story: Fanbasis retries
+/// webhooks, and without it a retry would double-count someone's balance and
+/// re-fire the "PAID" alert.
+model CohortPayment {
+  id            String   @id @default(cuid())
+  applicationId String?
+  /// Kept even when unmatched, so a purchase with no application is still
+  /// recorded rather than lost while someone works out who it belongs to.
+  buyerEmail    String
+  buyerName     String?
+  amountCents   Int
+  /// Fanbasis payment id — the dedupe key.
+  paymentId     String   @unique
+  /// full | plan
+  kind          String   @default("full")
+  /// True for plan payments 2 and 3.
+  isRenewal     Boolean  @default(false)
+  eventType     String?
+  createdAt     DateTime @default(now())
+
+  application   CohortApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId])
+  @@index([buyerEmail])
 }
