@@ -9,6 +9,7 @@ import {
   COHORT_PROMO_CODE,
   cohortPriceLabel,
   cohortPromoPriceLabel,
+  formatSendStamp,
 } from '@/lib/cohort-checkout';
 
 export const runtime = 'nodejs';
@@ -92,10 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     : null;
 
   // Leave a trail on the record so the next closer can see it was already sent.
-  const mark = (v: boolean | null) => (v === null ? 'skipped' : v ? 'ok' : 'FAILED');
-  const stamp = `[${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET] Checkout link sent${
-    withPromo ? ` (${COHORT_PROMO_CODE})` : ''
-  } — email:${mark(emailOk)} sms:${mark(smsOk)}`;
+  const stamp = formatSendStamp({ at: new Date(), promo: withPromo, emailOk, smsOk });
 
   await prisma.cohortApplication
     .update({

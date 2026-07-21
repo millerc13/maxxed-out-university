@@ -6,6 +6,8 @@ import {
   COHORT_PROMO_PERCENT,
   cohortPriceLabel,
   cohortPromoPriceLabel,
+  parseSendStamps,
+  type CohortSend,
 } from '@/lib/cohort-checkout';
 import { CohortSendConfirm } from '@/components/admin/CohortSendConfirm';
 
@@ -36,7 +38,19 @@ export default async function CohortSendPage({
   const app = await prisma.cohortApplication.findUnique({ where: { id } });
   if (!app) notFound();
 
-  const alreadySent = (app.closerNotes ?? '').includes('Checkout link sent');
+  // Sending Checkout and then Coupon is the intended escalation, not a mistake.
+  // Only warn when this exact send would repeat itself — same offer, same
+  // channel — otherwise show the history as plain context.
+  const priorSends = parseSendStamps(app.closerNotes);
+  const wantsEmail = channel === 'email' || channel === 'both';
+  const wantsSms = channel === 'sms' || channel === 'both';
+  const duplicates = priorSends.filter(
+    (s) => s.promo === withPromo && ((wantsEmail && s.email) || (wantsSms && s.sms))
+  );
+  const describe = (s: CohortSend) =>
+    `${s.promo ? 'Coupon' : 'Checkout'} by ${[s.email && 'email', s.sms && 'text']
+      .filter(Boolean)
+      .join(' + ')} · ${s.at}`;
 
   return (
     <div className="min-h-dvh bg-gray-50">
@@ -79,12 +93,28 @@ export default async function CohortSendPage({
             </div>
           </div>
 
-          {alreadySent && (
-            <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-800">
-              ⚠️ A checkout link was already sent to this applicant. Sending again will deliver a
-              second text and email.
-            </p>
-          )}
+          {duplicates.length > 0 ? (
+            <div className="mt-4 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <p className="font-bold">
+                ⚠️ Already sent — this would be a duplicate
+                {duplicates.length > 1 ? ` (${duplicates.length}x)` : ''}
+              </p>
+              <ul className="mt-1 space-y-0.5 text-amber-800">
+                {duplicates.map((s, i) => (
+                  <li key={i}>{describe(s)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : priorSends.length > 0 ? (
+            <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2.5 text-sm text-gray-600">
+              <p className="font-semibold text-gray-700">Already sent to this applicant:</p>
+              <ul className="mt-1 space-y-0.5">
+                {priorSends.map((s, i) => (
+                  <li key={i}>{describe(s)}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <CohortSendConfirm id={app.id} token={t} promo={withPromo} channel={channel} firstName={app.name.split(' ')[0]} />
 
