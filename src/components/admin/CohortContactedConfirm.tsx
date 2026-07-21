@@ -35,7 +35,7 @@ export function CohortContactedConfirm({
         d.already
           ? `Already marked by ${d.contactedBy}`
           : d.slack?.collapsed
-            ? 'Card collapsed in Slack'
+            ? 'Moved to #cohort-contacted'
             : d.slack?.error
               ? `Saved — Slack: ${d.slack.error}`
               : 'Saved'

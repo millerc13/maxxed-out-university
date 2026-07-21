@@ -68,6 +68,14 @@ export async function postMessage(input: {
     : { ok: false, error: r.error };
 }
 
+/** Removes a message entirely. Requires the `chat:delete` scope. */
+export async function deleteMessage(input: {
+  channel: string;
+  ts: string;
+}): Promise<SlackApiResult<unknown>> {
+  return callSlack('chat.delete', input);
+}
+
 /** Rewrites a message in place. `blocks` REPLACES the previous blocks entirely. */
 export async function updateMessage(input: {
   channel: string;

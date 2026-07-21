@@ -48,12 +48,12 @@ export default async function CohortContactedPage({
               <p>This will:</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>
-                  Collapse their card in <span className="font-semibold">#cohort-applications</span>{' '}
-                  to a single line
-                </li>
-                <li>
                   Post the full details to{' '}
                   <span className="font-semibold">#cohort-contacted</span>
+                </li>
+                <li>
+                  Remove their card from{' '}
+                  <span className="font-semibold">#cohort-applications</span>
                 </li>
                 <li>
                   Record <span className="font-semibold">{closer}</span> as who worked it

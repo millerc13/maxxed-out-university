@@ -2,19 +2,24 @@ import { formatPhoneUS } from '@/lib/sms';
 import {
   cohortContactedChannelId,
   postMessage,
+  deleteMessage,
   updateMessage,
   hasSlackBot,
 } from '@/lib/slack-bot';
 
 /**
- * "Mark contacted" — collapse the lead card in the applications channel and
- * re-post the full card to the contacted channel.
+ * "Mark contacted" — move the lead card out of the applications channel and
+ * into the contacted channel.
  *
- * The collapse is what keeps the channel readable during a live class: a
- * worked lead shrinks to one line, so what's left on screen is only what still
- * needs calling. The full card is preserved in the second channel rather than
- * deleted, because "who was called, by whom, when" is the record the team
- * argues over later.
+ * This keeps the applications channel showing ONLY what still needs calling
+ * during a live class. The full card is preserved in the second channel, never
+ * discarded: "who was called, by whom, when" is the record the team argues
+ * over later.
+ *
+ * ORDER IS LOAD-BEARING. The move must succeed before the original is removed,
+ * or a failed post plus a successful delete erases the lead outright. If the
+ * move fails the original is deliberately left in place — a lead sitting in
+ * the wrong channel is recoverable, a deleted one is not.
  */
 
 export interface CollapseInput {
@@ -39,7 +44,7 @@ const timeET = (d: Date) =>
     minute: '2-digit',
   });
 
-/** The one-liner a worked lead shrinks to. Name + number stay tappable. */
+/** Fallback one-liner, used only when a delete is refused. */
 export function collapsedBlocks(i: CollapseInput): { text: string; blocks: unknown[] } {
   const phone = formatPhoneUS(i.phone);
   const text = `✅ ${i.name} · ${phone} — contacted by ${i.contactedBy}`;
@@ -103,52 +108,53 @@ export interface CollapseResult {
 }
 
 /**
- * Collapse in place, then move. Independent on purpose: if the move fails the
- * collapse still stands (the lead IS contacted), and if the collapse fails the
- * record still lands in the contacted channel. Neither is allowed to take the
- * other down.
+ * Move to the contacted channel, then remove the original. Returns `collapsed`
+ * true once the applications channel no longer shows the full card — whether
+ * that happened by delete or by the collapse fallback.
  */
 export async function collapseAndMove(
   input: CollapseInput,
   ref: { channelId: string | null; messageTs: string | null },
 ): Promise<CollapseResult> {
   if (!hasSlackBot()) return { collapsed: false, moved: false, error: 'no_bot_token' };
+  if (!cohortContactedChannelId()) {
+    return { collapsed: false, moved: false, error: 'no_contacted_channel' };
+  }
 
-  const collapsed = collapsedBlocks(input);
+  // 1. Move first. Nothing is removed until this lands.
   const moved = movedBlocks(input);
+  const moveRes = await postMessage({
+    channel: cohortContactedChannelId(),
+    text: moved.text,
+    blocks: moved.blocks,
+  });
+  if (!moveRes.ok) {
+    return { collapsed: false, moved: false, error: `move:${moveRes.error}` };
+  }
 
-  const [collapseRes, moveRes] = await Promise.allSettled([
-    ref.channelId && ref.messageTs
-      ? updateMessage({
-          channel: ref.channelId,
-          ts: ref.messageTs,
-          text: collapsed.text,
-          blocks: collapsed.blocks,
-        })
-      : Promise.resolve({ ok: false, error: 'no_message_ref' as const }),
-    cohortContactedChannelId()
-      ? postMessage({
-          channel: cohortContactedChannelId(),
-          text: moved.text,
-          blocks: moved.blocks,
-        })
-      : Promise.resolve({ ok: false, error: 'no_contacted_channel' as const }),
-  ]);
+  if (!ref.channelId || !ref.messageTs) {
+    // Posted via webhook, so there is no message id to remove. The move still
+    // happened; the original just can't be touched.
+    return { collapsed: false, moved: true, error: 'no_message_ref' };
+  }
 
-  const ok = (r: PromiseSettledResult<{ ok: boolean; error?: string }>) =>
-    r.status === 'fulfilled' && r.value.ok;
-  const err = (r: PromiseSettledResult<{ ok: boolean; error?: string }>) =>
-    r.status === 'fulfilled' ? r.value.error : 'threw';
+  // 2. Now the original is safe to remove.
+  const delRes = await deleteMessage({ channel: ref.channelId, ts: ref.messageTs });
+  if (delRes.ok) return { collapsed: true, moved: true };
 
+  // Delete refused (usually a missing chat:delete scope). Fall back to
+  // collapsing in place so the channel still gets shorter rather than showing
+  // the lead twice at full size.
+  const collapsed = collapsedBlocks(input);
+  const upd = await updateMessage({
+    channel: ref.channelId,
+    ts: ref.messageTs,
+    text: collapsed.text,
+    blocks: collapsed.blocks,
+  });
   return {
-    collapsed: ok(collapseRes),
-    moved: ok(moveRes),
-    error: [
-      ok(collapseRes) ? null : `collapse:${err(collapseRes)}`,
-      ok(moveRes) ? null : `move:${err(moveRes)}`,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .trim() || undefined,
+    collapsed: upd.ok,
+    moved: true,
+    error: `delete:${delRes.error}${upd.ok ? ' (collapsed instead)' : ` collapse:${upd.error}`}`,
   };
 }
