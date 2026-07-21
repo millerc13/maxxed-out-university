@@ -11,6 +11,7 @@ import {
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
+import { nextCohortCloser, cohortSendUrl } from '@/lib/cohort-assign';
 import { sendSmsToRecipient, normalizePhoneE164 } from '@/lib/sms';
 import { notifySlackChannels } from '@/lib/slack';
 import {
@@ -51,6 +52,8 @@ const schema = z.object({
  * split per cohort instead of everything landing in one room.
  */
 const COHORT_SOURCE = 'medicaid-cohort';
+
+const APP_BASE = process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
 
 const GHL_API_BASE = process.env.GHL_API_BASE || 'https://services.leadconnectorhq.com';
 
@@ -137,6 +140,10 @@ export async function POST(request: Request) {
     isVip,
   });
 
+  // Round-robin the lead so the team splits them evenly and everyone knows
+  // whose call it is the moment the Slack message lands.
+  const assignedTo = await nextCohortCloser();
+
   const app = await prisma.cohortApplication.create({
     data: {
       name: d.name,
@@ -150,6 +157,7 @@ export async function POST(request: Request) {
       score,
       tier,
       isVip,
+      assignedTo,
       // Required phone + visible disclosure above the button ⇒ submitting is
       // the affirmative act. Record what they agreed to and when.
       source: COHORT_SOURCE,
@@ -199,12 +207,13 @@ export async function POST(request: Request) {
     };
 
     await notifySlackChannels('cohort_application', COHORT_SOURCE, {
-      headline: `TIER ${tier} · ${score}/28 pts${isVip ? ' · ★ VIP BUYER' : ''} — ${d.name}`,
+      headline: `${assignedTo.toUpperCase()} → TIER ${tier} · ${score}/28 pts${isVip ? ' · ★ VIP BUYER' : ''} — ${d.name}`,
       emoji: tier === 'A' ? '🔥' : '🎯',
       contactName: d.name,
       email: d.email,
       phone: app.phone,
       fields: [
+        { label: '🎯 ASSIGNED TO', value: `*${assignedTo}*` },
         { label: 'Tier', value: `${tier} — ${TIER_ACTION[tier as Tier]}` },
         { label: 'Score', value: `${score} / 28` },
         { label: 'State', value: d.state },
@@ -212,7 +221,6 @@ export async function POST(request: Request) {
         { label: 'Q: $10,000 investment', value: labelOf(INVESTMENT_OPTIONS, d.investment) },
         { label: 'Q: Current work situation', value: labelOf(WORK_OPTIONS, d.work) },
         { label: 'Q: Anything we should know?', value: d.note?.trim() || '—' },
-        { label: 'VIP ($27 buyer)', value: isVip ? 'YES — auto Tier A' : 'No' },
         ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),
         // Slack hard-caps a section at 10 fields and the builder slices the rest,
         // so keep this list at 10 — anything past it silently disappears.
@@ -222,11 +230,19 @@ export async function POST(request: Request) {
         },
       ],
       links: [
-        { url: COHORT_CHECKOUT_URL, label: `💳 Send to checkout (${cohortPriceLabel()})`, style: 'primary' as const },
+        // These TEXT + EMAIL the applicant their link. Slack URL buttons can't
+        // POST, so each opens a signed one-tap confirm page that does the send —
+        // a bare GET would let link crawlers fire real texts at applicants.
         {
-          url: `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/admin/cohort`,
-          label: '📋 Open call sheet',
+          url: cohortSendUrl(APP_BASE, app.id, false),
+          label: `📲 Text link (${cohortPriceLabel()})`,
+          style: 'primary' as const,
         },
+        {
+          url: cohortSendUrl(APP_BASE, app.id, true),
+          label: `🏷️ Text link + ${COHORT_PROMO_PERCENT}% off`,
+        },
+        { url: `${APP_BASE}/admin/cohort`, label: '📋 Call sheet' },
       ],
     }).catch(() => {});
   });

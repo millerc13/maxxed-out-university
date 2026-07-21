@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sessionWithCapability, unauthorized } from '@/lib/api-auth';
+import { verifyCohortAction } from '@/lib/cohort-assign';
 import { sendCohortCheckoutEmail } from '@/lib/resend';
 import { sendSmsToRecipient } from '@/lib/sms';
 import {
@@ -24,20 +25,30 @@ export const runtime = 'nodejs';
  * actually happened rather than a blanket "sent".
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await sessionWithCapability('admin:access');
-  if (!session) return unauthorized();
-
   const { id } = await params;
-  const app = await prisma.cohortApplication.findUnique({ where: { id } });
-  if (!app) return NextResponse.json({ error: 'Application not found' }, { status: 404 });
 
   let withPromo = false;
+  let token = '';
   try {
     const body = await request.json();
     withPromo = !!body?.promo;
+    token = typeof body?.token === 'string' ? body.token : '';
   } catch {
     /* no body — default to no promo */
   }
+
+  // Two ways in: an admin session (the call sheet) OR a signed token (a closer
+  // tapping the Slack button on their phone, where they're not logged in). The
+  // token is scoped to this exact application AND promo choice, so it can't be
+  // edited into a discount that wasn't offered.
+  const signed = token ? verifyCohortAction(id, withPromo, token) : false;
+  if (!signed) {
+    const session = await sessionWithCapability('admin:access');
+    if (!session) return unauthorized();
+  }
+
+  const app = await prisma.cohortApplication.findUnique({ where: { id } });
+  if (!app) return NextResponse.json({ error: 'Application not found' }, { status: 404 });
 
   const promoCode = withPromo ? COHORT_PROMO_CODE : null;
   const promoPrice = withPromo ? cohortPromoPriceLabel() : null;

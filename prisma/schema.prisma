@@ -964,6 +964,8 @@ model CohortApplication {
   // Ops
   source       String    @default("webinar-live")
   ghlContactId String?
+  /// Closer this lead was round-robined to at submit (Mike | Miles | Jackie).
+  assignedTo   String?
   status       String    @default("new") // new | called | booked | enrolled | nurture
   calledAt     DateTime?
   closerNotes  String?
