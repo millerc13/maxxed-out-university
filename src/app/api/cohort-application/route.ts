@@ -14,13 +14,7 @@ import { isVipBuyer } from '@/lib/cohort-vip';
 import { nextCohortCloser, cohortSendUrl } from '@/lib/cohort-assign';
 import { sendSmsToRecipient, normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
 import { notifySlackChannels } from '@/lib/slack';
-import {
-  COHORT_CHECKOUT_URL,
-  COHORT_PROMO_CODE,
-  COHORT_PROMO_PERCENT,
-  cohortPriceLabel,
-  cohortPromoPriceLabel,
-} from '@/lib/cohort-checkout';
+import { cohortPriceLabel } from '@/lib/cohort-checkout';
 
 export const runtime = 'nodejs';
 
@@ -222,10 +216,9 @@ export async function POST(request: Request) {
         ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),
         // Slack hard-caps a section at 10 fields and the builder slices the rest,
         // so keep this list at 10 — anything past it silently disappears.
-        {
-          label: `💳 Price`,
-          value: `${cohortPriceLabel()} · code *${COHORT_PROMO_CODE}* = ${COHORT_PROMO_PERCENT}% off → ${cohortPromoPriceLabel()}`,
-        },
+        // Just the list price. The coupon is a decision the closer makes on
+        // the call, and showing both numbers here read as "which one is it?".
+        { label: `💳 Price`, value: cohortPriceLabel() },
       ],
       // Repeated right above the buttons: by the time a reader scrolls past all
       // the form fields, the assignee at the top is off screen — and these

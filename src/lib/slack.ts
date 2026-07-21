@@ -159,6 +159,9 @@ function buildBlockKitMessage(eventType: SlackEventType, p: SlackEventPayload): 
     type: 'context',
     elements: [{ type: 'mrkdwn', text: contextLine }],
   });
+  // Closes the message. Without it a busy channel reads as one continuous wall
+  // and it's genuinely hard to tell whose fields belong to which lead.
+  blocks.push({ type: 'divider' });
 
   return {
     text: `${emoji} ${headline}${p.contactName ? ` — ${p.contactName}` : ''}`,
