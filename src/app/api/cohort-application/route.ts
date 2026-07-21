@@ -11,7 +11,7 @@ import {
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
-import { nextCohortCloser, cohortSendUrl, cohortContactedUrl } from '@/lib/cohort-assign';
+import { nextCohortCloser, cohortSendUrl, cohortContactedUrl, closerMention } from '@/lib/cohort-assign';
 import { sendSmsToRecipient, normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
 import { notifySlackChannels, buildBlockKitMessage } from '@/lib/slack';
 import { hasSlackBot, cohortChannelId, postMessage } from '@/lib/slack-bot';
@@ -206,7 +206,7 @@ export async function POST(request: Request) {
       email: d.email,
       phone: app.phone,
       fields: [
-        { label: '🎯 ASSIGNED TO', value: `*${assignedTo}*` },
+        { label: '🎯 ASSIGNED TO', value: closerMention(assignedTo) },
         { label: 'Tier', value: `${tier} — ${TIER_ACTION[tier as Tier]}` },
         { label: 'Score', value: `${score} / 28` },
         { label: 'State', value: d.state },
@@ -230,7 +230,7 @@ export async function POST(request: Request) {
       // one tap with no browser hop in between. Bold and alone on its line is
       // as prominent as Slack gets; mrkdwn has no font sizing.
       actionsNote: [
-        `🎯 This lead belongs to *${assignedTo}* — ${d.name}`,
+        `🎯 This lead belongs to ${closerMention(assignedTo)} — ${d.name}`,
         `📞 *<tel:${app.phone}|${formatPhoneUS(app.phone)}>*  ← tap to call`,
       ].join('\n'),
       // Each button opens a signed one-tap confirm page that performs the send.

@@ -13,6 +13,35 @@ export type CohortCloser = (typeof COHORT_CLOSERS)[number];
 
 const SCOPE = 'cohort-medicaid';
 
+/**
+ * Slack member IDs, so an assignment actually pings the closer's phone — bold
+ * text notifies nobody.
+ *
+ * Only closers with a workspace account belong here; the rest fall back to
+ * bold, because `<@U…>` with a wrong id renders as raw text and a made-up id
+ * silently pings nobody. SLACK_CLOSER_IDS ("Mike:U123,Jackie:U456") adds the
+ * remaining two the day their accounts exist, without a deploy.
+ */
+const CLOSER_SLACK_IDS: Record<string, string> = {
+  Todd: 'U0A7G4PG7D3',
+  Miles: 'U0A8ES2CT1N',
+};
+
+function closerSlackId(name: string): string | undefined {
+  const overrides = (process.env.SLACK_CLOSER_IDS || '')
+    .split(',')
+    .map((pair) => pair.split(':').map((x) => x.trim()))
+    .filter((p): p is [string, string] => p.length === 2 && Boolean(p[0] && p[1]));
+  const fromEnv = overrides.find(([n]) => n.toLowerCase() === name.toLowerCase())?.[1];
+  return fromEnv || CLOSER_SLACK_IDS[name];
+}
+
+/** `<@U…>` when we know the account, bold name otherwise. */
+export function closerMention(name: string): string {
+  const id = closerSlackId(name);
+  return id ? `<@${id}>` : `*${name}*`;
+}
+
 /** Next closer in the rotation. Never throws — falls back to the first name. */
 export async function nextCohortCloser(): Promise<string> {
   try {
