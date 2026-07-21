@@ -232,10 +232,10 @@ export async function POST(request: Request) {
       // and mobile prefetch fire real messages at applicants.
       // Slack caps an actions block at 5 elements — this is exactly 5.
       links: [
-        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text link', style: 'primary' as const },
-        { url: cohortSendUrl(app.id, true, 'sms'), label: `📲 Text + ${COHORT_PROMO_PERCENT}% off` },
-        { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email link' },
-        { url: cohortSendUrl(app.id, true, 'email'), label: `✉️ Email + ${COHORT_PROMO_PERCENT}% off` },
+        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout', style: 'primary' as const },
+        { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
+        { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
+        { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },
         { url: cohortCallSheetUrl(), label: '📋 Call sheet' },
       ],
     }).catch(() => {});

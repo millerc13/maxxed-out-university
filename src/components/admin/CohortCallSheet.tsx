@@ -58,7 +58,7 @@ function SendCheckout({ id, name }: { id: string; name: string }) {
 
   async function send(promo: boolean) {
     if (state === 'sending') return;
-    const label = promo ? `Send ${name.split(' ')[0]} the link WITH the 15% discount?` : `Send ${name.split(' ')[0]} the full-price enrollment link?`;
+    const label = promo ? `Send ${name.split(' ')[0]} the Coupon (15% off)?` : `Send ${name.split(' ')[0]} the Checkout link?`;
     if (!confirm(label)) return;
     setState('sending');
     try {
@@ -93,14 +93,14 @@ function SendCheckout({ id, name }: { id: string; name: string }) {
           disabled={state === 'sending'}
           className="rounded-lg bg-gray-900 px-3 py-2.5 text-sm font-bold text-white transition hover:bg-gray-700 disabled:opacity-50"
         >
-          {state === 'sending' ? 'Sending…' : '💳 Send checkout'}
+          {state === 'sending' ? 'Sending…' : '💳 Send Checkout'}
         </button>
         <button
           onClick={() => send(true)}
           disabled={state === 'sending'}
           className="rounded-lg border-2 border-emerald-600 px-3 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
         >
-          {state === 'sending' ? '…' : '🏷️ Send + 15% off'}
+          {state === 'sending' ? '…' : '🏷️ Send Coupon'}
         </button>
       </div>
       {state === 'error' && <p className="mt-1.5 text-center text-xs font-semibold text-red-600">{msg}</p>}

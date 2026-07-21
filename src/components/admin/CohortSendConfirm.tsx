@@ -65,7 +65,7 @@ export function CohortSendConfirm({
       >
         {state === 'sending'
           ? 'Sending…'
-          : `${channel === 'email' ? '✉️ Email' : '📲 Text'} ${firstName} the link${promo ? ' + discount' : ''}`}
+          : `${channel === 'email' ? '✉️ Email' : '📲 Text'} ${firstName} the ${promo ? 'Coupon' : 'Checkout'}`}
       </button>
       {state === 'error' && (
         <p className="mt-2 text-center text-sm font-semibold text-red-600">{msg}</p>
