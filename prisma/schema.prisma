@@ -970,6 +970,16 @@ model CohortApplication {
   calledAt     DateTime?
   closerNotes  String?
 
+  /// Slack message this lead was announced in, so the "Contacted" button can
+  /// collapse it. Only populated when posted via bot token — an incoming
+  /// webhook returns no message id and its messages can never be edited.
+  slackChannelId  String?
+  slackMessageTs  String?
+  /// Who pressed Contacted, and when. Distinct from calledAt/status so the
+  /// collapse is auditable even if a closer later changes the status.
+  contactedBy     String?
+  contactedAt     DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

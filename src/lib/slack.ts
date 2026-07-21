@@ -57,7 +57,7 @@ export interface SlackEventPayload {
   occurredAt?: Date;
 }
 
-interface BlockKitMessage {
+export interface BlockKitMessage {
   text: string;
   blocks: unknown[];
 }
@@ -77,7 +77,15 @@ function telLink(phone: string): string {
   return /^\+1\d{10}$/.test(e164) ? `*<tel:${e164}|${formatPhoneUS(e164)}>*` : phone;
 }
 
-function buildBlockKitMessage(eventType: SlackEventType, p: SlackEventPayload): BlockKitMessage {
+/**
+ * Exported so the bot-token transport composes the IDENTICAL message the
+ * webhook path does — two builders would drift and the collapse feature would
+ * quietly start rendering a different card than the one people are used to.
+ */
+export function buildBlockKitMessage(
+  eventType: SlackEventType,
+  p: SlackEventPayload,
+): BlockKitMessage {
   const def = EVENT_DEFAULTS[eventType];
   const emoji = p.emoji ?? def.emoji;
   const headline = p.headline || def.banner;

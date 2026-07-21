@@ -11,9 +11,10 @@ import {
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
-import { nextCohortCloser, cohortSendUrl } from '@/lib/cohort-assign';
+import { nextCohortCloser, cohortSendUrl, cohortContactedUrl } from '@/lib/cohort-assign';
 import { sendSmsToRecipient, normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
-import { notifySlackChannels } from '@/lib/slack';
+import { notifySlackChannels, buildBlockKitMessage } from '@/lib/slack';
+import { hasSlackBot, cohortChannelId, postMessage } from '@/lib/slack-bot';
 import { cohortPriceLabel } from '@/lib/cohort-checkout';
 
 export const runtime = 'nodejs';
@@ -198,7 +199,7 @@ export async function POST(request: Request) {
       return o ? `${o.label} (${o.points} pts)` : v;
     };
 
-    await notifySlackChannels('cohort_application', COHORT_SOURCE, {
+    const slackPayload = {
       headline: `${assignedTo.toUpperCase()} → TIER ${tier} · ${score}/28 pts${isVip ? ' · ★ VIP BUYER' : ''} — ${d.name}`,
       emoji: tier === 'A' ? '🔥' : '🎯',
       contactName: d.name,
@@ -241,8 +242,38 @@ export async function POST(request: Request) {
         { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
         { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
         { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },
+        { url: cohortContactedUrl(app.id, assignedTo), label: '✅ Contacted' },
       ],
-    }).catch(() => {});
+    };
+
+    // Prefer the bot token: chat.postMessage returns a message id, which is the
+    // only way the ✅ Contacted button can later collapse this card. Incoming
+    // webhooks return nothing and their messages can never be edited.
+    //
+    // Falls back to the webhook fan-out whenever the bot isn't configured or
+    // Slack rejects the call — a misconfigured token must never cost a live
+    // lead its notification.
+    let postedViaBot = false;
+    if (hasSlackBot() && cohortChannelId()) {
+      const msg = buildBlockKitMessage('cohort_application', slackPayload);
+      const res = await postMessage({
+        channel: cohortChannelId(),
+        text: msg.text,
+        blocks: msg.blocks,
+      });
+      if (res.ok && res.data) {
+        postedViaBot = true;
+        await prisma.cohortApplication
+          .update({
+            where: { id: app.id },
+            data: { slackChannelId: res.data.channel, slackMessageTs: res.data.ts },
+          })
+          .catch(() => {});
+      }
+    }
+    if (!postedViaBot) {
+      await notifySlackChannels('cohort_application', COHORT_SOURCE, slackPayload).catch(() => {});
+    }
   });
 
   return NextResponse.json({ ok: true, id: app.id, tier, score });

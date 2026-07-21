@@ -89,3 +89,23 @@ export function cohortSendUrl(id: string, promo: boolean, channel: CohortChannel
 
 /** Same reasoning — admin deep links in Slack must never be localhost. */
 export const cohortCallSheetUrl = () => `${PUBLIC_HOST}/admin/cohort`;
+
+/**
+ * "Mark contacted" action link. Signed like the send links so a closer tapping
+ * from Slack on their phone is authorized without being logged into the admin.
+ * Carries the presser's name so the collapsed line can say who worked it —
+ * the button is per-closer, not generic.
+ */
+export function signCohortContacted(id: string, by: string): string {
+  return crypto.createHmac('sha256', secret()).update(`${id}:contacted:${by}`).digest('hex').slice(0, 32);
+}
+
+export function verifyCohortContacted(id: string, by: string, token: string): boolean {
+  const a = Buffer.from(signCohortContacted(id, by));
+  const b = Buffer.from(token || '');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+export function cohortContactedUrl(id: string, by: string): string {
+  return `${PUBLIC_HOST}/cohort-contacted/${id}?by=${encodeURIComponent(by)}&t=${signCohortContacted(id, by)}`;
+}
