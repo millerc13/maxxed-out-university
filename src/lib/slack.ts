@@ -15,6 +15,7 @@
  */
 
 import { prisma } from './prisma';
+import { normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
 
 export type SlackEventType =
   | 'lead'
@@ -70,6 +71,12 @@ const EVENT_DEFAULTS: Record<SlackEventType, { emoji: string; banner: string }> 
   cohort_application: { emoji: '🎯', banner: 'Cohort Application' },
 };
 
+/** `*<tel:+1…|(937) 681-2699>*`, or the raw string if it isn't a US number. */
+function telLink(phone: string): string {
+  const e164 = normalizePhoneE164(phone);
+  return /^\+1\d{10}$/.test(e164) ? `*<tel:${e164}|${formatPhoneUS(e164)}>*` : phone;
+}
+
 function buildBlockKitMessage(eventType: SlackEventType, p: SlackEventPayload): BlockKitMessage {
   const def = EVENT_DEFAULTS[eventType];
   const emoji = p.emoji ?? def.emoji;
@@ -82,7 +89,12 @@ function buildBlockKitMessage(eventType: SlackEventType, p: SlackEventPayload): 
           fields: [
             ...(p.contactName ? [{ type: 'mrkdwn', text: `*Name:*\n${p.contactName}` }] : []),
             ...(p.email ? [{ type: 'mrkdwn', text: `*Email:*\n${p.email}` }] : []),
-            ...(p.phone ? [{ type: 'mrkdwn', text: `*Phone:*\n${p.phone}` }] : []),
+            // tel: link so the number dials straight from the message. Falls
+            // back to plain text for anything that isn't a US number, since a
+            // tel: link built from a malformed number dials garbage.
+            ...(p.phone
+              ? [{ type: 'mrkdwn', text: `*Phone:*\n${telLink(p.phone)}` }]
+              : []),
             ...(p.assignedTo
               ? [{ type: 'mrkdwn', text: `*Assigned To:*\n${p.assignedTo}` }]
               : []),
