@@ -15,9 +15,13 @@ import { nextCohortCloser, cohortSendUrl, cohortContactedUrl, closerMention } fr
 import { sendSmsToRecipient, normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
 import { notifySlackChannels, buildBlockKitMessage } from '@/lib/slack';
 import { hasSlackBot, cohortChannelId, postMessage } from '@/lib/slack-bot';
-import { cohortPriceLabel } from '@/lib/cohort-checkout';
+import { slackSigningSecret } from '@/lib/slack-verify';
+import { cohortPriceLabel, cohortPromoPriceLabel, COHORT_PROMO_CODE } from '@/lib/cohort-checkout';
 
 export const runtime = 'nodejs';
+
+/** Interactive buttons need a verifiable signature; without it, use URL buttons. */
+const slackInteractive = () => Boolean(slackSigningSecret());
 
 const values = <T extends readonly { value: string }[]>(opts: T) =>
   opts.map((o) => o.value) as [string, ...string[]];
@@ -237,13 +241,73 @@ export async function POST(request: Request) {
       // Slack URL buttons can't POST, and a bare GET would let link unfurlers
       // and mobile prefetch fire real messages at applicants.
       // Slack caps an actions block at 5 elements.
-      links: [
-        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout', style: 'primary' as const },
-        { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
-        { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
-        { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },
-        { url: cohortContactedUrl(app.id, assignedTo), label: '✅ Contacted' },
-      ],
+      // Interactive buttons when the Slack app has Interactivity wired up:
+      // the press posts straight to /api/slack/interactive and the send happens
+      // in place, with Slack's own confirm modal standing in for the browser
+      // page. Without a signing secret those presses can't be verified, so we
+      // fall back to the URL buttons rather than trusting an unsigned request.
+      // Slack caps an actions block at 5 elements.
+      links: slackInteractive()
+        ? [
+            {
+              actionId: 'cohort_send:sms:0',
+              value: app.id,
+              label: '📲 Text Checkout',
+              style: 'primary' as const,
+              confirm: {
+                title: 'Text the checkout link?',
+                text: `Send *${d.name}* the ${cohortPriceLabel()} enrollment link by text.`,
+                confirm: 'Send text',
+              },
+            },
+            {
+              actionId: 'cohort_send:sms:1',
+              value: app.id,
+              label: '📲 Text Coupon',
+              confirm: {
+                title: 'Text the coupon?',
+                text: `Send *${d.name}* the *${COHORT_PROMO_CODE}* code (${cohortPromoPriceLabel()}) by text.`,
+                confirm: 'Send coupon',
+              },
+            },
+            {
+              actionId: 'cohort_send:email:0',
+              value: app.id,
+              label: '✉️ Email Checkout',
+              confirm: {
+                title: 'Email the checkout link?',
+                text: `Send *${d.name}* the ${cohortPriceLabel()} enrollment link by email.`,
+                confirm: 'Send email',
+              },
+            },
+            {
+              actionId: 'cohort_send:email:1',
+              value: app.id,
+              label: '✉️ Email Coupon',
+              confirm: {
+                title: 'Email the coupon?',
+                text: `Send *${d.name}* the *${COHORT_PROMO_CODE}* code (${cohortPromoPriceLabel()}) by email.`,
+                confirm: 'Send coupon',
+              },
+            },
+            {
+              actionId: 'cohort_contacted',
+              value: app.id,
+              label: '✅ Contacted',
+              confirm: {
+                title: 'Mark contacted?',
+                text: `Moves *${d.name}* to #cohort-contacted and removes this card. Does not text or email them.`,
+                confirm: 'Mark contacted',
+              },
+            },
+          ]
+        : [
+            { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout', style: 'primary' as const },
+            { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
+            { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
+            { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },
+            { url: cohortContactedUrl(app.id, assignedTo), label: '✅ Contacted' },
+          ],
     };
 
     // Prefer the bot token: chat.postMessage returns a message id, which is the

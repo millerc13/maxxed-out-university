@@ -25,6 +25,22 @@ export type SlackEventType =
   | 'contract_signed'
   | 'cohort_application';
 
+export interface SlackButton {
+  label: string;
+  /** Opens a page. Mutually exclusive with actionId. */
+  url?: string;
+  /**
+   * Interactive button: posts to the app's Request URL instead of opening a
+   * browser. Requires Interactivity enabled on the Slack app.
+   */
+  actionId?: string;
+  /** Payload carried back with the press (we use the application id). */
+  value?: string;
+  /** Native Slack confirm modal — the safety net that replaces the page. */
+  confirm?: { title: string; text: string; confirm: string; deny?: string };
+  style?: 'primary' | 'danger';
+}
+
 export interface SlackEventPayload {
   /** Title text shown in notifications + bold first line. */
   headline: string;
@@ -39,13 +55,13 @@ export interface SlackEventPayload {
   /** Free-form key-value rows shown in the Slack message body. */
   fields?: { label: string; value: string }[];
   /** Optional click-through (e.g. /admin/leads/{id} or GHL contact URL). */
-  link?: { url: string; label: string };
+  link?: SlackButton;
   /**
    * Multiple action buttons. Slack renders at most one `actions` block well, so
    * these are merged with `link` into a single row. `style: 'primary'` makes a
    * button green — use it for the one thing you want clicked.
    */
-  links?: { url: string; label: string; style?: 'primary' | 'danger' }[];
+  links?: SlackButton[];
   /**
    * Line rendered immediately above the buttons. The fields block can run long
    * enough that whoever the lead belongs to has scrolled off screen by the time
@@ -131,8 +147,20 @@ export function buildBlockKitMessage(
           elements: allLinks.map((l) => ({
             type: 'button',
             text: { type: 'plain_text', text: l.label, emoji: true },
-            url: l.url,
-            ...((l as { style?: string }).style ? { style: (l as { style?: string }).style } : {}),
+            ...(l.url ? { url: l.url } : {}),
+            ...(l.actionId ? { action_id: l.actionId } : {}),
+            ...(l.value ? { value: l.value } : {}),
+            ...(l.confirm
+              ? {
+                  confirm: {
+                    title: { type: 'plain_text', text: l.confirm.title },
+                    text: { type: 'mrkdwn', text: l.confirm.text },
+                    confirm: { type: 'plain_text', text: l.confirm.confirm },
+                    deny: { type: 'plain_text', text: l.confirm.deny ?? 'Cancel' },
+                  },
+                }
+              : {}),
+            ...(l.style ? { style: l.style } : {}),
           })),
         }
       : null;
