@@ -84,7 +84,37 @@ export async function recordCohortPayment(input: CohortPaymentInput): Promise<Re
     applicationId = match?.id ?? null;
   }
 
-  // Unique paymentId makes this the dedupe gate.
+  // SECOND DEDUPE GATE — same purchase, two webhooks.
+  //
+  // Fanbasis fires twice for one sale: once for its own order (id "ORD-…") and
+  // once for the Stripe payment intent (id "pi_…"). Different ids, so the
+  // unique paymentId below does NOT catch it — the first sandbox $10,000 run
+  // recorded two rows and reported the buyer as having paid $10,100.
+  //
+  // So a purchase is also fingerprinted on buyer + amount inside a short
+  // window. Plan payments are 28 days apart and cannot collide; two genuine
+  // identical charges within two minutes would be a double-charge worth
+  // suppressing anyway.
+  const DUPLICATE_WINDOW_MS = 2 * 60_000;
+  const twin = await prisma.cohortPayment.findFirst({
+    where: {
+      buyerEmail: input.buyerEmail.toLowerCase(),
+      amountCents: input.amountCents,
+      createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
+    },
+    select: { id: true, paymentId: true },
+  });
+  if (twin) {
+    return {
+      recorded: false,
+      duplicate: true,
+      applicationId,
+      paymentsMade: 0,
+      fullyPaid: false,
+    };
+  }
+
+  // Unique paymentId catches exact retries of the SAME event.
   try {
     await prisma.cohortPayment.create({
       data: {

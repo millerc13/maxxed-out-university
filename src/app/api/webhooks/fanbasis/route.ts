@@ -753,9 +753,15 @@ export async function handleCohortPurchase(
     if (rawAmount == null) return 0;
     const n = typeof rawAmount === 'string' ? Number(rawAmount) : rawAmount;
     if (!Number.isFinite(n)) return 0;
-    // Fanbasis sends dollars as a decimal string ("3500.00") on the sandbox
-    // shape and cents as an integer elsewhere. A decimal point means dollars.
-    return String(rawAmount).includes('.') ? Math.round(n * 100) : Math.round(n);
+    // ALWAYS DOLLARS. Fanbasis sends `amount` as an integer (10000) and
+    // `total_amount` as a decimal string ("10000.00") for the SAME $10,000
+    // sale — confirmed against GET /checkout-sessions/transactions, which
+    // reports `"amount": 10000` next to `"price": "10000.00"`.
+    //
+    // An earlier "integer means cents" guess turned a $10,000 purchase into
+    // $100 on the order-level webhook. Only `amount_cents` (what WE send when
+    // creating a session) is ever in cents; nothing inbound is.
+    return Math.round(n * 100);
   })();
 
   if (!paymentId) {
