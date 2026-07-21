@@ -241,8 +241,16 @@ function extractPurchaseDetails(payload: Record<string, unknown>) {
           raw: product.api_metadata,
           error: err instanceof Error ? err.message : err,
         });
-        const m = (product.api_metadata as string).match(/"courseId"\s*:\s*"([^"]+)"/);
-        if (m) metadata = { courseId: m[1] };
+        // Salvage whatever survived the truncation. Every key that routes a
+        // payment has to be rescued here — a cohort sale whose `cohort` key was
+        // cut off would fall through to the course path and be dropped.
+        const salvage = (key: string): string | undefined =>
+          (product.api_metadata as string).match(new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`))?.[1];
+        metadata = {};
+        for (const key of ['courseId', 'userId', 'cohort', 'applicationId', 'plan']) {
+          const v = salvage(key);
+          if (v) metadata[key] = v;
+        }
       }
     } else if (typeof product.api_metadata === 'object' && product.api_metadata !== null) {
       const asObj = product.api_metadata as { data?: Record<string, string> };
