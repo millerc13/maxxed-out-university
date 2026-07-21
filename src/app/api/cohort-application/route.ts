@@ -296,7 +296,9 @@ export async function POST(request: Request) {
               label: '✅ Contacted',
               confirm: {
                 title: 'Mark contacted?',
-                text: `Moves *${d.name}* to #cohort-contacted and removes this card. Does not text or email them.`,
+                // No '#' prefix: Slack auto-links #channel into <#C09…>, and confirm
+                // dialogs don't render channel links — it shows the raw id.
+                text: `Moves *${d.name}* to the cohort-contacted channel and removes this card. Does not text or email them.`,
                 confirm: 'Mark contacted',
               },
             },

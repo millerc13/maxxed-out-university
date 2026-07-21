@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { verifySlackRequest } from '@/lib/slack-verify';
 import { sendCohortCheckout } from '@/lib/cohort-send';
 import { collapseAndMove } from '@/lib/cohort-contacted';
+import { markButtonDone, appendSentLog } from '@/lib/slack-message-edit';
+import { updateMessage } from '@/lib/slack-bot';
+import { COHORT_PROMO_CODE } from '@/lib/cohort-checkout';
 import type { CohortChannel } from '@/lib/cohort-assign';
 
 export const runtime = 'nodejs';
@@ -39,7 +42,17 @@ interface SlackPayload {
   user?: { id?: string; name?: string; username?: string };
   actions?: SlackAction[];
   response_url?: string;
+  channel?: { id?: string };
+  message?: { ts?: string; text?: string; blocks?: unknown[] };
 }
+
+/** Human label for a completed send, shown on the button and in the log. */
+const DONE_LABEL: Record<string, string> = {
+  'cohort_send:sms:0': '✅ Texted Checkout',
+  'cohort_send:sms:1': '✅ Texted Coupon',
+  'cohort_send:email:0': '✅ Emailed Checkout',
+  'cohort_send:email:1': '✅ Emailed Coupon',
+};
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -135,6 +148,36 @@ export async function POST(request: Request) {
 
     const result = await sendCohortCheckout({ app, channel, withPromo });
     if (responseUrl) await respond(responseUrl, result.summary(pressedBy));
+
+    // Rewrite the card so the channel shows what's already gone out. Only on
+    // success — a failed send must keep its button looking un-pressed, or a
+    // closer reads "✅ Texted" and never retries.
+    const msgTs = payload.message?.ts;
+    const msgChannel = payload.channel?.id;
+    const blocks = payload.message?.blocks;
+    if (result.ok && msgTs && msgChannel && Array.isArray(blocks)) {
+      const label = DONE_LABEL[actionId] ?? '✅ Sent';
+      const when = new Date().toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+      const what = withPromo ? `${COHORT_PROMO_CODE} coupon` : 'checkout link';
+      const how = channel === 'email' ? 'emailed' : 'texted';
+      let next = markButtonDone(
+        blocks as never,
+        actionId,
+        label,
+        `Already ${how} to *${app.name}* at ${when} ET. Send the ${what} again?`
+      );
+      next = appendSentLog(next, `${label.replace('✅ ', '✅ ')} · ${pressedBy} · ${when} ET`);
+      await updateMessage({
+        channel: msgChannel,
+        ts: msgTs,
+        text: payload.message?.text || `Cohort application — ${app.name}`,
+        blocks: next,
+      });
+    }
   });
 
   return NextResponse.json({ ok: true });
