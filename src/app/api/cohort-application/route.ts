@@ -11,7 +11,7 @@ import {
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
-import { nextCohortCloser, cohortSendUrl, cohortCallSheetUrl } from '@/lib/cohort-assign';
+import { nextCohortCloser, cohortSendUrl, cohortCallUrl } from '@/lib/cohort-assign';
 import { sendSmsToRecipient, normalizePhoneE164 } from '@/lib/sms';
 import { notifySlackChannels } from '@/lib/slack';
 import {
@@ -231,12 +231,13 @@ export async function POST(request: Request) {
       // Slack URL buttons can't POST, and a bare GET would let link unfurlers
       // and mobile prefetch fire real messages at applicants.
       // Slack caps an actions block at 5 elements — this is exactly 5.
+      // 📞 Call is https, not tel: — Slack rejects a tel: button URL outright.
       links: [
-        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout', style: 'primary' as const },
+        { url: cohortCallUrl(app.id), label: '📞 Call Now', style: 'primary' as const },
+        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout' },
         { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
         { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
         { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },
-        { url: cohortCallSheetUrl(), label: '📋 Call sheet' },
       ],
     }).catch(() => {});
   });

@@ -89,3 +89,25 @@ export function cohortSendUrl(id: string, promo: boolean, channel: CohortChannel
 
 /** Same reasoning — admin deep links in Slack must never be localhost. */
 export const cohortCallSheetUrl = () => `${PUBLIC_HOST}/admin/cohort`;
+
+/**
+ * "Call now" button target.
+ *
+ * Slack REJECTS a `tel:` URL on a button outright (`invalid_blocks`), so the
+ * button has to be https and bounce to the dialer itself. Signed like the send
+ * links because the page discloses the applicant's phone number, and unlike a
+ * send, opening it is harmless — so the dial fires immediately on load.
+ */
+export function signCohortCall(id: string): string {
+  return crypto.createHmac('sha256', secret()).update(`${id}:call`).digest('hex').slice(0, 32);
+}
+
+export function verifyCohortCall(id: string, token: string): boolean {
+  const a = Buffer.from(signCohortCall(id));
+  const b = Buffer.from(token || '');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+export function cohortCallUrl(id: string): string {
+  return `${PUBLIC_HOST}/cohort-call/${id}?t=${signCohortCall(id)}`;
+}
