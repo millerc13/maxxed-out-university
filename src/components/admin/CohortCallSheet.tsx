@@ -46,6 +46,68 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+/**
+ * "Send checkout" — emails AND texts the applicant their enrollment link.
+ * Two buttons because whether to give the 15% discount is a judgement the
+ * closer makes on the call, not a global setting. Reports what actually
+ * delivered rather than a blanket "sent".
+ */
+function SendCheckout({ id, name }: { id: string; name: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [msg, setMsg] = useState('');
+
+  async function send(promo: boolean) {
+    if (state === 'sending') return;
+    const label = promo ? `Send ${name.split(' ')[0]} the link WITH the 15% discount?` : `Send ${name.split(' ')[0]} the full-price enrollment link?`;
+    if (!confirm(label)) return;
+    setState('sending');
+    try {
+      const res = await fetch(`/api/cohort-application/${id}/send-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promo }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || d.smsError || 'Send failed');
+      setState('done');
+      setMsg(`Sent${d.promo ? ` (${d.promo})` : ''} — email ${d.email ? '✓' : '✗'} · text ${d.sms ? '✓' : '✗'}`);
+    } catch (e) {
+      setState('error');
+      setMsg(e instanceof Error ? e.message : 'Send failed');
+    }
+  }
+
+  if (state === 'done') {
+    return (
+      <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2.5 text-center text-sm font-bold text-emerald-800">
+        ✅ {msg}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => send(false)}
+          disabled={state === 'sending'}
+          className="rounded-lg bg-gray-900 px-3 py-2.5 text-sm font-bold text-white transition hover:bg-gray-700 disabled:opacity-50"
+        >
+          {state === 'sending' ? 'Sending…' : '💳 Send checkout'}
+        </button>
+        <button
+          onClick={() => send(true)}
+          disabled={state === 'sending'}
+          className="rounded-lg border-2 border-emerald-600 px-3 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
+        >
+          {state === 'sending' ? '…' : '🏷️ Send + 15% off'}
+        </button>
+      </div>
+      {state === 'error' && <p className="mt-1.5 text-center text-xs font-semibold text-red-600">{msg}</p>}
+    </div>
+  );
+}
+
 /** One labelled answer block — replaces the old dot-separated run-on line. */
 function Answer({ q, label, points }: { q: string; label: string; points?: number }) {
   return (
@@ -275,6 +337,9 @@ export function CohortCallSheet({ rows }: { rows: CohortRow[] }) {
                   </div>
                 </div>
               )}
+
+              {/* ---- Send the enrollment link, usually mid-call ---- */}
+              <SendCheckout id={r.id} name={r.name} />
 
               {/* ---- Mobile actions: full-width thumb targets (desktop uses the
                    compact group in the header instead) ---- */}

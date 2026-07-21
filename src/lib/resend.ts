@@ -864,3 +864,79 @@ export async function sendPasswordResetEmail({
 </html>`,
   });
 }
+
+/**
+ * Cohort checkout link — sent by a closer from the call sheet, usually while
+ * still on the phone with the applicant. Deliberately short: one button, the
+ * price, and the promo if one is being offered. Nothing to read, one thing to do.
+ */
+export async function sendCohortCheckoutEmail({
+  to,
+  name,
+  checkoutUrl,
+  priceLabel,
+  promoCode,
+  promoPriceLabel,
+}: {
+  to: string;
+  name: string;
+  checkoutUrl: string;
+  priceLabel: string;
+  promoCode?: string | null;
+  promoPriceLabel?: string | null;
+}) {
+  const firstName = name.split(' ')[0] || 'there';
+  const logoUrl = `${BASE_URL}/downloads/logo.png`;
+
+  const promoBlock = promoCode
+    ? `<tr><td style="padding:0 0 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;">
+          <tr><td style="padding:16px 20px;text-align:center;">
+            <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#047857;">Your discount code</p>
+            <p style="margin:0 0 6px;font-size:26px;font-weight:800;letter-spacing:2px;color:#065f46;">${promoCode}</p>
+            <p style="margin:0;font-size:14px;color:#047857;">Enter it at checkout${promoPriceLabel ? ` — your price becomes <strong>${promoPriceLabel}</strong>` : ''}</p>
+          </td></tr>
+        </table>
+      </td></tr>`
+    : '';
+
+  return safeSend({
+    from: FROM,
+    to,
+    subject: `${firstName}, here's your cohort enrollment link`,
+    html: `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <tr><td style="background:#0B1C4D;padding:28px 32px;text-align:center;">
+          <img src="${logoUrl}" alt="Maxxed Out" height="34" style="height:34px;display:inline-block;" />
+        </td></tr>
+        <tr><td style="padding:36px 32px 8px;">
+          <h1 style="margin:0 0 14px;font-size:26px;font-weight:800;color:#111827;line-height:1.25;">You're in, ${firstName} — here's your link.</h1>
+          <p style="margin:0 0 24px;font-size:16px;color:#4b5563;line-height:1.6;">
+            This is your enrollment link for the <strong style="color:#111827;">12-Week Cohort</strong>. Secure your spot below — seats are limited and we're filling them from tonight's applications.
+          </p>
+        </td></tr>
+        ${promoBlock}
+        <tr><td style="padding:0 32px 8px;text-align:center;">
+          <a href="${checkoutUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:17px;font-weight:800;text-decoration:none;padding:17px 42px;border-radius:12px;">
+            Enroll now — ${priceLabel} &rarr;
+          </a>
+        </td></tr>
+        <tr><td style="padding:18px 32px 32px;text-align:center;">
+          <p style="margin:0;font-size:13px;color:#9ca3af;line-height:1.5;">
+            Trouble with the button? Paste this into your browser:<br>
+            <a href="${checkoutUrl}" style="color:#2563eb;word-break:break-all;">${checkoutUrl}</a>
+          </p>
+        </td></tr>
+        <tr><td style="background:#f9fafb;padding:20px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;">Questions? Just reply to this email — Todd's team is standing by.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+  });
+}

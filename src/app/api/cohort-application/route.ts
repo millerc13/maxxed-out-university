@@ -14,6 +14,13 @@ import {
 import { isVipBuyer } from '@/lib/cohort-vip';
 import { sendSmsToRecipient, notifyRecipients, normalizePhoneE164 } from '@/lib/sms';
 import { notifySlackChannels } from '@/lib/slack';
+import {
+  COHORT_CHECKOUT_URL,
+  COHORT_PROMO_CODE,
+  COHORT_PROMO_PERCENT,
+  cohortPriceLabel,
+  cohortPromoPriceLabel,
+} from '@/lib/cohort-checkout';
 
 export const runtime = 'nodejs';
 
@@ -210,6 +217,10 @@ export async function POST(request: Request) {
         ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),
         { label: 'SMS consent', value: 'Given on submit' },
         { label: 'Submitted', value: new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }) + ' ET' },
+        {
+          label: `💳 Checkout (${cohortPriceLabel()})`,
+          value: `${COHORT_CHECKOUT_URL}\n${COHORT_PROMO_CODE} = ${COHORT_PROMO_PERCENT}% off → ${cohortPromoPriceLabel()}`,
+        },
       ],
       link: {
         url: `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/admin/cohort`,
