@@ -29,6 +29,19 @@
  * A probe with initial_fee 111 and amount_cents 350000 produced a first charge
  * of $111.00 and a recurring subtotal of $3,500.00, which is what pins these
  * meanings down.
+ *
+ * The full config was then run end-to-end on the sandbox (2026-07-21) with
+ * initial_fee_days 55 against frequency_days 28, so the two could not be
+ * confused. Fanbasis rendered:
+ *
+ *     Total due today          $3,500.00
+ *     Recurring Subtotal       $3,500.00
+ *     Starting on Sep 14 2026  / 28 days
+ *     Last day of payment is   Oct 12 2026
+ *
+ * confirming initial_fee_days defers the FIRST recurring charge (it is not a
+ * 28-day-from-purchase cycle) and auto_expire_after_x_periods ends the plan
+ * after the third payment.
  */
 
 import { COHORT_METADATA_KEY } from '@/lib/cohort-checkout';
