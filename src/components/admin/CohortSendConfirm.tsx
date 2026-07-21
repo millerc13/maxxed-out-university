@@ -11,11 +11,13 @@ export function CohortSendConfirm({
   id,
   token,
   promo,
+  channel = 'both',
   firstName,
 }: {
   id: string;
   token: string;
   promo: boolean;
+  channel?: 'sms' | 'email' | 'both';
   firstName: string;
 }) {
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
@@ -27,12 +29,14 @@ export function CohortSendConfirm({
       const res = await fetch(`/api/cohort-application/${id}/send-checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ promo, token }),
+        body: JSON.stringify({ promo, token, channel }),
       });
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || d.smsError || 'Send failed');
       setState('done');
-      setMsg(`Text ${d.sms ? 'sent ✓' : 'FAILED ✗'} · Email ${d.email ? 'sent ✓' : 'FAILED ✗'}`);
+      const part = (v: boolean | null, label: string) =>
+        v === null ? null : `${label} ${v ? 'sent ✓' : 'FAILED ✗'}`;
+      setMsg([part(d.sms, 'Text'), part(d.email, 'Email')].filter(Boolean).join(' · '));
     } catch (e) {
       setState('error');
       setMsg(e instanceof Error ? e.message : 'Send failed');
@@ -61,9 +65,7 @@ export function CohortSendConfirm({
       >
         {state === 'sending'
           ? 'Sending…'
-          : promo
-            ? `📲 Text ${firstName} the link + discount`
-            : `📲 Text ${firstName} the link`}
+          : `${channel === 'email' ? '✉️ Email' : '📲 Text'} ${firstName} the link${promo ? ' + discount' : ''}`}
       </button>
       {state === 'error' && (
         <p className="mt-2 text-center text-sm font-semibold text-red-600">{msg}</p>

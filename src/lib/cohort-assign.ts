@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
  * is incremented atomically in Postgres (update-and-return), so two
  * applications submitted in the same instant can never land on the same person.
  */
-export const COHORT_CLOSERS = ['Mike', 'Miles', 'Jackie'] as const;
+export const COHORT_CLOSERS = ['Mike', 'Miles', 'Jackie', 'Todd'] as const;
 export type CohortCloser = (typeof COHORT_CLOSERS)[number];
 
 const SCOPE = 'cohort-medicaid';
@@ -46,16 +46,24 @@ function secret(): string {
   );
 }
 
-export function signCohortAction(id: string, promo: boolean): string {
+/** Which way the applicant gets their link. */
+export type CohortChannel = 'sms' | 'email' | 'both';
+
+export function signCohortAction(id: string, promo: boolean, channel: CohortChannel = 'both'): string {
   return crypto
     .createHmac('sha256', secret())
-    .update(`${id}:${promo ? '1' : '0'}`)
+    .update(`${id}:${promo ? '1' : '0'}:${channel}`)
     .digest('hex')
     .slice(0, 32);
 }
 
-export function verifyCohortAction(id: string, promo: boolean, token: string): boolean {
-  const expected = signCohortAction(id, promo);
+export function verifyCohortAction(
+  id: string,
+  promo: boolean,
+  token: string,
+  channel: CohortChannel = 'both',
+): boolean {
+  const expected = signCohortAction(id, promo, channel);
   const a = Buffer.from(expected);
   const b = Buffer.from(token || '');
   return a.length === b.length && crypto.timingSafeEqual(a, b);
@@ -74,9 +82,9 @@ export function verifyCohortAction(id: string, promo: boolean, token: string): b
 const PUBLIC_HOST = 'https://university.maxxedout.com';
 
 /** The URL that goes on a Slack button. Always absolute + production. */
-export function cohortSendUrl(id: string, promo: boolean): string {
-  const t = signCohortAction(id, promo);
-  return `${PUBLIC_HOST}/cohort-send/${id}?promo=${promo ? '1' : '0'}&t=${t}`;
+export function cohortSendUrl(id: string, promo: boolean, channel: CohortChannel = 'both'): string {
+  const t = signCohortAction(id, promo, channel);
+  return `${PUBLIC_HOST}/cohort-send/${id}?promo=${promo ? '1' : '0'}&ch=${channel}&t=${t}`;
 }
 
 /** Same reasoning — admin deep links in Slack must never be localhost. */

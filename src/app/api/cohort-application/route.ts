@@ -227,19 +227,15 @@ export async function POST(request: Request) {
           value: `${cohortPriceLabel()} · code *${COHORT_PROMO_CODE}* = ${COHORT_PROMO_PERCENT}% off → ${cohortPromoPriceLabel()}`,
         },
       ],
+      // Each button opens a signed one-tap confirm page that performs the send.
+      // Slack URL buttons can't POST, and a bare GET would let link unfurlers
+      // and mobile prefetch fire real messages at applicants.
+      // Slack caps an actions block at 5 elements — this is exactly 5.
       links: [
-        // These TEXT + EMAIL the applicant their link. Slack URL buttons can't
-        // POST, so each opens a signed one-tap confirm page that does the send —
-        // a bare GET would let link crawlers fire real texts at applicants.
-        {
-          url: cohortSendUrl(app.id, false),
-          label: `📲 Text link (${cohortPriceLabel()})`,
-          style: 'primary' as const,
-        },
-        {
-          url: cohortSendUrl(app.id, true),
-          label: `🏷️ Text link + ${COHORT_PROMO_PERCENT}% off`,
-        },
+        { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text link', style: 'primary' as const },
+        { url: cohortSendUrl(app.id, true, 'sms'), label: `📲 Text + ${COHORT_PROMO_PERCENT}% off` },
+        { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email link' },
+        { url: cohortSendUrl(app.id, true, 'email'), label: `✉️ Email + ${COHORT_PROMO_PERCENT}% off` },
         { url: cohortCallSheetUrl(), label: '📋 Call sheet' },
       ],
     }).catch(() => {});

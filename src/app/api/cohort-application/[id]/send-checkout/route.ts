@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sessionWithCapability, unauthorized } from '@/lib/api-auth';
-import { verifyCohortAction } from '@/lib/cohort-assign';
+import { verifyCohortAction, type CohortChannel } from '@/lib/cohort-assign';
 import { sendCohortCheckoutEmail } from '@/lib/resend';
 import { sendSmsToRecipient } from '@/lib/sms';
 import {
@@ -29,19 +29,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   let withPromo = false;
   let token = '';
+  let channel: CohortChannel = 'both';
   try {
     const body = await request.json();
     withPromo = !!body?.promo;
     token = typeof body?.token === 'string' ? body.token : '';
+    if (body?.channel === 'sms' || body?.channel === 'email' || body?.channel === 'both') {
+      channel = body.channel;
+    }
   } catch {
-    /* no body — default to no promo */
+    /* no body — default to no promo, both channels */
   }
 
   // Two ways in: an admin session (the call sheet) OR a signed token (a closer
   // tapping the Slack button on their phone, where they're not logged in). The
   // token is scoped to this exact application AND promo choice, so it can't be
   // edited into a discount that wasn't offered.
-  const signed = token ? verifyCohortAction(id, withPromo, token) : false;
+  const signed = token ? verifyCohortAction(id, withPromo, token, channel) : false;
   if (!signed) {
     const session = await sessionWithCapability('admin:access');
     if (!session) return unauthorized();
@@ -53,30 +57,45 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const promoCode = withPromo ? COHORT_PROMO_CODE : null;
   const promoPrice = withPromo ? cohortPromoPriceLabel() : null;
 
+  const wantEmail = channel === 'email' || channel === 'both';
+  const wantSms = channel === 'sms' || channel === 'both';
+
+  const firstName = app.name.split(' ')[0];
+  const smsBody = withPromo
+    ? `${firstName}, here's your 12-Week Cohort enrollment link: ${COHORT_CHECKOUT_URL} — use code ${COHORT_PROMO_CODE} for ${cohortPromoPriceLabel()}. Seats are limited.`
+    : `${firstName}, here's your 12-Week Cohort enrollment link: ${COHORT_CHECKOUT_URL} — ${cohortPriceLabel()}. Seats are limited.`;
+
+  // Only the requested channel(s) fire, and they're independent — one failing
+  // must not silently swallow the other.
   const [emailRes, smsRes] = await Promise.allSettled([
-    sendCohortCheckoutEmail({
-      to: app.email,
-      name: app.name,
-      checkoutUrl: COHORT_CHECKOUT_URL,
-      priceLabel: withPromo ? cohortPromoPriceLabel() : cohortPriceLabel(),
-      promoCode,
-      promoPriceLabel: promoPrice,
-    }),
-    sendSmsToRecipient(
-      { id: app.id, phone: app.phone, label: app.name, ghlContactId: app.ghlContactId },
-      withPromo
-        ? `${app.name.split(' ')[0]}, here's your 12-Week Cohort enrollment link: ${COHORT_CHECKOUT_URL} — use code ${COHORT_PROMO_CODE} for ${cohortPromoPriceLabel()}. Seats are limited.`
-        : `${app.name.split(' ')[0]}, here's your 12-Week Cohort enrollment link: ${COHORT_CHECKOUT_URL} — ${cohortPriceLabel()}. Seats are limited.`
-    ),
+    wantEmail
+      ? sendCohortCheckoutEmail({
+          to: app.email,
+          name: app.name,
+          checkoutUrl: COHORT_CHECKOUT_URL,
+          priceLabel: withPromo ? cohortPromoPriceLabel() : cohortPriceLabel(),
+          promoCode,
+          promoPriceLabel: promoPrice,
+        })
+      : Promise.resolve(null),
+    wantSms
+      ? sendSmsToRecipient(
+          { id: app.id, phone: app.phone, label: app.name, ghlContactId: app.ghlContactId },
+          smsBody,
+        )
+      : Promise.resolve(null),
   ]);
 
-  const emailOk = emailRes.status === 'fulfilled';
-  const smsOk = smsRes.status === 'fulfilled' && smsRes.value?.ok !== false;
+  const emailOk = wantEmail ? emailRes.status === 'fulfilled' : null;
+  const smsOk = wantSms
+    ? smsRes.status === 'fulfilled' && (smsRes.value as { ok?: boolean } | null)?.ok !== false
+    : null;
 
   // Leave a trail on the record so the next closer can see it was already sent.
+  const mark = (v: boolean | null) => (v === null ? 'skipped' : v ? 'ok' : 'FAILED');
   const stamp = `[${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET] Checkout link sent${
     withPromo ? ` (${COHORT_PROMO_CODE})` : ''
-  } — email:${emailOk ? 'ok' : 'FAILED'} sms:${smsOk ? 'ok' : 'FAILED'}`;
+  } — email:${mark(emailOk)} sms:${mark(smsOk)}`;
 
   await prisma.cohortApplication
     .update({
@@ -89,10 +108,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .catch(() => {});
 
   return NextResponse.json({
-    ok: emailOk || smsOk,
+    ok: emailOk === true || smsOk === true,
     email: emailOk,
     sms: smsOk,
-    smsError: smsOk ? undefined : (smsRes.status === 'fulfilled' ? smsRes.value?.error : 'send threw'),
+    channel,
+    smsError:
+      smsOk === false
+        ? (smsRes.status === 'fulfilled' ? (smsRes.value as { error?: string } | null)?.error : 'send threw')
+        : undefined,
     promo: withPromo ? COHORT_PROMO_CODE : null,
   });
 }

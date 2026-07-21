@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { verifyCohortAction } from '@/lib/cohort-assign';
+import { verifyCohortAction, type CohortChannel } from '@/lib/cohort-assign';
 import {
   COHORT_PROMO_CODE,
   COHORT_PROMO_PERCENT,
@@ -24,13 +24,14 @@ export default async function CohortSendPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ promo?: string; t?: string }>;
+  searchParams: Promise<{ promo?: string; t?: string; ch?: string }>;
 }) {
   const { id } = await params;
-  const { promo, t } = await searchParams;
+  const { promo, t, ch } = await searchParams;
   const withPromo = promo === '1';
+  const channel: CohortChannel = ch === 'sms' || ch === 'email' ? ch : 'both';
 
-  if (!t || !verifyCohortAction(id, withPromo, t)) notFound();
+  if (!t || !verifyCohortAction(id, withPromo, t, channel)) notFound();
 
   const app = await prisma.cohortApplication.findUnique({ where: { id } });
   if (!app) notFound();
@@ -66,7 +67,15 @@ export default async function CohortSendPage({
             )}
             <div className="flex justify-between border-t border-gray-200 pt-2">
               <span className="text-gray-500">Sends</span>
-              <span className="font-semibold text-gray-900">Text + email</span>
+              <span className="font-semibold text-gray-900">
+                {channel === 'sms' ? 'Text only' : channel === 'email' ? 'Email only' : 'Text + email'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">To</span>
+              <span className="font-semibold text-gray-900">
+                {channel === 'email' ? app.email : channel === 'sms' ? app.phone : 'both'}
+              </span>
             </div>
           </div>
 
@@ -77,7 +86,7 @@ export default async function CohortSendPage({
             </p>
           )}
 
-          <CohortSendConfirm id={app.id} token={t} promo={withPromo} firstName={app.name.split(' ')[0]} />
+          <CohortSendConfirm id={app.id} token={t} promo={withPromo} channel={channel} firstName={app.name.split(' ')[0]} />
 
           <p className="mt-4 text-center text-xs text-gray-400">
             Assigned to {app.assignedTo ?? 'unassigned'} · Tier {app.tier} · {app.score}/28
