@@ -26,7 +26,14 @@ export default async function CohortApplicationsPage() {
     take: 500,
   });
 
-  const rows: CohortRow[] = apps.map((a) => ({
+  // A buyer is no longer a lead. They come off the call sheet entirely rather
+  // than sitting in it with a badge — a closer working the list at 9pm should
+  // not have to read each card to find out who has already paid.
+  const buyers = apps.filter((a) => a.firstPaidAt != null);
+  const open = apps.filter((a) => a.firstPaidAt == null);
+  const revenueCents = buyers.reduce((sum, b) => sum + b.paidTotalCents, 0);
+
+  const rows: CohortRow[] = open.map((a) => ({
     id: a.id,
     name: a.name,
     phone: a.phone,
@@ -50,6 +57,7 @@ export default async function CohortApplicationsPage() {
     return acc;
   }, {});
   const vipCount = rows.filter((r) => r.isVip).length;
+  const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
 
   return (
     // Cap the reading width — the admin shell is full-bleed, and an unconstrained
@@ -89,6 +97,37 @@ export default async function CohortApplicationsPage() {
           <p className="mt-2 text-3xl font-extrabold tabular-nums text-amber-700">{vipCount}</p>
         </div>
       </div>
+
+      {buyers.length > 0 && (
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-emerald-800">
+              💰 Purchased — off the call sheet
+            </p>
+            <p className="text-sm font-bold text-emerald-900">
+              {buyers.length} {buyers.length === 1 ? 'buyer' : 'buyers'} · {money(revenueCents)} collected
+            </p>
+          </div>
+          <ul className="mt-3 divide-y divide-emerald-200/70">
+            {buyers.map((b) => (
+              <li key={b.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2">
+                <span className="font-bold text-emerald-900">{b.name}</span>
+                <span className="text-sm text-emerald-800">
+                  {b.paymentPlan ? (
+                    <>
+                      Plan · paid {b.paymentsMade}/3 · {money(b.paidTotalCents)}
+                      {b.paidInFullAt ? ' · complete' : ' · on schedule'}
+                    </>
+                  ) : (
+                    <>Paid in full · {money(b.paidTotalCents)}</>
+                  )}
+                  {b.assignedTo ? ` · closed by ${b.assignedTo}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <CohortCallSheet rows={rows} />
 
