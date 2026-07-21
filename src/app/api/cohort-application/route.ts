@@ -7,12 +7,11 @@ import {
   WORK_OPTIONS,
   US_STATES,
   scoreApplication,
-  closerLine,
   TIER_ACTION,
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
-import { sendSmsToRecipient, notifyRecipients, normalizePhoneE164 } from '@/lib/sms';
+import { sendSmsToRecipient, normalizePhoneE164 } from '@/lib/sms';
 import { notifySlackChannels } from '@/lib/slack';
 import {
   COHORT_CHECKOUT_URL,
@@ -160,8 +159,6 @@ export async function POST(request: Request) {
     },
   });
 
-  const line = closerLine({ ...app, note: app.note });
-
   after(async () => {
     const ghlContactId = await upsertGhl({
       name: d.name,
@@ -185,8 +182,10 @@ export async function POST(request: Request) {
       "Application received — Todd's team is calling tonight. Keep your phone close."
     ).catch(() => {});
 
-    // Team alerts, tier-first so closers can triage from the notification.
-    await notifyRecipients('lead', line, 'university').catch(() => {});
+    // Internal alerts go to SLACK ONLY — no staff SMS. notifyRecipients() texts
+    // every NotificationRecipient with notifyOnLead (Rebecca et al.), which is
+    // not wanted for cohort applications: the volume is high and the call sheet
+    // + Slack channel already cover triage.
 
     // Slack — its own event type so this never spams existing `lead` channels.
     // Sends EVERY form field: closers should be able to work the call straight
