@@ -39,6 +39,12 @@ export interface SlackEventPayload {
   fields?: { label: string; value: string }[];
   /** Optional click-through (e.g. /admin/leads/{id} or GHL contact URL). */
   link?: { url: string; label: string };
+  /**
+   * Multiple action buttons. Slack renders at most one `actions` block well, so
+   * these are merged with `link` into a single row. `style: 'primary'` makes a
+   * button green — use it for the one thing you want clicked.
+   */
+  links?: { url: string; label: string; style?: 'primary' | 'danger' }[];
   /** ISO timestamp the event occurred. Defaults to now. */
   occurredAt?: Date;
 }
@@ -88,18 +94,21 @@ function buildBlockKitMessage(eventType: SlackEventType, p: SlackEventPayload): 
         }
       : null;
 
-  const linkBlock = p.link
-    ? {
-        type: 'actions',
-        elements: [
-          {
+  // Slack caps an actions block at 5 elements. Merge `link` + `links` so callers
+  // can offer several one-tap actions (e.g. checkout link AND the call sheet).
+  const allLinks = [...(p.link ? [p.link] : []), ...(p.links ?? [])].slice(0, 5);
+  const linkBlock =
+    allLinks.length > 0
+      ? {
+          type: 'actions',
+          elements: allLinks.map((l) => ({
             type: 'button',
-            text: { type: 'plain_text', text: p.link.label, emoji: false },
-            url: p.link.url,
-          },
-        ],
-      }
-    : null;
+            text: { type: 'plain_text', text: l.label, emoji: true },
+            url: l.url,
+            ...((l as { style?: string }).style ? { style: (l as { style?: string }).style } : {}),
+          })),
+        }
+      : null;
 
   const occurredAt = p.occurredAt ?? new Date();
   const contextLine = `${headline} · ${occurredAt.toLocaleString('en-US', {

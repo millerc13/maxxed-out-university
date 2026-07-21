@@ -214,17 +214,20 @@ export async function POST(request: Request) {
         { label: 'Q: Anything we should know?', value: d.note?.trim() || '—' },
         { label: 'VIP ($27 buyer)', value: isVip ? 'YES — auto Tier A' : 'No' },
         ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),
-        { label: 'SMS consent', value: 'Given on submit' },
-        { label: 'Submitted', value: new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }) + ' ET' },
+        // Slack hard-caps a section at 10 fields and the builder slices the rest,
+        // so keep this list at 10 — anything past it silently disappears.
         {
-          label: `💳 Checkout (${cohortPriceLabel()})`,
-          value: `${COHORT_CHECKOUT_URL}\n${COHORT_PROMO_CODE} = ${COHORT_PROMO_PERCENT}% off → ${cohortPromoPriceLabel()}`,
+          label: `💳 Price`,
+          value: `${cohortPriceLabel()} · code *${COHORT_PROMO_CODE}* = ${COHORT_PROMO_PERCENT}% off → ${cohortPromoPriceLabel()}`,
         },
       ],
-      link: {
-        url: `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/admin/cohort`,
-        label: 'Open the call sheet',
-      },
+      links: [
+        { url: COHORT_CHECKOUT_URL, label: `💳 Send to checkout (${cohortPriceLabel()})`, style: 'primary' as const },
+        {
+          url: `${process.env.NEXTAUTH_URL || 'https://university.maxxedout.com'}/admin/cohort`,
+          label: '📋 Open call sheet',
+        },
+      ],
     }).catch(() => {});
   });
 
