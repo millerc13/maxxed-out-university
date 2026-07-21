@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { formatPhoneUS } from '@/lib/sms';
+import { formatPhoneUS, normalizePhoneE164 } from '@/lib/sms';
 import { postMessage, deleteMessage, hasSlackBot } from '@/lib/slack-bot';
 import { COHORT_METADATA_KEY } from '@/lib/cohort-checkout';
 import {
@@ -45,6 +45,13 @@ export interface CohortPaymentInput {
   isRenewal: boolean;
   provider?: string;
   productTitle?: string;
+  /** Everything Fanbasis actually gives us, for the alert. */
+  buyerPhone?: string;
+  cardBrand?: string;
+  cardLast4?: string;
+  feeCents?: number;
+  netCents?: number;
+  discountCents?: number;
 }
 
 export interface RecordResult {
@@ -218,9 +225,26 @@ export async function announceCohortPurchase(
     { type: 'mrkdwn', text: `*Email:*\n${input.buyerEmail}` },
     {
       type: 'mrkdwn',
-      text: `*Phone:*\n${app?.phone ? `*<tel:${app.phone}|${formatPhoneUS(app.phone)}>*` : '—'}`,
+      text: `*Phone:*\n${(() => {
+        const ph = app?.phone || input.buyerPhone;
+        return ph ? `*<tel:${normalizePhoneE164(ph)}|${formatPhoneUS(ph)}>*` : '—';
+      })()}`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Card:*\n${
+        input.cardBrand || input.cardLast4
+          ? `${(input.cardBrand ?? 'card').toUpperCase()} ····${input.cardLast4 ?? '????'}`
+          : '—'
+      }`,
     },
     { type: 'mrkdwn', text: `*Provider:*\n${input.provider || 'Fanbasis'}` },
+    {
+      type: 'mrkdwn',
+      text: `*Net to Todd:*\n${
+        input.netCents != null ? `${money(input.netCents)} (fee ${money(input.feeCents ?? 0)})` : '—'
+      }`,
+    },
     { type: 'mrkdwn', text: `*Payment ID:*\n\`${input.paymentId}\`` },
   ];
   if (app) {

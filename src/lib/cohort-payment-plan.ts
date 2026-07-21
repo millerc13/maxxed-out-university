@@ -121,7 +121,9 @@ export async function createPlanCheckout(input: {
         initial_fee: PLAN_PAYMENT_DOLLARS, // DOLLARS — charged now
         initial_fee_days: initialFeeDays, // defer payment 2 to the fixed date
       },
-      success_url: 'https://university.maxxedout.com/admin/cohort',
+      // Public receipt page — a buyer has no access to /admin/cohort and would
+      // hit a login wall seconds after paying.
+      success_url: 'https://university.maxxedout.com/cohort/thanks',
     }),
   });
 

@@ -772,6 +772,26 @@ export async function handleCohortPurchase(
     return;
   }
 
+  // The ORD-… twin carries no amount for subscriptions (the pi_… event has it),
+  // so an amountless payload is the order notification, not the payment. It is
+  // dropped rather than booked as a $0 payment — that row was what made a plan
+  // purchase look like two payments.
+  if (amountCents <= 0) {
+    console.log('[fanbasis-webhook] Cohort event with no amount — order twin, ignoring', {
+      paymentId,
+      buyerEmail,
+    });
+    return;
+  }
+
+  const card = (src.additional_params || payload.additional_params) as
+    | { last4?: string; card_brand?: string }
+    | undefined;
+  const dollars = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.round(n * 100) : undefined;
+  };
+
   const input = {
     paymentId: String(paymentId),
     buyerEmail: buyerEmail || '',
@@ -782,6 +802,12 @@ export async function handleCohortPurchase(
     isRenewal: opts.isRenewal,
     provider: 'Fanbasis (Commas)',
     productTitle,
+    buyerPhone: (src.phone || payload.phone) as string | undefined,
+    cardBrand: card?.card_brand,
+    cardLast4: card?.last4,
+    feeCents: dollars(src.admin_amount ?? payload.admin_amount),
+    netCents: dollars(src.creator_amount ?? payload.creator_amount),
+    discountCents: dollars(src.discount_amount ?? payload.discount_amount),
   };
 
   const result = await recordCohortPayment(input);
