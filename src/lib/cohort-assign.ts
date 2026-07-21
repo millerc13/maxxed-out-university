@@ -61,8 +61,23 @@ export function verifyCohortAction(id: string, promo: boolean, token: string): b
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-/** The URL that goes on a Slack button. */
-export function cohortSendUrl(baseUrl: string, id: string, promo: boolean): string {
+/**
+ * Canonical public host for Slack action links.
+ *
+ * Deliberately NOT derived from NEXTAUTH_URL: running the app locally against
+ * the shared production database fires real Slack notifications, and a
+ * localhost link in the team's channel is dead for everyone who taps it
+ * (this happened — the channel filled with http://localhost:3020 buttons).
+ * A Slack button is always tapped by a human on another machine, so it must
+ * always point at production.
+ */
+const PUBLIC_HOST = 'https://university.maxxedout.com';
+
+/** The URL that goes on a Slack button. Always absolute + production. */
+export function cohortSendUrl(id: string, promo: boolean): string {
   const t = signCohortAction(id, promo);
-  return `${baseUrl.replace(/\/$/, '')}/cohort-send/${id}?promo=${promo ? '1' : '0'}&t=${t}`;
+  return `${PUBLIC_HOST}/cohort-send/${id}?promo=${promo ? '1' : '0'}&t=${t}`;
 }
+
+/** Same reasoning — admin deep links in Slack must never be localhost. */
+export const cohortCallSheetUrl = () => `${PUBLIC_HOST}/admin/cohort`;

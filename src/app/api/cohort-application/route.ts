@@ -11,7 +11,7 @@ import {
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
-import { nextCohortCloser, cohortSendUrl } from '@/lib/cohort-assign';
+import { nextCohortCloser, cohortSendUrl, cohortCallSheetUrl } from '@/lib/cohort-assign';
 import { sendSmsToRecipient, normalizePhoneE164 } from '@/lib/sms';
 import { notifySlackChannels } from '@/lib/slack';
 import {
@@ -52,8 +52,6 @@ const schema = z.object({
  * split per cohort instead of everything landing in one room.
  */
 const COHORT_SOURCE = 'medicaid-cohort';
-
-const APP_BASE = process.env.NEXTAUTH_URL || 'https://university.maxxedout.com';
 
 const GHL_API_BASE = process.env.GHL_API_BASE || 'https://services.leadconnectorhq.com';
 
@@ -234,15 +232,15 @@ export async function POST(request: Request) {
         // POST, so each opens a signed one-tap confirm page that does the send —
         // a bare GET would let link crawlers fire real texts at applicants.
         {
-          url: cohortSendUrl(APP_BASE, app.id, false),
+          url: cohortSendUrl(app.id, false),
           label: `📲 Text link (${cohortPriceLabel()})`,
           style: 'primary' as const,
         },
         {
-          url: cohortSendUrl(APP_BASE, app.id, true),
+          url: cohortSendUrl(app.id, true),
           label: `🏷️ Text link + ${COHORT_PROMO_PERCENT}% off`,
         },
-        { url: `${APP_BASE}/admin/cohort`, label: '📋 Call sheet' },
+        { url: cohortCallSheetUrl(), label: '📋 Call sheet' },
       ],
     }).catch(() => {});
   });
