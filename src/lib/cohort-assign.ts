@@ -26,6 +26,7 @@ const CLOSER_SLACK_IDS: Record<string, string> = {
   Todd: 'U0A7G4PG7D3',
   Miles: 'U0A8ES2CT1N',
   Jackie: 'U0BJZSKHB36',
+  Mike: 'U0BJTG71AER',
 };
 
 function closerSlackId(name: string): string | undefined {
