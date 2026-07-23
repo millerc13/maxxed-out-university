@@ -167,8 +167,14 @@ export function CohortApplicationForm() {
       </div>
 
       <div>
-        <label className={labelCls}>The cohort is a $10,000 investment. Where are you with that?</label>
+        <label className={labelCls}>How much do you have to invest in yourself right now?</label>
         <ChoiceGroup name="investment" options={INVESTMENT_OPTIONS} value={f.investment} onChange={(v) => setF({ ...f, investment: v })} />
+        <div className="mt-2 flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2.5">
+          <span aria-hidden className="text-[13px] leading-5">💳</span>
+          <p className="text-[13px] font-semibold leading-snug text-emerald-900">
+            We have multiple financing &amp; buy-now-pay-later options — answer honestly, budget won&apos;t hold you back.
+          </p>
+        </div>
       </div>
 
       <div>

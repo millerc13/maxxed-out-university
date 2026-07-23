@@ -216,7 +216,7 @@ export async function POST(request: Request) {
         { label: 'Score', value: `${score} / 28` },
         { label: 'State', value: d.state },
         { label: 'Q: Where are you right now with this?', value: labelOf(READINESS_OPTIONS, d.readiness) },
-        { label: 'Q: $10,000 investment', value: labelOf(INVESTMENT_OPTIONS, d.investment) },
+        { label: 'Q: How much to invest in yourself', value: labelOf(INVESTMENT_OPTIONS, d.investment) },
         { label: 'Q: Current work situation', value: labelOf(WORK_OPTIONS, d.work) },
         { label: 'Q: Anything we should know?', value: d.note?.trim() || '—' },
         ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),

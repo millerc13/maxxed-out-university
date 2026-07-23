@@ -15,11 +15,13 @@ export const READINESS_OPTIONS = [
   { value: 'gathering_info', label: "I'm just gathering information right now", points: 0, short: 'Gathering info' },
 ] as const;
 
+// "How much do you have to invest in yourself right now?" — dollar ranges, no
+// price is shown. Financing/BNPL is offered, so a smaller budget is NOT
+// disqualifying; the top range is still the strongest buyer signal (auto Tier A).
 export const INVESTMENT_OPTIONS = [
-  { value: 'have_it', label: "I have it available and I'm ready to invest", points: 10, short: 'Has capital' },
-  { value: 'most_of_it', label: "I have most of it / I'd need a payment plan", points: 7, short: 'Most of it' },
-  { value: 'needs_financing', label: "I'd need to arrange financing, but I'm committed to finding it", points: 4, short: 'Needs financing' },
-  { value: 'out_of_reach', label: "That's out of reach for me right now", points: 0, short: 'Out of reach' },
+  { value: 'over_10k', label: '$10,000 or more', points: 10, short: '$10k+' },
+  { value: '5k_10k', label: '$5,000 – $10,000', points: 7, short: '$5k–10k' },
+  { value: 'under_5k', label: 'Less than $5,000', points: 3, short: 'Under $5k' },
 ] as const;
 
 export const WORK_OPTIONS = [
@@ -62,9 +64,11 @@ export const TIER_ACTION: Record<Tier, string> = {
 /**
  * Score + tier, including the spec's overrides:
  *  · $27 VIP buyer            → always Tier A (strongest buying signal we have)
- *  · "ready to invest" on Q6  → always Tier A, even if everything else is soft
- *  · "out of reach" on Q6     → capped at Tier C (nurture-able, but never jumps
- *                                a ready buyer in the call queue)
+ *  · "$10k+" on Q6            → always Tier A, even if everything else is soft
+ *
+ * No hard budget cap: financing/BNPL is offered, so a smaller budget no longer
+ * disqualifies an otherwise-ready applicant from a live call — the point score
+ * already down-weights it.
  */
 export function scoreApplication(input: {
   readiness: string;
@@ -86,13 +90,9 @@ export function scoreApplication(input: {
     tier = 'A';
     reasons.push('VIP buyer → auto Tier A');
   }
-  if (input.investment === 'have_it') {
+  if (input.investment === 'over_10k') {
     tier = 'A';
-    reasons.push('Ready to invest → auto Tier A');
-  }
-  if (input.investment === 'out_of_reach' && (tier === 'A' || tier === 'B')) {
-    tier = 'C';
-    reasons.push('Out of reach → capped at Tier C');
+    reasons.push('$10k+ available → auto Tier A');
   }
 
   return { score, tier, reasons };

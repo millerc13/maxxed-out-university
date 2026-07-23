@@ -8,7 +8,8 @@ import { prisma } from '@/lib/prisma';
  * is incremented atomically in Postgres (update-and-return), so two
  * applications submitted in the same instant can never land on the same person.
  */
-export const COHORT_CLOSERS = ['Mike', 'Miles', 'Jackie', 'Todd'] as const;
+// Tonight (2026-07-23): Todd + Mike only, 50/50. (Miles/Jackie paused.)
+export const COHORT_CLOSERS = ['Mike', 'Todd'] as const;
 export type CohortCloser = (typeof COHORT_CLOSERS)[number];
 
 const SCOPE = 'cohort-medicaid';

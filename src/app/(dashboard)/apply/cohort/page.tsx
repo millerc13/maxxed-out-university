@@ -46,7 +46,7 @@ export default function CohortApplyPage() {
       <main className="mx-auto max-w-xl px-5 py-10 sm:py-14">
         <header className="text-center">
           {/* Branding matters here: this page asks for a phone number and a
-              $10k readiness answer, so it has to read as unmistakably Todd's. */}
+              budget/readiness answer, so it has to read as unmistakably Todd's. */}
           <Image
             src={LOGO_SRC}
             alt="Maxxed Out"
