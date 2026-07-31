@@ -185,7 +185,7 @@ export async function POST(request: Request) {
     // the connect rate (per the brief).
     await sendSmsToRecipient(
       { id: app.id, phone: app.phone, label: app.name, ghlContactId },
-      "Application received — Todd's team is calling tonight. Keep your phone close."
+      "Application received — Todd's team will reach out soon. Keep your phone close."
     ).catch(() => {});
 
     // Internal alerts go to SLACK ONLY — no staff SMS. notifyRecipients() texts

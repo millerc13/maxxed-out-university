@@ -916,7 +916,7 @@ export async function sendCohortCheckoutEmail({
         <tr><td style="padding:36px 32px 8px;">
           <h1 style="margin:0 0 14px;font-size:26px;font-weight:800;color:#111827;line-height:1.25;">You're in, ${firstName} — here's your link.</h1>
           <p style="margin:0 0 24px;font-size:16px;color:#4b5563;line-height:1.6;">
-            This is your enrollment link for the <strong style="color:#111827;">12-Week Cohort</strong>. Secure your spot below — seats are limited and we're filling them from tonight's applications.
+            This is your enrollment link for the <strong style="color:#111827;">12-Week Cohort</strong>. Secure your spot below — seats are limited and filling fast.
           </p>
         </td></tr>
         ${promoBlock}
