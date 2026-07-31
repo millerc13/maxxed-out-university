@@ -14,7 +14,7 @@ const LOGO_SRC =
 export const dynamic = 'force-dynamic';
 
 const OG_TITLE = 'Apply for the 12-Week Cohort';
-const OG_DESC = 'Takes about 2 minutes. Todd and his team are calling applicants tonight.';
+const OG_DESC = 'Takes about 2 minutes. Todd and his team will reach out to walk you through it.';
 
 /**
  * This link is pasted into Zoom chat live during the class, so the unfurl must
@@ -63,7 +63,7 @@ export default function CohortApplyPage() {
             Apply for the 12-Week Cohort
           </h1>
           <p className="mt-3 text-gray-600">
-            Takes about 2 minutes. My team and I are calling applicants tonight.
+            Takes about 2 minutes. My team and I will reach out to walk you through it.
           </p>
         </header>
 

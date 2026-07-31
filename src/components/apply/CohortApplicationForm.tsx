@@ -64,10 +64,10 @@ export function CohortApplicationForm() {
           ✓
         </div>
         <h2 className="mt-5 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
-          Got it — we&apos;re calling tonight.
+          Got it — we&apos;ll be in touch.
         </h2>
         <p className="mx-auto mt-3 max-w-md text-gray-700">
-          Keep your phone nearby. Todd and his team are calling applicants right after the class wraps.
+          Keep your phone nearby. Todd and his team will reach out to walk you through it.
           If we miss you, we&apos;ll text you to lock in a time.
         </p>
         <p className="mt-4 text-sm font-semibold text-emerald-800">
@@ -129,7 +129,7 @@ export function CohortApplicationForm() {
       </div>
 
       <div>
-        <label className={labelCls}>Best phone number to reach you tonight</label>
+        <label className={labelCls}>Best phone number to reach you</label>
         <input
           className={input} type="tel" inputMode="tel" autoComplete="tel" placeholder="(555) 555-5555" required
           value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })}
@@ -137,7 +137,7 @@ export function CohortApplicationForm() {
         <div className="mt-2 flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2.5">
           <span aria-hidden className="text-[13px] leading-5">📞</span>
           <p className="text-[13px] font-semibold leading-snug text-blue-900">
-            We&apos;re calling tonight after the class — use a number you&apos;ll actually answer.
+            The team will call to walk you through it — use a number you&apos;ll actually answer.
           </p>
         </div>
       </div>
