@@ -70,12 +70,12 @@ async function upsertGhl(input: {
   if (!apiKey || !locationId) return null;
 
   const [firstName, ...rest] = input.name.split(/\s+/);
+  // Webinar's over — no 'source:webinar-live' or 'webinar-vip' on new applicants.
   const tags = [
     'cohort-application',
     `cohort-tier:${input.tier}`,
-    'source:webinar-live',
+    'source:cohort-application',
     'sms-consent',
-    ...(input.isVip ? ['webinar-vip'] : []),
   ];
 
   try {
