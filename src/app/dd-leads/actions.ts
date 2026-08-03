@@ -2,7 +2,15 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { DD_LEADS_COOKIE, ddLeadsCookieValue, verifyDdLeadsPassword } from '@/lib/dd-leads';
+import {
+  DD_LEADS_COOKIE,
+  ddLeadsCookieValue,
+  verifyDdLeadsCookie,
+  verifyDdLeadsPassword,
+  setDdContactedTag,
+  bustDdLeadsCache,
+} from '@/lib/dd-leads';
+import { sendCohortCheckout, sendCohortPlan } from '@/lib/cohort-send';
 
 export async function ddLeadsLogin(formData: FormData): Promise<void> {
   const password = String(formData.get('password') ?? '');
@@ -20,4 +28,84 @@ export async function ddLeadsLogin(formData: FormData): Promise<void> {
     path: '/dd-leads',
   });
   redirect('/dd-leads');
+}
+
+export type DdSendKind = 'checkout' | 'coupon' | 'plan';
+export type DdSendChannel = 'sms' | 'email';
+
+export interface DdSendResult {
+  ok: boolean;
+  message: string;
+}
+
+/**
+ * Send the Medicaid cohort checkout / coupon / payment-plan link to a DD
+ * lead, same messages the Slack closer buttons send (cohort-send). The lead
+ * is a raw GHL contact — sendCohortCheckout's CohortApplication audit stamp
+ * no-ops for them (its update is best-effort) and SMS goes out through the
+ * GHL conversations API using the contact id we already have.
+ */
+export async function ddLeadSend(input: {
+  contactId: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  kind: DdSendKind;
+  channel: DdSendChannel;
+}): Promise<DdSendResult> {
+  const jar = await cookies();
+  if (!verifyDdLeadsCookie(jar.get(DD_LEADS_COOKIE)?.value)) {
+    return { ok: false, message: 'Not signed in — refresh and re-enter the password.' };
+  }
+
+  const { contactId, name, phone, email, kind, channel } = input;
+  if (channel === 'sms' && !phone) return { ok: false, message: 'No phone on file.' };
+  if (channel === 'email' && !email) return { ok: false, message: 'No email on file.' };
+
+  const app = {
+    id: contactId,
+    name: name || 'there',
+    phone: phone ?? '',
+    email: email ?? '',
+    status: 'called',
+    closerNotes: null,
+    ghlContactId: contactId,
+  };
+
+  try {
+    const outcome =
+      kind === 'plan'
+        ? await sendCohortPlan({ app, channel })
+        : await sendCohortCheckout({ app, channel, withPromo: kind === 'coupon' });
+    if (!outcome.ok) {
+      return {
+        ok: false,
+        message: outcome.smsError ? `Send failed: ${outcome.smsError}` : 'Send failed.',
+      };
+    }
+    return { ok: true, message: channel === 'sms' ? 'Text sent' : 'Email sent' };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : 'Send failed.' };
+  }
+}
+
+/**
+ * Toggle the "contacted" state for a lead. Stored as a GHL tag so the CRM
+ * reflects it and every device sees the same state.
+ */
+export async function ddLeadMarkDone(input: {
+  contactId: string;
+  done: boolean;
+}): Promise<DdSendResult> {
+  const jar = await cookies();
+  if (!verifyDdLeadsCookie(jar.get(DD_LEADS_COOKIE)?.value)) {
+    return { ok: false, message: 'Not signed in — refresh and re-enter the password.' };
+  }
+  try {
+    await setDdContactedTag(input.contactId, input.done);
+    bustDdLeadsCache();
+    return { ok: true, message: input.done ? 'Marked contacted' : 'Marked not contacted' };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : 'Update failed.' };
+  }
 }

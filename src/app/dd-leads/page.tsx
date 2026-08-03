@@ -1,6 +1,9 @@
 import { cookies } from 'next/headers';
 import { getDdLeads, verifyDdLeadsCookie, DD_LEADS_COOKIE, type DdLead } from '@/lib/dd-leads';
+import { cohortPriceLabel, cohortPromoPriceLabel, COHORT_PROMO_CODE } from '@/lib/cohort-checkout';
+import { planPriceLabel, PLAN_PAYMENT_DOLLARS } from '@/lib/cohort-payment-plan';
 import { ddLeadsLogin } from './actions';
+import { LeadSendButtons } from './LeadSendButtons';
 
 /**
  * Medicaid DD funnel lead list for the sales team. Single shared password
@@ -75,10 +78,22 @@ function LoginForm({ error }: { error: boolean }) {
   );
 }
 
-function LeadCard({ lead, index }: { lead: DdLead; index: number }) {
+function LeadCard({
+  lead,
+  index,
+  sendLabels,
+}: {
+  lead: DdLead;
+  index: number;
+  sendLabels: { checkout: string; coupon: string; plan: string };
+}) {
   const meta = [lead.place, formatDate(lead.dateAdded)].filter(Boolean).join(' · ');
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div
+      className={`rounded-2xl border bg-white p-4 ${
+        lead.contacted ? 'border-emerald-200 opacity-70' : 'border-gray-200'
+      }`}
+    >
       <div className="flex items-start gap-2.5">
         <span className="min-w-6 pt-0.5 text-xs font-bold text-gray-300">{index + 1}</span>
         <div className="min-w-0 flex-1">
@@ -123,6 +138,14 @@ function LeadCard({ lead, index }: { lead: DdLead; index: number }) {
           {lead.email}
         </a>
       )}
+      <LeadSendButtons
+        contactId={lead.id}
+        name={lead.name}
+        phone={lead.phone}
+        email={lead.email}
+        initialContacted={lead.contacted}
+        labels={sendLabels}
+      />
     </div>
   );
 }
@@ -141,6 +164,11 @@ export default async function DdLeadsPage({
 
   const { leads, fetchedAt } = await getDdLeads();
   const complete = leads.filter((l) => l.status === 'complete').length;
+  const sendLabels = {
+    checkout: `12-Week Cohort enrollment link — ${cohortPriceLabel()}`,
+    coupon: `${COHORT_PROMO_CODE} coupon — ${cohortPromoPriceLabel()}`,
+    plan: `3-payment plan — $${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')} today, total ${planPriceLabel()}`,
+  };
 
   return (
     <div className="min-h-dvh bg-gray-50">
@@ -165,7 +193,7 @@ export default async function DdLeadsPage({
         </header>
         <div className="space-y-2.5">
           {leads.map((lead, i) => (
-            <LeadCard key={lead.id} lead={lead} index={i} />
+            <LeadCard key={lead.id} lead={lead} index={i} sendLabels={sendLabels} />
           ))}
         </div>
       </main>

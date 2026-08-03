@@ -36,6 +36,13 @@ export function verifyDdLeadsPassword(input: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/**
+ * Tag stamped on a GHL contact when the sales rep marks them done from
+ * /dd-leads. Living in GHL (not our DB) means the CRM shows it too and the
+ * lead list stays correct no matter which device marks it.
+ */
+export const DD_CONTACTED_TAG = 'dd contacted';
+
 export interface DdLead {
   id: string;
   name: string;
@@ -44,6 +51,7 @@ export interface DdLead {
   status: 'complete' | 'submitted';
   dateAdded: string | null;
   place: string | null;
+  contacted: boolean;
 }
 
 interface GhlSearchContact {
@@ -108,6 +116,7 @@ async function fetchDdLeadsFromGhl(): Promise<DdLead[]> {
       status: tags.includes('dd app complete') ? 'complete' : 'submitted',
       dateAdded: c.dateAdded ?? null,
       place: [c.city, c.state].filter(Boolean).join(', ') || null,
+      contacted: tags.includes(DD_CONTACTED_TAG),
     });
   }
   return leads;
@@ -125,4 +134,27 @@ export async function getDdLeads(): Promise<{ leads: DdLead[]; fetchedAt: Date }
   const leads = await fetchDdLeadsFromGhl();
   cache = { at: Date.now(), leads };
   return { leads, fetchedAt: new Date(cache.at) };
+}
+
+export function bustDdLeadsCache(): void {
+  cache = null;
+}
+
+/** Add or remove the contacted tag on a GHL contact. */
+export async function setDdContactedTag(contactId: string, done: boolean): Promise<void> {
+  const apiKey = process.env.GHL_API_KEY?.trim();
+  if (!apiKey) throw new Error('GHL_API_KEY not configured');
+  const res = await fetch(`${GHL_API_BASE}/contacts/${contactId}/tags`, {
+    method: done ? 'POST' : 'DELETE',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Version: GHL_API_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ tags: [DD_CONTACTED_TAG] }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`GHL tag update → ${res.status} ${body.slice(0, 200)}`);
+  }
 }
