@@ -1,5 +1,13 @@
 import { cookies } from 'next/headers';
-import { getDdLeads, verifyDdLeadsCookie, DD_LEADS_COOKIE, type DdLead } from '@/lib/dd-leads';
+import {
+  getDdLeads,
+  verifyDdLeadsCookie,
+  applyContactedOverrides,
+  parseOverrideCookie,
+  DD_LEADS_COOKIE,
+  DD_OVERRIDE_COOKIE,
+  type DdLead,
+} from '@/lib/dd-leads';
 import { cohortPriceLabel, cohortPromoPriceLabel, COHORT_PROMO_CODE } from '@/lib/cohort-checkout';
 import { ddLeadsLogin } from './actions';
 import { LeadSendButtons } from './LeadSendButtons';
@@ -161,7 +169,11 @@ export default async function DdLeadsPage({
     return <LoginForm error={error === '1'} />;
   }
 
-  const { leads, fetchedAt } = await getDdLeads();
+  const { leads: fetched, fetchedAt } = await getDdLeads();
+  const leads = applyContactedOverrides(
+    fetched,
+    parseOverrideCookie(jar.get(DD_OVERRIDE_COOKIE)?.value)
+  );
   const complete = leads.filter((l) => l.status === 'complete').length;
   // Contacted leads sink to their own section at the bottom so the rep
   // resumes at the top of the untouched list instead of scrolling past

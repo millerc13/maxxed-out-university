@@ -9,6 +9,8 @@ import {
   verifyDdLeadsPassword,
   setDdContactedTag,
   bustDdLeadsCache,
+  DD_OVERRIDE_COOKIE,
+  parseOverrideCookie,
 } from '@/lib/dd-leads';
 import { sendCohortCheckout } from '@/lib/cohort-send';
 
@@ -101,6 +103,19 @@ export async function ddLeadMarkDone(input: {
   try {
     await setDdContactedTag(input.contactId, input.done);
     bustDdLeadsCache();
+    // Mirror the toggle into a cookie so this device's next page load agrees
+    // even when it lands on a different serverless instance (see dd-leads.ts).
+    const entries = parseOverrideCookie(jar.get(DD_OVERRIDE_COOKIE)?.value).filter(
+      (e) => e.id !== input.contactId
+    );
+    entries.push({ id: input.contactId, c: input.done ? 1 : 0, at: Date.now() });
+    jar.set(DD_OVERRIDE_COOKIE, JSON.stringify(entries.slice(-60)), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10,
+      path: '/dd-leads',
+    });
     return { ok: true, message: input.done ? 'Marked contacted' : 'Marked not contacted' };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : 'Update failed.' };

@@ -15,6 +15,50 @@ const DD_TAGS = ['dd application submitted', 'dd app complete'];
 
 export const DD_LEADS_COOKIE = 'dd-leads-key';
 
+/**
+ * Recent contacted-toggles, mirrored into a cookie. Prod runs on several
+ * serverless instances: the action that flips a tag busts only its own
+ * instance's cache, and GHL's search index lags tag writes by up to a
+ * minute — so without this, a reload can show a just-marked lead back in
+ * the active list. The cookie makes the rep's own device always agree
+ * with what they just did.
+ */
+export const DD_OVERRIDE_COOKIE = 'dd-leads-contacted';
+export const DD_OVERRIDE_TTL_MS = 10 * 60 * 1000;
+
+export interface DdOverrideEntry {
+  id: string;
+  c: 0 | 1;
+  at: number;
+}
+
+export function parseOverrideCookie(raw: string | undefined): DdOverrideEntry[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (!Array.isArray(v)) return [];
+    const now = Date.now();
+    return v.filter(
+      (e): e is DdOverrideEntry =>
+        !!e &&
+        typeof (e as DdOverrideEntry).id === 'string' &&
+        typeof (e as DdOverrideEntry).at === 'number' &&
+        now - (e as DdOverrideEntry).at < DD_OVERRIDE_TTL_MS
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function applyContactedOverrides(leads: DdLead[], entries: DdOverrideEntry[]): DdLead[] {
+  if (entries.length === 0) return leads;
+  const map = new Map(entries.map((e) => [e.id, e.c === 1]));
+  return leads.map((l) => {
+    const o = map.get(l.id);
+    return o === undefined || o === l.contacted ? l : { ...l, contacted: o };
+  });
+}
+
 export function ddLeadsCookieValue(): string | null {
   const password = process.env.DD_LEADS_PASSWORD;
   const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
