@@ -10,7 +10,7 @@ interface Props {
   email: string | null;
   initialContacted: boolean;
   /** Rendered server-side so prices live in one place (cohort-checkout). */
-  labels: { checkout: string; coupon: string; plan: string };
+  labels: { checkout: string; coupon: string };
 }
 
 const BUTTONS: Array<{
@@ -20,11 +20,9 @@ const BUTTONS: Array<{
   confirmVerb: string;
 }> = [
   { kind: 'checkout', channel: 'sms', label: '📲 Text Checkout', confirmVerb: 'Text the checkout link' },
-  { kind: 'coupon', channel: 'sms', label: '📲 Text Coupon', confirmVerb: 'Text the coupon code' },
   { kind: 'checkout', channel: 'email', label: '✉️ Email Checkout', confirmVerb: 'Email the checkout link' },
+  { kind: 'coupon', channel: 'sms', label: '📲 Text Coupon', confirmVerb: 'Text the coupon code' },
   { kind: 'coupon', channel: 'email', label: '✉️ Email Coupon', confirmVerb: 'Email the coupon code' },
-  { kind: 'plan', channel: 'sms', label: '💳 Text Plan', confirmVerb: 'Text the 3-payment plan link' },
-  { kind: 'plan', channel: 'email', label: '💳 Email Plan', confirmVerb: 'Email the 3-payment plan link' },
 ];
 
 export function LeadSendButtons({
@@ -54,8 +52,7 @@ export function LeadSendButtons({
     });
   };
 
-  const detail = (kind: DdSendKind) =>
-    kind === 'checkout' ? labels.checkout : kind === 'coupon' ? labels.coupon : labels.plan;
+  const detail = (kind: DdSendKind) => (kind === 'coupon' ? labels.coupon : labels.checkout);
 
   const fire = (kind: DdSendKind, channel: DdSendChannel, confirmVerb: string) => {
     const target = channel === 'sms' ? phone : email;

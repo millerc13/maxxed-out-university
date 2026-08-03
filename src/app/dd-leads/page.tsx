@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { getDdLeads, verifyDdLeadsCookie, DD_LEADS_COOKIE, type DdLead } from '@/lib/dd-leads';
 import { cohortPriceLabel, cohortPromoPriceLabel, COHORT_PROMO_CODE } from '@/lib/cohort-checkout';
-import { planPriceLabel, PLAN_PAYMENT_DOLLARS } from '@/lib/cohort-payment-plan';
 import { ddLeadsLogin } from './actions';
 import { LeadSendButtons } from './LeadSendButtons';
 
@@ -85,7 +84,7 @@ function LeadCard({
 }: {
   lead: DdLead;
   index: number;
-  sendLabels: { checkout: string; coupon: string; plan: string };
+  sendLabels: { checkout: string; coupon: string };
 }) {
   const meta = [lead.place, formatDate(lead.dateAdded)].filter(Boolean).join(' · ');
   return (
@@ -172,7 +171,6 @@ export default async function DdLeadsPage({
   const sendLabels = {
     checkout: `12-Week Cohort enrollment link — ${cohortPriceLabel()}`,
     coupon: `${COHORT_PROMO_CODE} coupon — ${cohortPromoPriceLabel()}`,
-    plan: `3-payment plan — $${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')} today, total ${planPriceLabel()}`,
   };
 
   return (

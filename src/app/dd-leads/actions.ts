@@ -10,7 +10,7 @@ import {
   setDdContactedTag,
   bustDdLeadsCache,
 } from '@/lib/dd-leads';
-import { sendCohortCheckout, sendCohortPlan } from '@/lib/cohort-send';
+import { sendCohortCheckout } from '@/lib/cohort-send';
 
 export async function ddLeadsLogin(formData: FormData): Promise<void> {
   const password = String(formData.get('password') ?? '');
@@ -30,7 +30,7 @@ export async function ddLeadsLogin(formData: FormData): Promise<void> {
   redirect('/dd-leads');
 }
 
-export type DdSendKind = 'checkout' | 'coupon' | 'plan';
+export type DdSendKind = 'checkout' | 'coupon';
 export type DdSendChannel = 'sms' | 'email';
 
 export interface DdSendResult {
@@ -39,7 +39,7 @@ export interface DdSendResult {
 }
 
 /**
- * Send the Medicaid cohort checkout / coupon / payment-plan link to a DD
+ * Send the Medicaid cohort checkout / coupon link to a DD
  * lead, same messages the Slack closer buttons send (cohort-send). The lead
  * is a raw GHL contact — sendCohortCheckout's CohortApplication audit stamp
  * no-ops for them (its update is best-effort) and SMS goes out through the
@@ -73,10 +73,7 @@ export async function ddLeadSend(input: {
   };
 
   try {
-    const outcome =
-      kind === 'plan'
-        ? await sendCohortPlan({ app, channel })
-        : await sendCohortCheckout({ app, channel, withPromo: kind === 'coupon' });
+    const outcome = await sendCohortCheckout({ app, channel, withPromo: kind === 'coupon' });
     if (!outcome.ok) {
       return {
         ok: false,
