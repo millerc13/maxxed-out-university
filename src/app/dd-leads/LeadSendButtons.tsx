@@ -35,7 +35,6 @@ export function LeadSendButtons({
   initialContacted,
   labels,
 }: Props) {
-  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
@@ -74,8 +73,26 @@ export function LeadSendButtons({
 
   return (
     <div className="mt-2">
+      <div className="grid grid-cols-2 gap-1.5">
+        {BUTTONS.map(({ kind, channel, label, confirmVerb }) => {
+          const disabled =
+            pending || (channel === 'sms' && !phone) || (channel === 'email' && !email);
+          const key = `${kind}:${channel}`;
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={disabled}
+              onClick={() => fire(kind, channel, confirmVerb)}
+              className="rounded-lg bg-gray-100 py-2.5 text-[12px] font-bold text-gray-700 active:bg-gray-200 disabled:opacity-40"
+            >
+              {busyKey === key ? 'Sending…' : label}
+            </button>
+          );
+        })}
+      </div>
       {contacted ? (
-        <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
+        <div className="mt-1.5 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
           <span className="text-[13px] font-bold text-emerald-700">✅ Contacted</span>
           <button
             type="button"
@@ -91,37 +108,10 @@ export function LeadSendButtons({
           type="button"
           disabled={doneBusy}
           onClick={toggleDone}
-          className="w-full rounded-xl bg-gray-900 py-2.5 text-center text-[13px] font-bold text-white active:bg-gray-700 disabled:opacity-40"
+          className="mt-1.5 w-full rounded-xl bg-gray-900 py-2.5 text-center text-[13px] font-bold text-white active:bg-gray-700 disabled:opacity-40"
         >
           {doneBusy ? 'Saving…' : '✅ Mark as Contacted'}
         </button>
-      )}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="mt-1.5 w-full rounded-xl border border-gray-200 py-2 text-center text-[13px] font-bold text-gray-500 active:bg-gray-50"
-      >
-        {open ? 'Hide checkout options' : 'Send checkout link…'}
-      </button>
-      {open && (
-        <div className="mt-2 grid grid-cols-2 gap-1.5">
-          {BUTTONS.map(({ kind, channel, label, confirmVerb }) => {
-            const disabled =
-              pending || (channel === 'sms' && !phone) || (channel === 'email' && !email);
-            const key = `${kind}:${channel}`;
-            return (
-              <button
-                key={key}
-                type="button"
-                disabled={disabled}
-                onClick={() => fire(kind, channel, confirmVerb)}
-                className="rounded-lg bg-gray-100 py-2.5 text-[12px] font-bold text-gray-700 active:bg-gray-200 disabled:opacity-40"
-              >
-                {busyKey === key ? 'Sending…' : label}
-              </button>
-            );
-          })}
-        </div>
       )}
       {status && (
         <p

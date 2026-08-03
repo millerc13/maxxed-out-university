@@ -164,6 +164,11 @@ export default async function DdLeadsPage({
 
   const { leads, fetchedAt } = await getDdLeads();
   const complete = leads.filter((l) => l.status === 'complete').length;
+  // Contacted leads sink to their own section at the bottom so the rep
+  // resumes at the top of the untouched list instead of scrolling past
+  // everyone already handled.
+  const active = leads.filter((l) => !l.contacted);
+  const contacted = leads.filter((l) => l.contacted);
   const sendLabels = {
     checkout: `12-Week Cohort enrollment link — ${cohortPriceLabel()}`,
     coupon: `${COHORT_PROMO_CODE} coupon — ${cohortPromoPriceLabel()}`,
@@ -192,10 +197,22 @@ export default async function DdLeadsPage({
           </p>
         </header>
         <div className="space-y-2.5">
-          {leads.map((lead, i) => (
+          {active.map((lead, i) => (
             <LeadCard key={lead.id} lead={lead} index={i} sendLabels={sendLabels} />
           ))}
         </div>
+        {contacted.length > 0 && (
+          <>
+            <h2 className="mb-2 mt-8 px-1 text-xs font-extrabold uppercase tracking-[0.08em] text-emerald-700">
+              ✅ Contacted <span className="font-semibold text-gray-400">({contacted.length})</span>
+            </h2>
+            <div className="space-y-2.5">
+              {contacted.map((lead, i) => (
+                <LeadCard key={lead.id} lead={lead} index={active.length + i} sendLabels={sendLabels} />
+              ))}
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

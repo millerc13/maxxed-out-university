@@ -43,6 +43,9 @@ export function verifyDdLeadsPassword(input: string): boolean {
  */
 export const DD_CONTACTED_TAG = 'dd contacted';
 
+/** Test contacts pinned to the top of the list regardless of date. */
+const PINNED_EMAILS = ['cj-miller@resurgence.cloud'];
+
 export interface DdLead {
   id: string;
   name: string;
@@ -119,6 +122,11 @@ async function fetchDdLeadsFromGhl(): Promise<DdLead[]> {
       contacted: tags.includes(DD_CONTACTED_TAG),
     });
   }
+  leads.sort((a, b) => {
+    const aPin = PINNED_EMAILS.includes(a.email ?? '') ? 1 : 0;
+    const bPin = PINNED_EMAILS.includes(b.email ?? '') ? 1 : 0;
+    return bPin - aPin;
+  });
   return leads;
 }
 
@@ -127,13 +135,32 @@ async function fetchDdLeadsFromGhl(): Promise<DdLead[]> {
 const CACHE_TTL_MS = 5 * 60 * 1000;
 let cache: { at: number; leads: DdLead[] } | null = null;
 
+// GHL's contact-search index lags tag writes by up to a minute or so, which
+// would bounce a just-marked lead back to the active list on reload. Recent
+// toggles are overlaid on fetched data until the index has surely caught up.
+const OVERRIDE_TTL_MS = 10 * 60 * 1000;
+const contactedOverrides = new Map<string, { contacted: boolean; at: number }>();
+
+function applyOverrides(leads: DdLead[]): DdLead[] {
+  const now = Date.now();
+  return leads.map((l) => {
+    const o = contactedOverrides.get(l.id);
+    if (!o) return l;
+    if (now - o.at > OVERRIDE_TTL_MS) {
+      contactedOverrides.delete(l.id);
+      return l;
+    }
+    return o.contacted === l.contacted ? l : { ...l, contacted: o.contacted };
+  });
+}
+
 export async function getDdLeads(): Promise<{ leads: DdLead[]; fetchedAt: Date }> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
-    return { leads: cache.leads, fetchedAt: new Date(cache.at) };
+    return { leads: applyOverrides(cache.leads), fetchedAt: new Date(cache.at) };
   }
   const leads = await fetchDdLeadsFromGhl();
   cache = { at: Date.now(), leads };
-  return { leads, fetchedAt: new Date(cache.at) };
+  return { leads: applyOverrides(leads), fetchedAt: new Date(cache.at) };
 }
 
 export function bustDdLeadsCache(): void {
@@ -157,4 +184,5 @@ export async function setDdContactedTag(contactId: string, done: boolean): Promi
     const body = await res.text().catch(() => '');
     throw new Error(`GHL tag update → ${res.status} ${body.slice(0, 200)}`);
   }
+  contactedOverrides.set(contactId, { contacted: done, at: Date.now() });
 }
