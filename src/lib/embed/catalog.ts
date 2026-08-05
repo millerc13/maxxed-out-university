@@ -69,12 +69,6 @@ export const WIDGETS: WidgetDef[] = [
     suggestedHeight: 680,
   },
   {
-    id: 'sales-tracker',
-    title: 'Sales Tracker',
-    description: 'Contact → show → close pipeline with deal value and commission owed (all tracker sessions).',
-    suggestedHeight: 520,
-  },
-  {
     id: 'students',
     title: 'University Engagement',
     description: 'Students, enrollments, weekly active learners, lesson completion and quiz pass rates.',

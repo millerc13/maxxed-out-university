@@ -30,7 +30,6 @@ That's it — widgets auto-refresh their data every 5 minutes while visible.
 | GHL Pipelines | `/embed/pipelines` | Opportunities by pipeline, open value, purchased counts | GHL Opportunities API |
 | GHL Appointments | `/embed/appointments` | Next-14-day calls + 30-day show rate across all GHL calendars | GHL Calendars API |
 | Calendly — Rebecca | `/embed/bookings` | Booked/held/canceled + upcoming mentorship & Masterminds calls | Calendly API (Rebecca's PAT) |
-| Sales Tracker | `/embed/sales-tracker` | Contact → show → close, deal value, commission owed | `SalesTrackerEntry` table |
 | University Engagement | `/embed/students` | Students, enrollments, weekly actives, completion + quiz pass rates | `User`/`Enrollment`/`LessonProgress`/`QuizAttempt` |
 | Contracts & E-Sign | `/embed/contracts` | Sent → viewed → signed funnel, outstanding contract value | `DocumentSignature` table |
 | Checkout Links & Promos | `/embed/checkout-links` | Closer link funnel (sent→clicked→paid) + promo usage | `CheckoutLink`/`PromoCode` tables |

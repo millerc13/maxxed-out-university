@@ -78,7 +78,6 @@ export default async function OverviewWidget({
     cohortApps,
     apps30,
     recentLeads,
-    trackerEntries,
     students,
     enrollments,
     completedLessons,
@@ -115,9 +114,6 @@ export default async function OverviewWidget({
         name: true, email: true, source: true, createdAt: true, ghlContactId: true,
         course: { select: { title: true } },
       },
-    }),
-    prisma.salesTrackerEntry.findMany({
-      select: { didShow: true, didClose: true, dealAmountCents: true, commissionAmountCents: true, commissionPaid: true },
     }),
     prisma.user.count({ where: { role: 'STUDENT' } }),
     prisma.enrollment.count({ where: { course: { bundleId: null } } }),
@@ -235,14 +231,7 @@ export default async function OverviewWidget({
   for (const a of apps30) leadsBySource.set(a.source ?? 'unknown', (leadsBySource.get(a.source ?? 'unknown') ?? 0) + 1);
   const leadSourceRows = [...leadsBySource.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
 
-  // ================= tracker / platform =================
-  const trContacts = trackerEntries.length;
-  const trShows = trackerEntries.filter((e) => e.didShow === 'YES').length;
-  const trCloses = trackerEntries.filter((e) => e.didClose === 'YES').length;
-  const trDealCents = trackerEntries.reduce((a, e) => a + (e.dealAmountCents ?? 0), 0);
-  const trCommCents = trackerEntries.reduce((a, e) => a + (e.commissionAmountCents ?? 0), 0);
-  const trPaidCents = trackerEntries.filter((e) => e.commissionPaid).reduce((a, e) => a + (e.commissionAmountCents ?? 0), 0);
-
+  // ================= platform =================
   const docsSent = contracts.filter((d) => d.sentAt !== null).length;
   const docsViewed = contracts.filter((d) => d.firstViewedAt !== null).length;
   const docsSigned = contracts.filter((d) => d.status === 'completed').length;
@@ -313,7 +302,7 @@ export default async function OverviewWidget({
 
       {/* ============ SALES PIPELINE ============ */}
       <Section title="Sales Pipeline">
-        <div className="grid gap-3 lg:grid-cols-3">
+        <div className="grid gap-3 lg:grid-cols-2">
           <Card title="GHL opportunities by pipeline">
             <BarList
               items={pipelineRows.map((p) => ({
@@ -334,20 +323,6 @@ export default async function OverviewWidget({
             />
             <p className="mt-2 text-[11px] text-[#9CA3AF]">
               Tiers: {tierRows.map((t) => `${t.tier} ${t.count}`).join(' · ')}
-            </p>
-          </Card>
-          <Card title={`Sales tracker (${formatUsd(trDealCents, { compact: true })} closed)`}>
-            <FunnelSteps
-              color={CHART_COLORS[1]}
-              steps={[
-                { label: 'Contacts', value: trContacts },
-                { label: 'Showed', value: trShows },
-                { label: 'Closed', value: trCloses },
-              ]}
-            />
-            <p className="mt-2 text-[11px] text-[#9CA3AF]">
-              Commission earned {formatUsd(trCommCents, { compact: true })} · still owed{' '}
-              <span className="font-semibold text-[#B45309]">{formatUsd(trCommCents - trPaidCents, { compact: true })}</span>
             </p>
           </Card>
         </div>
