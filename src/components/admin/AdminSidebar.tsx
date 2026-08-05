@@ -32,6 +32,7 @@ function getNavItems(role?: string | null, userEmail?: string | null) {
   const baseItems = [
     { href: '/admin/quick-links', label: 'Quick Links', icon: Zap },
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/embed-widgets', label: 'Embed Widgets', icon: LayoutDashboard },
     { href: '/admin/leads', label: 'Leads', icon: Inbox },
     { href: '/admin/cohort', label: 'Cohort Apps', icon: ClipboardList },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart2 },
