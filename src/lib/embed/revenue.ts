@@ -33,6 +33,8 @@ export type UnifiedTransaction = {
   buyerEmail: string;
   offerId: string;
   offerLabel: string;
+  /** Known for the GHL rail; other rails resolve by email on demand. */
+  ghlContactId?: string;
 };
 
 export async function listUnifiedTransactions(): Promise<UnifiedTransaction[]> {
@@ -83,6 +85,7 @@ export async function listUnifiedTransactions(): Promise<UnifiedTransaction[]> {
       buyerEmail: t.contactEmail,
       offerId: offer.id,
       offerLabel: offer.label,
+      ghlContactId: t.contactId || undefined,
     });
   }
 

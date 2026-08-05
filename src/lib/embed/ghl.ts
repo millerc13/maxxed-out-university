@@ -47,6 +47,7 @@ async function ghlGet(path: string, params: Record<string, string>): Promise<Rec
 
 export type GhlTransaction = {
   id: string;
+  contactId: string;
   contactName: string;
   contactEmail: string;
   /** Dollars (GHL returns dollars, not cents). */
@@ -60,6 +61,7 @@ export type GhlTransaction = {
 
 type RawGhlTx = {
   _id?: string;
+  contactId?: string;
   contactName?: string;
   contactEmail?: string;
   amount?: number;
@@ -94,6 +96,7 @@ export async function listGhlTransactions(): Promise<GhlTransaction[]> {
     for (const t of rows) {
       out.push({
         id: t._id ?? '',
+        contactId: t.contactId ?? '',
         contactName: t.contactName ?? '',
         contactEmail: (t.contactEmail ?? '').toLowerCase(),
         amount: typeof t.amount === 'number' ? t.amount : 0,
@@ -106,6 +109,37 @@ export async function listGhlTransactions(): Promise<GhlTransaction[]> {
     if (rows.length < PAGE_SIZE) break;
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Contact links (quality-of-life: click a buyer, land on their GHL card)
+// ---------------------------------------------------------------------------
+
+/** Deep link into the GHL contact detail page (opens in the GHL app). */
+export function ghlContactUrl(contactId: string): string {
+  return `https://app.gohighlevel.com/v2/location/${process.env.GHL_LOCATION_ID}/contacts/detail/${contactId}`;
+}
+
+/**
+ * Resolve a GHL contactId from an email (Fanbasis buyers don't come
+ * with one). Cached 1h — contact ids never change.
+ */
+export async function findGhlContactIdByEmail(email: string): Promise<string | null> {
+  const loc = locationId();
+  const headers = ghlHeaders();
+  if (!loc || !headers || !email) return null;
+  try {
+    const qs = new URLSearchParams({ locationId: loc, email });
+    const res = await fetch(`${V2_BASE}/contacts/search/duplicate?${qs.toString()}`, {
+      headers,
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { contact?: { id?: string } };
+    return json.contact?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,12 @@ export type WidgetDef = {
 
 export const WIDGETS: WidgetDef[] = [
   {
+    id: 'overview',
+    title: 'Command Center (everything, one page)',
+    description: 'The combined dashboard: revenue, offers, pipelines, cohort, calls, Calendly, webinar, funnels, leads, students, contracts and checkout links — deduplicated, with buyer names deep-linking to GHL contacts.',
+    suggestedHeight: 2400,
+  },
+  {
     id: 'revenue',
     title: 'Revenue — All Rails',
     description: 'Blended gross/net revenue: Fanbasis + GHL checkout + University Stripe, with 30-day trend and recent transactions.',
