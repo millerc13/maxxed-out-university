@@ -9,6 +9,12 @@ export type WidgetDef = {
 
 export const WIDGETS: WidgetDef[] = [
   {
+    id: 'hub',
+    title: 'Command Center — full page (for GHL sidebar custom menu)',
+    description: 'The tabbed app: Overview, Revenue, Pipeline, Calls, Marketing, University. Embed as a whole custom page in the GHL sidebar; tabs deep-link via #hash (e.g. #revenue).',
+    suggestedHeight: 1400,
+  },
+  {
     id: 'overview',
     title: 'Command Center (everything, one page)',
     description: 'The combined dashboard: revenue, offers, pipelines, cohort, calls, Calendly, webinar, funnels, leads, students, contracts and checkout links — deduplicated, with buyer names deep-linking to GHL contacts.',
