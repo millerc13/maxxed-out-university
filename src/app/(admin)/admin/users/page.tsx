@@ -4,6 +4,7 @@ import { Users, Search, Shield, GraduationCap, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { UserRoleSelect } from '@/components/admin/UserRoleSelect';
 import { UserDeleteButton } from '@/components/admin/UserDeleteButton';
+import { NewUserButton } from '@/components/admin/NewUserButton';
 import { auth } from '@/lib/auth';
 
 export default async function AdminUsersPage() {
@@ -32,6 +33,7 @@ export default async function AdminUsersPage() {
             Manage user accounts and permissions
           </p>
         </div>
+        <NewUserButton />
       </div>
 
       {/* Stats */}
