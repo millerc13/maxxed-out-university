@@ -18,14 +18,14 @@ import { normalizePhoneE164 } from '@/lib/sms';
  */
 
 const SOCIALS_SMS = [
-  "It's Todd Pultz — great connecting in Kansas! Follow me here:",
+  "It's Todd Pultz — great connecting! Follow me here:",
   'YouTube: https://www.youtube.com/@toddpultzofficial',
   'Instagram: https://www.instagram.com/toddpultzofficial',
   'Facebook: https://www.facebook.com/todd.pultz',
 ].join('\n');
 
 const CONNECT_SMS =
-  "This is Todd Pultz's team — we got your request from the Kansas event. Someone from our team will reach out shortly to talk about working directly with Todd!";
+  "This is Todd Pultz's team — we got your request. Someone from our team will reach out shortly to talk about working directly with Todd!";
 
 // Todd's GHL contact (btttillc@gmail.com, +19374786858). Overridable so
 // lead alerts can be pointed at a tester without a code change.
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       try {
         await sendGhlSms(
           NOTIFY_CONTACT_ID,
-          `Kansas lead: ${name} (${phone}, ${email}) wants to work with you. Tagged kansas-connect in GHL.`
+          `New lead: ${name} (${phone}, ${email}) wants to work with you. Tagged kansas-connect in GHL.`
         );
       } catch (err) {
         console.error('[connect] Todd alert SMS failed', { error: err instanceof Error ? err.message : err });
