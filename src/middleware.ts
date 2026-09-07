@@ -16,6 +16,20 @@ export default auth((req) => {
   // 'production') and localhost are left alone, and /api is excluded by the
   // matcher so server-to-server calls/webhooks aren't redirected.
   const host = req.headers.get('host') ?? '';
+
+  // connect.maxxedout.com — Kansas-event QR landing. Serve /connect on
+  // this host instead of canonical-redirecting: the bare domain rewrites
+  // to the page, /connect passes through, anything else goes canonical.
+  if (host === 'connect.maxxedout.com') {
+    if (nextUrl.pathname === '/') {
+      return NextResponse.rewrite(new URL('/connect', nextUrl));
+    }
+    if (nextUrl.pathname.startsWith('/connect')) {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL(nextUrl.pathname + nextUrl.search, `https://${CANONICAL_HOST}`), 308);
+  }
+
   if (process.env.VERCEL_ENV === 'production' && host && host !== CANONICAL_HOST) {
     const dest = new URL(nextUrl.pathname + nextUrl.search, `https://${CANONICAL_HOST}`);
     return NextResponse.redirect(dest, 308);
