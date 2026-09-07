@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { ConnectClient } from '@/components/connect/ConnectClient';
 
 /**
@@ -9,6 +9,12 @@ import { ConnectClient } from '@/components/connect/ConnectClient';
 export const metadata: Metadata = {
   title: 'Connect with Todd Pultz | Maxxed Out',
   description: 'Work directly with Todd or get his social links by text.',
+};
+
+export const viewport: Viewport = {
+  // Safari paints the notch/safe-area with this — must match the page's
+  // pure white (body default is #f5f5f5, which reads as a gray strip).
+  themeColor: '#ffffff',
 };
 
 export const dynamic = 'force-static';

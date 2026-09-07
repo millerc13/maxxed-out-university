@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Loader2, Handshake, MessageCircle, Youtube, Instagram, Facebook, CheckCircle2 } from 'lucide-react';
 
@@ -16,6 +16,19 @@ const INPUT =
   'w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-[16px] text-gray-900 placeholder:text-gray-400 focus:border-[#0000FF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0000FF]/20';
 
 export function ConnectClient() {
+  // iOS Safari shows html/body background in the safe area + overscroll;
+  // the global body bg is #f5f5f5, so force pure white for this page.
+  useEffect(() => {
+    const prevHtml = document.documentElement.style.backgroundColor;
+    const prevBody = document.body.style.backgroundColor;
+    document.documentElement.style.backgroundColor = '#ffffff';
+    document.body.style.backgroundColor = '#ffffff';
+    return () => {
+      document.documentElement.style.backgroundColor = prevHtml;
+      document.body.style.backgroundColor = prevBody;
+    };
+  }, []);
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
