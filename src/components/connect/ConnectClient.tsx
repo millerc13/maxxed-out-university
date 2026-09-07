@@ -58,8 +58,8 @@ export function ConnectClient() {
           Maxxed Out
         </p>
         <h1 className="mt-1 text-[32px] font-extrabold leading-[1.1] text-gray-900">
-          Great meeting you
-          <br />in Kansas.
+          Great meeting you.
+          <br />Let&apos;s keep it going.
         </h1>
         <p className="mt-2 text-[15px] leading-relaxed text-gray-500">
           Drop your info and choose how you want to connect with Todd.
