@@ -15,6 +15,7 @@ type Intent = 'connect' | 'social';
 export function ConnectClient() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [company, setCompany] = useState(''); // honeypot
   const [sending, setSending] = useState<Intent | null>(null);
   const [done, setDone] = useState<Intent | null>(null);
@@ -25,12 +26,13 @@ export function ConnectClient() {
     setError(null);
     if (!name.trim()) { setError('Enter your name first'); return; }
     if (phone.replace(/\D/g, '').length < 10) { setError('Enter a valid phone number'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Enter a valid email address'); return; }
     setSending(intent);
     try {
       const res = await fetch('/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, intent, company }),
+        body: JSON.stringify({ name, phone, email, intent, company }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? 'Something went wrong — try again'); return; }
@@ -129,6 +131,15 @@ export function ConnectClient() {
                   type="tel"
                   autoComplete="tel"
                   inputMode="tel"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[16px] focus:border-[#0000FF] focus:outline-none focus:ring-1 focus:ring-[#0000FF]"
+                />
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 text-[16px] focus:border-[#0000FF] focus:outline-none focus:ring-1 focus:ring-[#0000FF]"
                 />
                 {/* Honeypot — humans never see it */}

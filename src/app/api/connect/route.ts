@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const name = String(body.name ?? '').trim().slice(0, 80);
     const rawPhone = String(body.phone ?? '').trim();
+    const email = String(body.email ?? '').trim().toLowerCase().slice(0, 120);
     const intent = String(body.intent ?? '');
     const honeypot = String(body.company ?? '');
 
@@ -84,6 +85,9 @@ export async function POST(request: NextRequest) {
     const tag = TAG_BY_INTENT[intent];
     if (!tag) return NextResponse.json({ error: 'Invalid option' }, { status: 400 });
     if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
+    }
 
     const phone = normalizePhoneE164(rawPhone);
     if (!phone || phone.replace(/\D/g, '').length < 10) {
@@ -98,6 +102,7 @@ export async function POST(request: NextRequest) {
     const [firstName, ...rest] = name.split(/\s+/);
     const contactId = await upsertGhlContactByPhone({
       phone,
+      email,
       firstName,
       lastName: rest.join(' ') || null,
     });
@@ -123,7 +128,7 @@ export async function POST(request: NextRequest) {
       try {
         await sendGhlSms(
           NOTIFY_CONTACT_ID,
-          `Kansas lead: ${name} (${phone}) wants to work with you. Tagged kansas-connect in GHL.`
+          `Kansas lead: ${name} (${phone}, ${email}) wants to work with you. Tagged kansas-connect in GHL.`
         );
       } catch (err) {
         console.error('[connect] Todd alert SMS failed', { error: err instanceof Error ? err.message : err });
