@@ -15,6 +15,11 @@ interface FunnelCheckoutProps {
   courseId: string;
   courseTitle: string;
   coursePrice: number;
+  /** Fixed sale override in cents (Course.salePrice) — the amount actually
+   *  charged when set, with `coursePrice` shown struck through as the anchor.
+   *  Seeding from it keeps the first paint honest: without it the buyer sees
+   *  the anchor until create-intent answers, then watches the price drop. */
+  courseSalePrice?: number | null;
   courseSlug: string;
   courseThumbnail?: string | null;
   /** Per-course bullet list shown in the dark "What's Included" panel.
@@ -182,6 +187,7 @@ export function FunnelCheckout({
   courseId,
   courseTitle,
   coursePrice: coursePriceProp,
+  courseSalePrice = null,
   courseSlug,
   courseThumbnail,
   checkoutBullets,
@@ -214,7 +220,7 @@ export function FunnelCheckout({
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [coursePrice, setCoursePrice] = useState(coursePriceProp);
-  const [finalPrice, setFinalPrice] = useState(coursePriceProp);
+  const [finalPrice, setFinalPrice] = useState(courseSalePrice ?? coursePriceProp);
   const [loading, setLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [isExistingUser, setIsExistingUser] = useState(false);

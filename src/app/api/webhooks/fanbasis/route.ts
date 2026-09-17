@@ -492,8 +492,8 @@ async function enrollFromFanbasis(params: {
   // Server-side Meta CAPI Purchase mirror. event_id is the Fanbasis
   // payment id so the matching browser-side Purchase fired by
   // /checkout/success collapses to one conversion in Ads Manager.
-  // Value is the actually-charged amount — salePrice when set (e.g. the $499
-  // July sale), else Course.price, else params.originalPrice.
+  // Value is the actually-charged amount — salePrice when set (e.g. Blueprint's
+  // $397), else Course.price, else params.originalPrice.
   if (purchasedCourse?.metaPixelId) {
     const cents = purchasedCourse.salePrice ?? purchasedCourse.price ?? Number(params.originalPrice) ?? null;
     const [firstName, ...rest] = (userName ?? '').trim().split(/\s+/);

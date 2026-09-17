@@ -64,7 +64,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
 
   const course = await prisma.course.findUnique({
     where: isAdminPreview ? { id: courseId } : { id: courseId, published: true },
-    select: { id: true, title: true, price: true, slug: true, thumbnail: true, checkoutBullets: true, metaPixelId: true },
+    select: { id: true, title: true, price: true,
+      salePrice: true, slug: true, thumbnail: true, checkoutBullets: true, metaPixelId: true },
   });
 
   if (!course || !course.price || course.price <= 0) {
@@ -141,6 +142,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
           courseId={course.id}
           courseTitle={course.title}
           coursePrice={course.price}
+          courseSalePrice={course.salePrice}
           courseSlug={course.slug}
           courseThumbnail={course.thumbnail}
           checkoutBullets={effectiveBullets}

@@ -46,6 +46,7 @@ export default async function PayPage({ params }: PayPageProps) {
       title: true,
       slug: true,
       price: true,
+      salePrice: true,
       thumbnail: true,
       shortDesc: true,
       checkoutBullets: true,
@@ -103,6 +104,7 @@ export default async function PayPage({ params }: PayPageProps) {
           courseTitle={course.title}
           courseSlug={course.slug}
           coursePrice={course.price}
+          courseSalePrice={course.salePrice}
           courseThumbnail={course.thumbnail}
           shortDesc={course.shortDesc}
           checkoutBullets={checkoutBullets}

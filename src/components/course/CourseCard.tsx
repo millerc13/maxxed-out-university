@@ -15,6 +15,10 @@ interface CourseCardProps {
   slug: string;
   comingSoon?: boolean;
   price?: number | null;
+  /** Fixed sale override (Course.salePrice). When set it IS the price — the
+   *  badge shows it with `price` struck through as the anchor. Without this
+   *  the card advertises the anchor, which is not what the buyer is charged. */
+  salePrice?: number | null;
   externalUrl?: string;
   applyMode?: boolean;
   shortDesc?: string | null;
@@ -34,6 +38,7 @@ export function CourseCard({
   slug,
   comingSoon = false,
   price,
+  salePrice,
   externalUrl,
   applyMode,
   shortDesc,
@@ -101,11 +106,14 @@ export function CourseCard({
             </span>
           </div>
         ) : !comingSoon && price !== undefined ? (() => {
-          const tier = getPriceTier(price);
+          const onSale = salePrice != null && price != null && salePrice < price;
+          const effective = onSale ? salePrice : price;
+          const tier = getPriceTier(effective);
           return (
             <div className="absolute top-3 right-3">
               <span className={`${tier.bgColor} ${tier.color} px-2 py-1 rounded text-xs font-bold`}>
-                {formatPrice(price)}
+                {onSale && <span className="opacity-60 line-through mr-1.5 font-semibold">{formatPrice(price)}</span>}
+                {formatPrice(effective)}
               </span>
             </div>
           );

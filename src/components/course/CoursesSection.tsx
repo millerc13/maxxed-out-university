@@ -104,6 +104,7 @@ export async function CoursesSection() {
                   badge="COURSE"
                   learningPoints={[]}
                   price={course.price}
+                  salePrice={(course as { salePrice?: number | null }).salePrice ?? null}
                   externalUrl={course.externalUrl ?? undefined}
                   applyMode={(course as { applyMode?: boolean }).applyMode ?? false}
                   shortDesc={course.shortDesc}

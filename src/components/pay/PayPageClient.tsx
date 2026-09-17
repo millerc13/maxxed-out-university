@@ -9,6 +9,9 @@ interface PayPageClientProps {
   courseTitle: string;
   courseSlug: string;
   coursePrice: number;
+  /** Fixed sale override (Course.salePrice). When set it IS the charge, with
+   *  `coursePrice` struck through as the anchor. */
+  courseSalePrice?: number | null;
   courseThumbnail: string | null;
   shortDesc: string | null;
   checkoutBullets: string[];
@@ -28,6 +31,7 @@ export function PayPageClient({
   courseTitle,
   courseSlug,
   coursePrice,
+  courseSalePrice = null,
   courseThumbnail,
   shortDesc,
   checkoutBullets,
@@ -47,7 +51,10 @@ export function PayPageClient({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [alreadyOwned, setAlreadyOwned] = useState(false);
 
-  const finalPrice = promoApplied?.finalPrice ?? coursePrice;
+  // A salePrice override is the standing charge (no promo stacks on it — the
+  // backend ignores codes when it's set), so it beats the anchor here too.
+  const basePrice = courseSalePrice ?? coursePrice;
+  const finalPrice = promoApplied?.finalPrice ?? basePrice;
   const formValid =
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
@@ -286,7 +293,7 @@ export function PayPageClient({
           <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
             <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-gray-500">Total today</span>
             <div className="text-right">
-              {promoApplied && finalPrice !== coursePrice && (
+              {finalPrice !== coursePrice && (
                 <p className="text-xs text-gray-400 line-through font-semibold">{formatUsd(coursePrice)}</p>
               )}
               <p className="text-2xl font-black text-gray-900">{formatUsd(finalPrice)}</p>

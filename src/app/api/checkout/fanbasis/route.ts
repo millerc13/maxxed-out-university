@@ -76,7 +76,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // A fixed salePrice override (e.g. the Blueprint "July Independence" $499)
+    // A fixed salePrice override (e.g. Blueprint's standing $397 against a
+    // $1,000 anchor)
     // IS the charge — no promo stacking on top. Only fall through to promo-code
     // discounting when there's no override.
     let finalAmount = course.salePrice ?? course.price;
