@@ -56,7 +56,7 @@ const CATEGORY_ORDER: ChartCategory[] = [
 /**
  * Picker modal for both chart slots and KPI slots. Renders live
  * miniature previews of every option using the actual session data,
- * so Rebecca picks based on what the chart looks like with HER
+ * so the rep picks based on what the chart looks like with THEIR
  * numbers — not just an icon + label.
  *
  * Mobile: full-screen sheet. Desktop: large centered modal with a
@@ -79,7 +79,7 @@ export function ChartDrawer({
   }, [onClose]);
 
   // Lock body scroll while open so the page underneath doesn't scroll
-  // when Rebecca scrolls the long preview list.
+  // when the rep scrolls the long preview list.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';

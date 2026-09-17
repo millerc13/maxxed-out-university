@@ -43,7 +43,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, bookACallEnabled, heroStats, checkoutBullets, welcomeSmsBody, welcomeEmailSubject, welcomeEmailBody, autoSendContract, metaPixelId, metaCapiAccessToken, metaTestEventCode } = body;
+    const { title, slug, description, shortDesc, thumbnail, published, comingSoon, price, externalUrl, applyMode, checkoutAfterApply, notifyClosersOnApply, heroStats, checkoutBullets, welcomeSmsBody, welcomeEmailSubject, welcomeEmailBody, autoSendContract, metaPixelId, metaCapiAccessToken, metaTestEventCode } = body;
 
     // Validate checkoutBullets — string array, drop blanks.
     let checkoutBulletsValidated: string[] | undefined;
@@ -103,7 +103,6 @@ export async function PUT(
         ...(applyMode !== undefined && { applyMode: !!applyMode }),
         ...(checkoutAfterApply !== undefined && { checkoutAfterApply: !!checkoutAfterApply }),
         ...(notifyClosersOnApply !== undefined && { notifyClosersOnApply: !!notifyClosersOnApply }),
-        ...(bookACallEnabled !== undefined && { bookACallEnabled: !!bookACallEnabled }),
         ...(welcomeSmsBody !== undefined && {
           welcomeSmsBody: typeof welcomeSmsBody === 'string' && welcomeSmsBody.trim() ? welcomeSmsBody : null,
         }),

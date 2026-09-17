@@ -6,7 +6,7 @@
  *   { label, value, sub?, icon, tone }
  *
  * The picker drawer renders each KPI's *actual* live value as the
- * preview, so swapping one feels concrete (Rebecca sees the real
+ * preview, so swapping one feels concrete (the rep sees the real
  * number, not just a name).
  */
 

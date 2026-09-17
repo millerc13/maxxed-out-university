@@ -411,7 +411,7 @@ function SessionCard({
           </div>
         </div>
 
-        {/* Hero: outstanding commission. The number Rebecca cares about
+        {/* Hero: outstanding commission. The number the rep cares about
             most — what she's still owed across this session. */}
         {stats && totalCommission > 0 ? (
           <>
@@ -626,7 +626,7 @@ function DeleteConfirm({
 
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   // Escape closes the modal — matches OS-level dialog conventions and
-  // avoids the trap where Rebecca clicks into the backdrop and nothing
+  // avoids the trap where the rep clicks into the backdrop and nothing
   // happens because focus is on an input inside.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

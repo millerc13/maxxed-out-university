@@ -876,8 +876,8 @@ function BoolCell({
         onClick={() => onChange(!value)}
         title={
           value
-            ? 'Rebecca has been paid her commission for this deal'
-            : 'Rebecca is still owed commission for this deal'
+            ? 'The rep has been paid their commission for this deal'
+            : 'The rep is still owed commission for this deal'
         }
         className={`inline-flex items-center justify-center min-w-[80px] px-2.5 py-1 rounded-md text-xs font-bold ring-1 ring-inset transition ${
           value
@@ -1108,7 +1108,7 @@ function GroupSection({
   const someSelected = groupIds.some((id) => selectedIds.has(id));
 
   // Per-section totals for the bar — visible at-a-glance numbers so
-  // Rebecca knows where her money is without flipping to Analytics.
+  // the rep knows where their money is without flipping to Analytics.
   let totalCommission = 0;
   let paidCommission = 0;
   for (const e of group.entries) {

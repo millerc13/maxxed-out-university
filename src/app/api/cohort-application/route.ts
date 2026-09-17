@@ -189,7 +189,7 @@ export async function POST(request: Request) {
     ).catch(() => {});
 
     // Internal alerts go to SLACK ONLY — no staff SMS. notifyRecipients() texts
-    // every NotificationRecipient with notifyOnLead (Rebecca et al.), which is
+    // every NotificationRecipient with notifyOnLead, which is
     // not wanted for cohort applications: the volume is high and the call sheet
     // + Slack channel already cover triage.
 

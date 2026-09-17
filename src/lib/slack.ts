@@ -50,7 +50,7 @@ export interface SlackEventPayload {
   contactName?: string;
   email?: string;
   phone?: string;
-  /** GHL-assigned closer/rep, formatted ("Rebecca Nardi"). */
+  /** GHL-assigned closer/rep, formatted ("Jane Doe"). */
   assignedTo?: string;
   /** Free-form key-value rows shown in the Slack message body. */
   fields?: { label: string; value: string }[];

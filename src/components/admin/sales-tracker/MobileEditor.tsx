@@ -125,7 +125,7 @@ export function MobileEditor({
   };
 
   // Filter chips — same semantics as desktop. Compact "Status" + "Outcome"
-  // chip groups + a section dropdown so Rebecca can scope the list on
+  // chip groups + a section dropdown so the rep can scope the list on
   // her phone without hunting through 50+ cards.
   const [paidFilter, setPaidFilter] = useState<'all' | 'paid' | 'owed'>('all');
   const [closeFilter, setCloseFilter] = useState<
@@ -988,7 +988,7 @@ function EditSheet({
           </Field>
           <Field
             label="Have I been paid yet?"
-            hint="Whether the company has paid out Rebecca's commission for this deal."
+            hint="Whether the company has paid out the rep's commission for this deal."
           >
             <BoolToggle
               value={entry.commissionPaid}
@@ -1325,7 +1325,7 @@ function BoolToggle({
  * to the phone or messaging app pre-filled with this lead's number.
  *
  * Disabled (greyed out, click-blocked) when no phone is on the entry,
- * so the affordance is still visible — Rebecca knows the action exists,
+ * so the affordance is still visible — the rep knows the action exists,
  * she just needs to fill in the phone first.
  */
 function ContactActions({ phone }: { phone?: string | null }) {

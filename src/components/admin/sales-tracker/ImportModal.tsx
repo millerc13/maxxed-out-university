@@ -20,7 +20,7 @@ interface Props {
  *
  * The server endpoint accepts the same column names we export, plus a
  * handful of common aliases ("Phone Number", "Did The Prospect Show?",
- * etc) so Rebecca's Excel sheet works out of the box.
+ * etc) so the rep's Excel sheet works out of the box.
  */
 export function ImportModal({ sessionId, knownTags, onClose, onImported }: Props) {
   const [file, setFile] = useState<File | null>(null);

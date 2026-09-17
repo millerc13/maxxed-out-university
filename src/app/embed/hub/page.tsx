@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * The full-page Command Center: server assembles every data source
- * (Fanbasis, GHL, Calendly, PostHog, webinar app, university DB) into
+ * (Fanbasis, GHL, PostHog, webinar app, university DB) into
  * one payload; the client shell renders it as a tabbed app. Designed
  * to be embedded as a whole custom page in the GHL sidebar menu.
  * Tabs deep-link via hash: /embed/hub?k=...#revenue

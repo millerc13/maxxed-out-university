@@ -32,7 +32,6 @@ export async function GET(request: NextRequest) {
           // to /apply — an old ad or email link must not surface a five-figure
           // number the team is supposed to quote on a call.
           applyMode: true,
-          bookACallEnabled: true,
           // Public — funnel repo injects fbq('init', ...) with this on
           // every page render. Access token + test-event-code stay
           // server-side only (used by /api/meta-capi/event proxy).

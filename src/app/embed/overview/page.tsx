@@ -9,7 +9,6 @@ import {
   ghlContactUrl,
   findGhlContactIdByEmail,
 } from '@/lib/embed/ghl';
-import { listCalendlyEvents } from '@/lib/embed/calendly';
 import { getWebinarOverview, getWebinarStats } from '@/lib/embed/webinar';
 import { queryPostHog, funnelHost, hogqlString } from '@/lib/posthog';
 import { EmbedShell, Card, EmbedDenied } from '@/components/embed/EmbedShell';
@@ -73,7 +72,6 @@ export default async function OverviewWidget({
     opportunities,
     upcomingAppts,
     pastAppts,
-    calendly,
     webinarOverview,
     cohortApps,
     apps30,
@@ -94,7 +92,6 @@ export default async function OverviewWidget({
     listOpportunities(),
     listAppointments(nowMs, nowMs + 14 * 86_400_000),
     listAppointments(nowMs - 30 * 86_400_000, nowMs),
-    listCalendlyEvents(30),
     getWebinarOverview(),
     prisma.cohortApplication.findMany({
       select: {
@@ -216,9 +213,6 @@ export default async function OverviewWidget({
   const noShows = pastAppts.filter((a) => a.status === 'noshow').length;
   const decided = showed + noShows;
   const nowIso = now.toISOString();
-  const calUpcoming = calendly.filter((e) => e.status === 'active' && e.startTime >= nowIso);
-  const calCanceled = calendly.filter((e) => e.status === 'canceled').length;
-  const calHeld = calendly.filter((e) => e.status === 'active' && e.startTime < nowIso).length;
 
   // ================= webinar =================
   const firstWebinar = webinarOverview?.webinars?.[0];
@@ -257,7 +251,7 @@ export default async function OverviewWidget({
           value={openOpps.length.toLocaleString()}
           sub={openValueCents > 0 ? `open opps · ${formatUsd(openValueCents, { compact: true })} tagged value` : 'open opportunities'}
         />
-        <Stat label="Upcoming calls" value={String(upcomingAppts.length + calUpcoming.length)} sub="GHL + Calendly, 14d" />
+        <Stat label="Upcoming calls" value={String(upcomingAppts.length)} sub="GHL, 14d" />
       </div>
 
       {/* ============ REVENUE ============ */}
@@ -338,15 +332,6 @@ export default async function OverviewWidget({
                 fmtEt(a.startTime, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
                 <span key="t" className="line-clamp-1 max-w-[200px]">{a.title}</span>,
                 a.calendarName,
-              ])}
-            />
-          </Card>
-          <Card title={`Calendly (Rebecca) — 30d: ${calHeld} held / ${calCanceled} canceled`}>
-            <DataTable
-              headers={['When (ET)', 'Call type']}
-              rows={calUpcoming.slice(0, 7).map((e) => [
-                fmtEt(e.startTime, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
-                <span key="n" className="line-clamp-1 max-w-[260px]">{e.name}</span>,
               ])}
             />
           </Card>
@@ -477,7 +462,7 @@ export default async function OverviewWidget({
 
       <p className="mt-4 text-center text-[10px] text-[#9CA3AF]">
         <span style={{ color: STATUS.neutral }}>
-          Data refreshes every 5 minutes · Fanbasis, GoHighLevel, Calendly, PostHog, webinar engine & university DB
+          Data refreshes every 5 minutes · Fanbasis, GoHighLevel, PostHog, webinar engine & university DB
         </span>
       </p>
     </EmbedShell>

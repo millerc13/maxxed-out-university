@@ -43,7 +43,6 @@ interface Course {
   applyMode?: boolean;
   checkoutAfterApply?: boolean;
   notifyClosersOnApply?: boolean;
-  bookACallEnabled?: boolean;
   heroStats?: HeroStat[] | null;
   checkoutBullets?: string[] | null;
   // Delivery (post-purchase messaging) — admin-editable copy with token replacement.
@@ -76,10 +75,6 @@ export interface CourseFormDraft {
   // triggers the closer-notify webhook. Flip OFF for QA / testing a
   // course without firing closer texts.
   notifyClosersOnApply: boolean;
-  // When true (default), every funnel + university lead/purchase
-  // surface for this course shows a "Have more questions? Book a call"
-  // CTA pointing to the Calendly booking link.
-  bookACallEnabled: boolean;
   // Delivery — post-purchase SMS + email copy and the auto-send-contract
   // toggle. All fields optional; webhooks fall back to defaults when
   // unset. Tokens supported: {{firstName}} {{courseTitle}} {{shortUrl}}
@@ -126,7 +121,6 @@ function initialDraft(course?: Course): CourseFormDraft {
     // Default ON when the field is missing (e.g. legacy courses) so we
     // never silently disable the existing closer-notify behavior.
     notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
-    bookACallEnabled: course?.bookACallEnabled ?? true,
     welcomeSmsBody: course?.welcomeSmsBody || '',
     welcomeEmailSubject: course?.welcomeEmailSubject || '',
     welcomeEmailBody: course?.welcomeEmailBody || '',
@@ -159,7 +153,6 @@ function isDraftDirty(course: Course | undefined, draft: CourseFormDraft): boole
     baseline.externalUrl !== draft.externalUrl ||
     baseline.checkoutAfterApply !== draft.checkoutAfterApply ||
     baseline.notifyClosersOnApply !== draft.notifyClosersOnApply ||
-    baseline.bookACallEnabled !== draft.bookACallEnabled ||
     baseline.welcomeSmsBody !== draft.welcomeSmsBody ||
     baseline.welcomeEmailSubject !== draft.welcomeEmailSubject ||
     baseline.welcomeEmailBody !== draft.welcomeEmailBody ||
@@ -670,15 +663,6 @@ export function CourseForm({ course, onDraftChange, onShowPreview }: CourseFormP
                   }
                   label="Notify closers when someone applies"
                   description="When ON, applications create a GHL opportunity which fires the closer-notify automation (texts the team a heads-up). Turn OFF when QA-testing a course so you don't spam the team. Default: ON."
-                />
-                <Toggle
-                  id="bookACallEnabled"
-                  checked={formData.bookACallEnabled}
-                  onChange={(next) =>
-                    setFormData((prev) => ({ ...prev, bookACallEnabled: next }))
-                  }
-                  label='"Book a call" CTA'
-                  description='When ON, every funnel + university lead/purchase surface for this course shows a "Have more questions? Book a call with our team" button. Default: ON.'
                 />
               </div>
             </div>

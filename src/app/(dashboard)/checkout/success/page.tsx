@@ -302,18 +302,6 @@ export default async function CheckoutSuccessPage({ searchParams }: SuccessPageP
               >
                 My Courses
               </Link>
-              <a
-                href={
-                  process.env.NEXT_PUBLIC_CALENDLY_URL ||
-                  'https://calendly.com/rebecca-nardi/maxxed-out-todd-pultz-mentorship-healthcare'
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-gray-200 text-gray-700 font-black text-[12px] tracking-[0.15em] uppercase rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                <CalendarIcon className="w-4 h-4" />
-                Book a Call
-              </a>
             </div>
           </div>
         </Card>

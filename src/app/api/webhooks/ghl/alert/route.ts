@@ -13,8 +13,8 @@ export const runtime = 'nodejs';
  *
  * GHL workflows POST contact data here. We:
  *   1. Validate the shared secret (?secret=… or x-webhook-secret header)
- *   2. For dd_application: pick a round-robin assignee (Rebecca/Rafael)
- *      and PATCH the GHL contact's assignedTo via the Marketing API
+ *   2. For dd_application: the GHL workflow owns assignment (it assigns
+ *      to the current closer before calling this webhook)
  *   3. Fire the Slack alert via notifySlackChannels — channel routing
  *      is admin-managed in /admin/notifications
  *
@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
 
   // Assigned-to display name. Two ways the GHL workflow can set this:
   //   1. Hardcoded `assigned_to` Custom Data field on the webhook step
-  //      (simplest — Rebecca branch hardcodes "Rebecca", Raf branch
-  //      hardcodes "Raf"). Wins when present.
+  //      (simplest — the workflow branch hardcodes the closer's name).
+  //      Free text, no allowlist. Wins when present.
   //   2. Otherwise we fall back to GHL's standard `user.firstName /
   //      user.lastName` payload — populated when the workflow runs
   //      AFTER an "Assign to user" step.

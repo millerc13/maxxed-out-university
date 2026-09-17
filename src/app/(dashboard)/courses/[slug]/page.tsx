@@ -403,9 +403,6 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                                 </p>
                                 <p className="mt-1 text-sm text-emerald-800 leading-relaxed">
                                   Thanks for applying — Todd&apos;s team will reach out within one business day with next steps.
-                                  {(course as { bookACallEnabled?: boolean }).bookACallEnabled !== false && (
-                                    <> Want to skip the line? <strong>Book a call below.</strong></>
-                                  )}
                                 </p>
                               </div>
                             </div>
@@ -428,21 +425,6 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                           <button className="w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md cursor-default opacity-70">
                             Contact to Enroll
                           </button>
-                        )}
-
-                        {(course as { bookACallEnabled?: boolean }).bookACallEnabled !== false && (
-                          <a
-                            href={
-                              process.env.NEXT_PUBLIC_CALENDLY_URL ||
-                              'https://calendly.com/rebecca-nardi/maxxed-out-todd-pultz-mentorship-healthcare'
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 w-full py-3 border-2 border-white/30 text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-white/10 transition-colors"
-                          >
-                            <CalendarIcon className="w-4 h-4" />
-                            Have questions? Book a call
-                          </a>
                         )}
 
                         {isAdmin && (

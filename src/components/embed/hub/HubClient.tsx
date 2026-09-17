@@ -117,7 +117,7 @@ export function HubClient({ data }: { data: HubData }) {
               <Stat label="Last 30 days" value={usd(kpis.last30Cents, true)} sub={`${kpis.last30Count} sales`} />
               <Stat label="This month" value={usd(kpis.monthToDateCents, true)} />
               <Stat label="Open pipeline" value={kpis.openOpportunities.toLocaleString()} sub="open opportunities" />
-              <Stat label="Upcoming calls" value={String(kpis.upcomingCalls)} sub="GHL + Calendly, 14d" />
+              <Stat label="Upcoming calls" value={String(kpis.upcomingCalls)} sub="GHL, 14d" />
             </div>
             <div className="mt-3 grid gap-3 lg:grid-cols-2">
               <Card title="Daily revenue — last 30 days">
@@ -314,27 +314,16 @@ export function HubClient({ data }: { data: HubData }) {
                 }
                 sub={`${calls.ghlShowRate.showed} showed / ${calls.ghlShowRate.noShows} no-show`}
               />
-              <Stat label="Calendly held (30d)" value={String(calls.calendly.held30)} tone="good" />
-              <Stat
-                label="Calendly canceled"
-                value={String(calls.calendly.canceled30)}
-                tone={calls.calendly.canceled30 > calls.calendly.held30 ? 'serious' : 'default'}
-              />
             </div>
-            <div className="mt-3 grid gap-3 lg:grid-cols-3">
-              <Card title="All upcoming calls (GHL + Calendly)" className="lg:col-span-2">
+            <div className="mt-3 grid gap-3">
+              <Card title="All upcoming calls">
                 <DataTable
                   headers={['When (ET)', 'Call', 'Calendar']}
                   rows={calls.upcoming.map((c) => [
                     fmtEt(c.startTime, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
                     <span key="t" className="line-clamp-1 max-w-[240px]">{c.title}</span>,
-                    <span key="c" style={{ color: c.source === 'calendly' ? STATUS.neutral : undefined }}>{c.calendar}</span>,
+                    <span key="c">{c.calendar}</span>,
                   ])}
-                />
-              </Card>
-              <Card title="Calendly bookings by type (30d)">
-                <BarList
-                  items={calls.calendly.byType.map((t) => ({ label: t.label, value: t.count, display: String(t.count) }))}
                 />
               </Card>
             </div>
@@ -455,7 +444,7 @@ export function HubClient({ data }: { data: HubData }) {
         ) : null}
 
         <p className="mt-5 pb-2 text-center text-[10px] text-[#9CA3AF]">
-          Fanbasis · GoHighLevel · Calendly · PostHog · webinar engine · university DB — refreshes every 5 minutes
+          Fanbasis · GoHighLevel · PostHog · webinar engine · university DB — refreshes every 5 minutes
         </p>
       </main>
     </div>

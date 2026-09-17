@@ -43,7 +43,6 @@ export function CourseEditor({ course, systemCapiTokenMasked }: CourseEditorProp
     externalUrl: course?.externalUrl || '',
     checkoutAfterApply: !!course?.checkoutAfterApply,
     notifyClosersOnApply: course?.notifyClosersOnApply ?? true,
-    bookACallEnabled: (course as { bookACallEnabled?: boolean })?.bookACallEnabled ?? true,
     welcomeSmsBody: (course as { welcomeSmsBody?: string | null })?.welcomeSmsBody || '',
     welcomeEmailSubject: (course as { welcomeEmailSubject?: string | null })?.welcomeEmailSubject || '',
     welcomeEmailBody: (course as { welcomeEmailBody?: string | null })?.welcomeEmailBody || '',

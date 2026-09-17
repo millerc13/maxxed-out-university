@@ -234,7 +234,7 @@ function ChartCard({
 
 /**
  * Wrap a KPI tile with a "Change" affordance pinned to the bottom-right.
- * Always visible (no hover gating) so Rebecca can see at a glance
+ * Always visible (no hover gating) so the rep can see at a glance
  * that the tile is swappable. Only renders when a change handler is
  * wired in (so non-admin contexts get a static tile).
  */

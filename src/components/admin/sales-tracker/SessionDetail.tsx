@@ -22,7 +22,7 @@ interface Props {
 }
 
 export function SessionDetail({ initialSession, initialEntries }: Props) {
-  // Default to Analytics so Rebecca lands on the high-level view first.
+  // Default to Analytics so the rep lands on the high-level view first.
   const [tab, setTab] = useState<Tab>('analytics');
   const [entries, setEntries] = useState<EntryRow[]>(initialEntries);
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -185,7 +185,7 @@ export function SessionDetail({ initialSession, initialEntries }: Props) {
   );
 
   // Pending-undo state: rows that have been "deleted" client-side but
-  // whose actual server DELETE is held off for 5 seconds so Rebecca can
+  // whose actual server DELETE is held off for 5 seconds so the rep can
   // hit Undo. Snapshot the row's index so Undo can restore it in place.
   const [pendingUndo, setPendingUndo] = useState<{
     entry: EntryRow;
@@ -377,7 +377,7 @@ export function SessionDetail({ initialSession, initialEntries }: Props) {
       </div>
 
       {/* Tabs — full-width on mobile so they're easy to tap. Analytics
-          first so Rebecca sees performance summary before drilling in. */}
+          first so the rep sees performance summary before drilling in. */}
       <div className="flex items-center gap-2 border-b border-gray-200">
         <TabButton active={tab === 'analytics'} onClick={() => setTab('analytics')}>
           <BarChart3 className="w-4 h-4" />

@@ -29,7 +29,6 @@ That's it — widgets auto-refresh their data every 5 minutes while visible.
 | Funnel Traffic & Conversion | `/embed/funnels` | Views/visitors/CTA/checkout/enrollment for all `*.maxxedout.com` funnels | PostHog HogQL |
 | GHL Pipelines | `/embed/pipelines` | Opportunities by pipeline, open value, purchased counts | GHL Opportunities API |
 | GHL Appointments | `/embed/appointments` | Next-14-day calls + 30-day show rate across all GHL calendars | GHL Calendars API |
-| Calendly — Rebecca | `/embed/bookings` | Booked/held/canceled + upcoming mentorship & Masterminds calls | Calendly API (Rebecca's PAT) |
 | University Engagement | `/embed/students` | Students, enrollments, weekly actives, completion + quiz pass rates | `User`/`Enrollment`/`LessonProgress`/`QuizAttempt` |
 | Contracts & E-Sign | `/embed/contracts` | Sent → viewed → signed funnel, outstanding contract value | `DocumentSignature` table |
 | Checkout Links & Promos | `/embed/checkout-links` | Closer link funnel (sent→clicked→paid) + promo usage | `CheckoutLink`/`PromoCode` tables |
@@ -60,7 +59,6 @@ All already in Vercel prod except the new one:
 | `GHL_API_KEY` (PIT) + `GHL_LOCATION_ID` | existing | pipelines, appointments, revenue |
 | `WEBINAR_APP_URL` + `WEBINAR_ADMIN_TOKEN` | existing | webinar widget |
 | `POSTHOG_PERSONAL_API_KEY` + `POSTHOG_PROJECT_ID` | existing | funnels widget |
-| **`CALENDLY_API_TOKEN`** | **NEW — add to Vercel prod** (value in `.env.local`; it's Rebecca Nardi's PAT, originally from `university-funnel/.env.local`) | bookings widget |
 | `EMBED_WIDGET_SECRET` | optional | overrides AUTH_SECRET for key derivation |
 
 ## Known data caveats
@@ -89,3 +87,14 @@ All already in Vercel prod except the new one:
 - `src/components/embed/*` — shell, stat tiles, bar lists, funnel, trend chart, table
 - `src/app/embed/<id>/page.tsx` — the 13 widgets
 - `src/app/(admin)/admin/embed-widgets/page.tsx` — URL listing page (staff only)
+
+---
+
+## Removed 2026-09-17
+
+The **Calendly bookings widget** (`/embed/bookings`) and the Calendly rows on
+the overview + hub dashboards were deleted along with the rest of the Calendly
+integration. They read Rebecca Nardi's *personal* Calendly account through her
+personal access token; she left the company and there is no company-owned
+Calendly account to repoint them at. `CALENDLY_API_TOKEN` has been removed from
+both Vercel projects and from the local `.env` files.

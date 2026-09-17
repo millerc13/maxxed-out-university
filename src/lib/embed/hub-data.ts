@@ -8,7 +8,6 @@ import {
   ghlContactUrl,
   findGhlContactIdByEmail,
 } from './ghl';
-import { listCalendlyEvents } from './calendly';
 import { getWebinarOverview, getWebinarStats } from './webinar';
 import { queryPostHog, funnelHost, hogqlString } from '@/lib/posthog';
 
@@ -67,9 +66,8 @@ export type HubData = {
     promos: Array<{ code: string; label: string; uses: string }>;
   };
   calls: {
-    upcoming: Array<{ startTime: string; title: string; calendar: string; source: 'ghl' | 'calendly' }>;
+    upcoming: Array<{ startTime: string; title: string; calendar: string; source: 'ghl' }>;
     ghlShowRate: { showed: number; noShows: number; total30d: number };
-    calendly: { held30: number; canceled30: number; upcoming: number; byType: Array<{ label: string; count: number }> };
   };
   marketing: {
     webinar: {
@@ -131,7 +129,6 @@ export async function getHubData(): Promise<HubData> {
     opportunities,
     upcomingAppts,
     pastAppts,
-    calendly,
     webinarOverview,
     cohortApps,
     apps30,
@@ -156,7 +153,6 @@ export async function getHubData(): Promise<HubData> {
     listOpportunities(),
     listAppointments(nowMs, nowMs + 14 * 86_400_000),
     listAppointments(nowMs - 30 * 86_400_000, nowMs),
-    listCalendlyEvents(30),
     getWebinarOverview(),
     prisma.cohortApplication.findMany({
       select: {
@@ -304,24 +300,14 @@ export async function getHubData(): Promise<HubData> {
   // ---------------- calls ----------------
   const showed = pastAppts.filter((a) => a.status === 'showed').length;
   const noShows = pastAppts.filter((a) => a.status === 'noshow').length;
-  const calUpcoming = calendly.filter((e) => e.status === 'active' && e.startTime >= nowIso);
-  const calTypeAgg = new Map<string, number>();
-  for (const e of calendly) calTypeAgg.set(e.name, (calTypeAgg.get(e.name) ?? 0) + 1);
-
-  const mergedUpcoming = [
-    ...upcomingAppts.map((a) => ({
+  const mergedUpcoming = upcomingAppts
+    .map((a) => ({
       startTime: a.startTime,
       title: a.title,
       calendar: a.calendarName,
       source: 'ghl' as const,
-    })),
-    ...calUpcoming.map((e) => ({
-      startTime: e.startTime,
-      title: e.name,
-      calendar: 'Calendly (Rebecca)',
-      source: 'calendly' as const,
-    })),
-  ].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   // ---------------- marketing ----------------
   const firstWebinar = webinarOverview?.webinars?.[0];
@@ -405,12 +391,6 @@ export async function getHubData(): Promise<HubData> {
     calls: {
       upcoming: mergedUpcoming.slice(0, 20),
       ghlShowRate: { showed, noShows, total30d: pastAppts.length },
-      calendly: {
-        held30: calendly.filter((e) => e.status === 'active' && e.startTime < nowIso).length,
-        canceled30: calendly.filter((e) => e.status === 'canceled').length,
-        upcoming: calUpcoming.length,
-        byType: [...calTypeAgg.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
-      },
     },
     marketing: {
       webinar: ws && firstWebinar

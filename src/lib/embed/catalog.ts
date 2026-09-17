@@ -17,7 +17,7 @@ export const WIDGETS: WidgetDef[] = [
   {
     id: 'overview',
     title: 'Command Center (everything, one page)',
-    description: 'The combined dashboard: revenue, offers, pipelines, cohort, calls, Calendly, webinar, funnels, leads, students, contracts and checkout links — deduplicated, with buyer names deep-linking to GHL contacts.',
+    description: 'The combined dashboard: revenue, offers, pipelines, cohort, calls, webinar, funnels, leads, students, contracts and checkout links — deduplicated, with buyer names deep-linking to GHL contacts.',
     suggestedHeight: 2400,
   },
   {
@@ -67,12 +67,6 @@ export const WIDGETS: WidgetDef[] = [
     title: 'GHL Appointments',
     description: 'Booked calls across every GHL calendar: next 14 days plus 30-day show rate.',
     suggestedHeight: 640,
-  },
-  {
-    id: 'bookings',
-    title: "Calendly — Rebecca's Bookings",
-    description: 'Mentorship intro calls and Masterminds bookings from Calendly: booked/held/canceled + upcoming.',
-    suggestedHeight: 680,
   },
   {
     id: 'students',

@@ -11,7 +11,7 @@ import {
 } from '@/lib/ghl-apply';
 import { notifyRecipients } from '@/lib/sms';
 import { sendCapiEvent, extractMetaIdentifiers } from '@/lib/meta-capi';
-import { pickAssignee } from '@/lib/ghl-assignment';
+import { pickAssignee, assigneeDisplayName } from '@/lib/ghl-assignment';
 import { notifySlackChannels } from '@/lib/slack';
 import { getSettingBool } from '@/lib/settings';
 
@@ -114,10 +114,9 @@ export async function POST(request: Request) {
     `[apply] ${isPartial ? 'Partial' : 'Full'} submission — email=${data.email} course=${courseTitle ?? 'none'}`
   );
 
-  // Pick the GHL user this submission gets assigned to. Default funnels
-  // → Rebecca; dd-healthcare alternates Rebecca/Rafael. Returns null
-  // when no env-var IDs are configured (system stays unassigned just
-  // like the old Netlify functions did).
+  // Pick the GHL user this submission gets assigned to — Jackie for
+  // every funnel as of 2026-09-17. Returns null only if the ID resolves
+  // empty, in which case the contact stays unassigned in GHL.
   const assignedTo = !isPartial ? await pickAssignee(data.program ?? null) : null;
 
   let resolvedContactId: string | null = null;
@@ -244,12 +243,9 @@ export async function POST(request: Request) {
   if (!isPartial && notifyClosers && internalNotificationsEnabled) {
     const richNoteBody = formatNoteBody(data, { courseTitle });
     const smsBody = `New Maxxed Out application — ${data.name}\n\n${richNoteBody}`;
-    const slackAssignedTo =
-      assignedTo === process.env.GHL_USER_REBECCA_ID
-        ? 'Rebecca'
-        : assignedTo === process.env.GHL_USER_RAFAEL_ID
-          ? 'Rafael'
-          : undefined;
+    // Display name for the Slack alert. Resolved from the same ID the
+    // contact was assigned to — keep in sync with lib/ghl-assignment.
+    const slackAssignedTo = assignedTo ? assigneeDisplayName(assignedTo) : undefined;
     const slackLink = resolvedContactId
       ? {
           url: `https://app.gohighlevel.com/v2/location/${process.env.GHL_LOCATION_ID}/contacts/detail/${resolvedContactId}`,

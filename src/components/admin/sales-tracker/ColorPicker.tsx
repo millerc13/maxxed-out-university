@@ -21,7 +21,7 @@ interface Props {
 /**
  * Modal palette picker. 12 named swatches arranged in a 4-column grid
  * plus an "Auto" option that reverts to the deterministic hash color.
- * The header shows a live preview of the bar so Rebecca sees the
+ * The header shows a live preview of the bar so the rep sees the
  * change immediately.
  */
 export function ColorPicker({ tag, current, onSelect, onClose }: Props) {
