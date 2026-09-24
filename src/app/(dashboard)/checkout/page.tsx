@@ -7,6 +7,11 @@ import { FunnelCheckout } from '@/components/checkout/FunnelCheckout';
 import { stripePublishableKey } from '@/lib/stripe';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
 import { MetaPixelLoader } from '@/components/MetaPixelLoader';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 async function getEnabledProviders() {
   const providers = await prisma.paymentProvider.findMany({

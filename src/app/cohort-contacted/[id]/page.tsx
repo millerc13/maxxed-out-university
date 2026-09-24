@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { verifyCohortContacted } from '@/lib/cohort-assign';
 import { formatPhoneUS } from '@/lib/sms';
 import { CohortContactedConfirm } from '@/components/admin/CohortContactedConfirm';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * One-tap "mark contacted" page — target of the Slack ✅ Contacted button.

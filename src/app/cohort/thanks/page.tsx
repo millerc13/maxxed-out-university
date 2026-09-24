@@ -1,4 +1,9 @@
 import { COHORT_START, PLAN_SECOND_PAYMENT, PLAN_THIRD_PAYMENT } from '@/lib/cohort-payment-plan';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Public post-purchase page — where Fanbasis sends the buyer after paying.

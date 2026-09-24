@@ -8,6 +8,11 @@ import { ScrollToBottomAfterSign } from '@/components/sign/ScrollToBottomAfterSi
 import { fillClientSignature } from '@/lib/esign-render';
 import { signDownloadToken } from '@/lib/esign-tokens';
 import { MetaPixelLoader } from '@/components/MetaPixelLoader';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 // Public, no-auth signing page. The signingToken in the URL is the
 // only credential — it's a 32-byte random hex value that's revoked

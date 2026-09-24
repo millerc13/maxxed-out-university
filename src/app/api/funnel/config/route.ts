@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
           title: true,
           slug: true,
           price: true,
+          // Amount actually charged when set (price is then the anchor). The
+          // funnel's JSON-LD only publishes a price that matches this.
+          salePrice: true,
           thumbnail: true,
           shortDesc: true,
           checkoutAfterApply: true,
@@ -44,6 +47,7 @@ export async function GET(request: NextRequest) {
           title: true,
           slug: true,
           price: true,
+          salePrice: true,
           thumbnail: true,
           shortDesc: true,
         },

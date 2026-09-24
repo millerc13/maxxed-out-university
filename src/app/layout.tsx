@@ -6,6 +6,7 @@ import { PostHogPageView } from './PostHogPageView';
 import { PostHogIdentify } from './PostHogIdentify';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 import { Suspense } from 'react';
+import { SITE_URL } from '@/lib/site';
 import '@/styles/globals.css';
 
 const montserrat = Montserrat({
@@ -15,6 +16,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'Training Center | MaxxedOut',
   description: 'Business education and training for serious entrepreneurs',
   // PWA install metadata for iOS Safari "Add to Home Screen".

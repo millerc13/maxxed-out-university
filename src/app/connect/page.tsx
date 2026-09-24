@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { ConnectClient } from '@/components/connect/ConnectClient';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { connectGraph } from '@/lib/seo/jsonld';
+import { CONNECT_URL } from '@/lib/site';
 
 /**
  * connect.maxxedout.com — Kansas event QR landing page.
@@ -11,6 +14,8 @@ const OG_IMAGE = 'https://university.maxxedout.com/images/kansas-flyer-og.jpg';
 export const metadata: Metadata = {
   title: 'Connect with Todd Pultz | Maxxed Out',
   description: 'Work directly with Todd or get his social links by text.',
+  // Also reachable at university.maxxedout.com/connect; the connect host is canonical.
+  alternates: { canonical: CONNECT_URL },
   openGraph: {
     title: 'Connect with Todd Pultz | Maxxed Out',
     description: 'Work directly with Todd or get his social links by text.',
@@ -36,5 +41,10 @@ export const viewport: Viewport = {
 export const dynamic = 'force-static';
 
 export default function ConnectPage() {
-  return <ConnectClient />;
+  return (
+    <>
+      <JsonLd data={connectGraph()} />
+      <ConnectClient />
+    </>
+  );
 }

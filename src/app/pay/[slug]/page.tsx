@@ -4,6 +4,11 @@ import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import { PayPageClient } from '@/components/pay/PayPageClient';
 import { MetaPixelLoader } from '@/components/MetaPixelLoader';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Permanent payment page — used by the /admin/quick-links QR codes that

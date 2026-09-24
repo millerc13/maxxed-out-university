@@ -4,6 +4,11 @@ import { Header } from '@/components/layout';
 import Link from 'next/link';
 import { CheckCircle, BookOpen, Mail, ArrowRight, PhoneCall, Calendar as CalendarIcon } from 'lucide-react';
 import { MetaPixelLoader } from '@/components/MetaPixelLoader';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 interface SuccessPageProps {
   searchParams: Promise<{

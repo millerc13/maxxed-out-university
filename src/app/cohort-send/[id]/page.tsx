@@ -10,6 +10,11 @@ import {
   type CohortSend,
 } from '@/lib/cohort-checkout';
 import { CohortSendConfirm } from '@/components/admin/CohortSendConfirm';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * One-tap send page — the target of the Slack "Text link" buttons.

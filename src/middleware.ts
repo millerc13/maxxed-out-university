@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { can, capabilityForAdminPath } from '@/lib/permissions';
 
 const CANONICAL_HOST = 'university.maxxedout.com';
+const CRAWLER_FILES = new Set(['/robots.txt', '/sitemap.xml', '/llms.txt']);
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -24,7 +25,9 @@ export default auth((req) => {
     if (nextUrl.pathname === '/') {
       return NextResponse.rewrite(new URL('/connect', nextUrl));
     }
-    if (nextUrl.pathname.startsWith('/connect')) {
+    // Host-aware crawler files (robots/sitemap/llms) must be served here,
+    // not 308'd to the university host.
+    if (nextUrl.pathname.startsWith('/connect') || CRAWLER_FILES.has(nextUrl.pathname)) {
       return NextResponse.next();
     }
     return NextResponse.redirect(new URL(nextUrl.pathname + nextUrl.search, `https://${CANONICAL_HOST}`), 308);

@@ -5,20 +5,37 @@ import { ApplyWizardOnPlatform } from '@/components/apply/ApplyWizardOnPlatform'
 import { auth } from '@/lib/auth';
 import { isEffectivelyEnrolled } from '@/lib/enrollment';
 import { MetaPixelLoader } from '@/components/MetaPixelLoader';
+import type { Metadata } from 'next';
+import { HIGH_TICKET_SLUGS, isApplyOnly, isIndexableCourse } from '@/lib/public-courses';
 
 interface ApplyPageProps {
   params: Promise<{ slug: string }>;
 }
 
-// Slugs that always get the apply flow (preserves existing
-// Mentorship/DWY behavior even if Todd hasn't flipped the new
-// course-level toggle yet). New courses with checkoutAfterApply ON
-// also reach this route.
-const HIGH_TICKET_SLUGS = new Set([
-  'done-with-you-real-estate-business',
-  '6-month-mentorship',
-  'business-mentorship',
-]);
+export async function generateMetadata({ params }: ApplyPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const course = await prisma.course.findUnique({
+    where: { slug, published: true },
+    select: {
+      title: true,
+      slug: true,
+      applyMode: true,
+      checkoutAfterApply: true,
+      comingSoon: true,
+      externalUrl: true,
+      homepageSection: { select: { published: true } },
+    },
+  });
+  if (!course) return {};
+  // Hidden price variants (e.g. inner-circle-experience-7500) are linked from
+  // funnels, so they must carry noindex rather than rely on not being linked.
+  const noindex = !isIndexableCourse(course) || !isApplyOnly(course);
+  return {
+    title: `Apply: ${course.title} | Maxxed Out University`,
+    alternates: { canonical: `/apply/${slug}` },
+    ...(noindex && { robots: { index: false, follow: true } }),
+  };
+}
 
 export default async function ApplyPage({ params }: ApplyPageProps) {
   const { slug } = await params;

@@ -12,6 +12,11 @@ import { isEffectivelyEnrolled } from '@/lib/enrollment';
 import { getModuleAccess } from '@/lib/gating';
 import { MetaPixelLoader } from '@/components/MetaPixelLoader';
 import { getSectionIcon } from '@/lib/section-icons';
+import type { Metadata } from 'next';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { courseGraph } from '@/lib/seo/jsonld';
+import { HIGH_TICKET_SLUGS, effectivePriceCents, isIndexableCourse, plainSummary } from '@/lib/public-courses';
+import { formatPrice } from '@/lib/utils';
 
 interface CoursePageProps {
   params: Promise<{ slug: string }>;
@@ -31,6 +36,39 @@ interface CoursePageProps {
     _price?: string;
     _comingSoon?: string;
   }>;
+}
+
+export async function generateMetadata({ params, searchParams }: CoursePageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const { previewAs } = await searchParams;
+  const course = await prisma.course.findUnique({
+    where: { slug, published: true },
+    select: {
+      title: true,
+      shortDesc: true,
+      description: true,
+      thumbnail: true,
+      comingSoon: true,
+      externalUrl: true,
+      homepageSection: { select: { published: true } },
+    },
+  });
+  if (!course) return {};
+
+  const title = `${course.title} | Maxxed Out University`;
+  const description = plainSummary(course.shortDesc || course.description) ?? 'Business education and training for serious entrepreneurs';
+  const images = course.thumbnail ? [course.thumbnail] : undefined;
+  // Same definition as the sitemap; admin-preview renders also stay out of the index.
+  const noindex = !isIndexableCourse(course) || previewAs !== undefined;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/courses/${slug}` },
+    openGraph: { title, description, url: `/courses/${slug}`, type: 'website', ...(images && { images }) },
+    twitter: { card: 'summary_large_image', title, description, ...(images && { images }) },
+    ...(noindex && { robots: { index: false, follow: true } }),
+  };
 }
 
 export default async function CoursePage({ params, searchParams }: CoursePageProps) {
@@ -184,11 +222,6 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
   // High-ticket programs (DWY / Mentorship) are 1:1 coaching, not self-serve
   // course content. The on-platform course page shows a "team will reach out"
   // message in place of the modules list.
-  const HIGH_TICKET_SLUGS = new Set([
-    'done-with-you-real-estate-business',
-    '6-month-mentorship',
-    'business-mentorship',
-  ]);
   const isHighTicketCoaching = HIGH_TICKET_SLUGS.has(course.slug);
   // The course's "buy" CTA routes through /apply/[slug] (qualifying
   // questions, optionally followed by checkout) when any of:
@@ -219,6 +252,22 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
 
   return (
     <>
+      {!isCustomerPreview && !courseRaw.comingSoon && (
+        <JsonLd
+          data={courseGraph({
+            slug: courseRaw.slug,
+            title: courseRaw.title,
+            shortDesc: courseRaw.shortDesc,
+            description: courseRaw.description,
+            thumbnail: courseRaw.thumbnail,
+            price: courseRaw.price,
+            salePrice: courseRaw.salePrice,
+            applyMode: courseRaw.applyMode,
+            checkoutAfterApply: courseRaw.checkoutAfterApply,
+            totalDurationSeconds: totalDuration,
+          })}
+        />
+      )}
       <MetaPixelLoader pixelId={courseRaw.metaPixelId} />
       <Header />
       <main className="min-h-screen bg-background">
@@ -415,12 +464,21 @@ export default async function CoursePage({ params, searchParams }: CoursePagePro
                             Apply Now
                           </Link>
                         ) : course.price && course.price > 0 ? (
+                          <>
+                          {/* Must stay in sync with courseGraph's Offer: structured data may only state the price shown here. */}
+                          <div className="flex items-baseline justify-center gap-2">
+                            {course.salePrice != null && course.salePrice < course.price && (
+                              <span className="text-lg font-semibold text-text-muted line-through">{formatPrice(course.price)}</span>
+                            )}
+                            <span className="text-3xl font-extrabold text-text-dark">{formatPrice(effectivePriceCents(course))}</span>
+                          </div>
                           <Link
                             href={`/checkout?courseId=${course.id}`}
                             className="flex items-center justify-center w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md"
                           >
                             Get Access Now
                           </Link>
+                          </>
                         ) : (
                           <button className="w-full py-4 bg-[#0000CC] text-white font-extrabold text-sm uppercase tracking-widest rounded-lg hover:bg-[#0000aa] transition-colors shadow-md cursor-default opacity-70">
                             Contact to Enroll

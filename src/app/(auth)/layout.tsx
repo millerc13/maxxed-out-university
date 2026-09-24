@@ -5,6 +5,7 @@ import Image from 'next/image';
 export const metadata: Metadata = {
   title: 'Login | Maxxed Out University',
   description: 'Sign in to access your courses',
+  robots: { index: false, follow: false },
 };
 
 export default function AuthLayout({

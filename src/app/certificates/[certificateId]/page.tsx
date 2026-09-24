@@ -15,11 +15,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     where: { certificateId },
     include: { user: { select: { name: true } }, course: { select: { title: true } } },
   });
-  if (!cert) return { title: 'Certificate — Maxxed Out University' };
+  // Shareable (LinkedIn unfurls need crawl access) but not indexable: exposes student names.
+  const robots = { index: false, follow: true };
+  if (!cert) return { title: 'Certificate — Maxxed Out University', robots };
   const name = cert.user.name || 'A graduate';
   return {
     title: `${name}'s Certificate — ${cert.course.title}`,
     description: `${name} has earned a Certificate of Completion for ${cert.course.title} from Maxxed Out University.`,
+    robots,
   };
 }
 

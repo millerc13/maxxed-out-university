@@ -6,6 +6,16 @@ import { BookOpen, Clock } from 'lucide-react';
 import { CourseCard } from '@/components/course/CourseCard';
 import { getEffectiveEnrollments, getEnrolledBundleIds } from '@/lib/enrollment';
 import { getSectionIcon } from '@/lib/section-icons';
+import type { Metadata } from 'next';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { courseListGraph } from '@/lib/seo/jsonld';
+import { getIndexableCoursesSafe } from '@/lib/public-courses';
+
+export const metadata: Metadata = {
+  title: 'Courses | Maxxed Out University',
+  description: 'Browse Maxxed Out University courses, programs, templates and tools for entrepreneurs.',
+  alternates: { canonical: '/courses' },
+};
 
 // /courses is a "browse / shop" page. It mirrors the homepage's section
 // layout (admin-curated via /admin/homepage) and additionally filters out
@@ -17,7 +27,7 @@ export default async function CoursesPage() {
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
   const isCustomerView = isAdmin && cookieStore.get('admin_customer_view')?.value === 'true';
 
-  const [sections, comingSoonCourses] = await Promise.all([
+  const [sections, comingSoonCourses, indexableCourses] = await Promise.all([
     prisma.homepageSection.findMany({
       where: { published: true },
       orderBy: { order: 'asc' },
@@ -39,6 +49,7 @@ export default async function CoursesPage() {
         thumbnail: true,
       },
     }),
+    getIndexableCoursesSafe(),
   ]);
 
   // /courses shows the full catalog. Enrolled courses get an "Enrolled"
@@ -72,6 +83,7 @@ export default async function CoursesPage() {
 
   return (
     <>
+      <JsonLd data={courseListGraph(indexableCourses)} />
       <Header />
       <main className="min-h-screen bg-[#f5f5f7]">
         <div className="max-w-7xl mx-auto px-5 md:px-10 py-14 space-y-12">
