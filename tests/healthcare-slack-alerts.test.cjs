@@ -152,6 +152,15 @@ test('legacy form still renders its three answers when a standard contact state 
   assert.equal(revisedFields(h).length, 0);
 });
 
+test('legacy numeric monthly revenue is preserved including zero', async (t) => {
+  for (const monthly_revenue of [25000, 0]) await t.test(String(monthly_revenue), async () => {
+    const h = harness();
+    await h.submit({ ...CONTACT, customData: { ...QUESTIONS, monthly_revenue } });
+    assert.ok(questionFields(h).includes(`*Monthly Revenue:*\n${monthly_revenue}`));
+    assert.equal(questionFields(h).length, 3);
+  });
+});
+
 test('generic legacy notes preserve all three old answers and appear once as Additional Notes', async (t) => {
   for (const container of ['top-level', 'customData', 'custom_data']) await t.test(container, async () => {
     const h = harness();

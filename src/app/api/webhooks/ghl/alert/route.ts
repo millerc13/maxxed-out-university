@@ -192,12 +192,14 @@ function healthcareFields(body: Record<string, unknown>) {
   // on an existing contact must never masquerade as this submission's answers.
   const hasRevisedQuestions = ['readiness', 'investment_budget', 'work_situation'].some((key) =>
     sources.some((source) => Object.prototype.hasOwnProperty.call(source, key)));
+  const answerValue = (raw: unknown) => typeof raw === 'string' ? raw.trim()
+    : typeof raw === 'number' && Number.isFinite(raw) ? String(raw) : undefined;
   const questions = (hasRevisedQuestions ? revisedQuestions : legacyQuestions).flatMap(({ key, label }) => {
     const source = sources.find((candidate) => Object.prototype.hasOwnProperty.call(candidate, key));
     const raw = source?.[key];
     const value = hasRevisedQuestions
-      ? typeof raw === 'string' ? raw.trim() : typeof raw === 'number' && Number.isFinite(raw) ? String(raw) : undefined
-      : field(key);
+      ? answerValue(raw)
+      : sources.map((candidate) => answerValue(candidate[key])).find(Boolean);
     return value ? [healthcareSlackField(label, value)] : [];
   });
   const seen = new Set<string>();
