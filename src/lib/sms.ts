@@ -45,6 +45,8 @@ interface SendResult {
   error?: string;
   /** GHL contact ID we used (cached after first send). */
   contactId?: string;
+  /** Provider acceptance identifier; delivery must be checked separately. */
+  messageId?: string;
 }
 
 /**
@@ -203,7 +205,8 @@ export async function sendSmsToRecipient(recipient: {
         contactId,
       };
     }
-    return { ok: true, contactId };
+    const accepted = await res.json().catch(() => ({})) as { messageId?: string };
+    return { ok: true, contactId, messageId: accepted.messageId };
   } catch (err) {
     return {
       ok: false,
@@ -236,8 +239,10 @@ export type NotificationSource =
 export async function notifyRecipients(
   event: 'lead' | 'sale',
   body: string,
-  source?: NotificationSource
-): Promise<Array<{ recipientId: string; phone: string; label: string | null; ok: boolean; error?: string }>> {
+  source?: NotificationSource,
+  /** When supplied, restrict delivery to these configured staff recipients. */
+  recipientIds?: readonly string[]
+): Promise<Array<{ recipientId: string; phone: string; label: string | null; ok: boolean; error?: string; messageId?: string; contactId?: string }>> {
   const eventClause =
     event === 'lead' ? { notifyOnLead: true } : { notifyOnSale: true };
 
@@ -253,7 +258,7 @@ export async function notifyRecipients(
   }> = [];
   try {
     recipients = await prisma.notificationRecipient.findMany({
-      where: { active: true, ...eventClause },
+      where: { active: true, ...eventClause, ...(recipientIds ? { id: { in: [...recipientIds] } } : {}) },
       select: {
         id: true,
         phone: true,
@@ -327,6 +332,8 @@ export async function notifyRecipients(
         label: r.label,
         ok: out.ok,
         error: out.error,
+        messageId: out.messageId,
+        contactId: out.contactId,
       };
     })
   );

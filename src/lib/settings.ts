@@ -10,6 +10,8 @@
  * Known keys (see prisma/schema.prisma Setting model):
  *   · internalNotificationsEnabled — "true" | "false" — kills SMS+Slack fan-out
  *   · testPhoneOverride            — E.164 phone or "" — reroutes all SMS to one number
+ *   · cohortNotificationRecipientId — verified NotificationRecipient ID for
+ *                                      Medicaid cohort staff alerts only
  */
 
 import { prisma } from './prisma';

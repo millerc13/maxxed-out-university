@@ -11,15 +11,17 @@ import {
   type Tier,
 } from '@/lib/cohort-scoring';
 import { isVipBuyer } from '@/lib/cohort-vip';
-import { nextCohortCloser, cohortSendUrl, cohortContactedUrl, closerMention } from '@/lib/cohort-assign';
-import { sendSmsToRecipient, normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
+import { nextCohortCloser, cohortGhlAssigneeId, cohortSendUrl, cohortContactedUrl, closerMention } from '@/lib/cohort-assign';
+import { sendSmsToRecipient, notifyRecipients, normalizePhoneE164, formatPhoneUS } from '@/lib/sms';
 import { notifySlackChannels, buildBlockKitMessage } from '@/lib/slack';
 import { hasSlackBot, cohortChannelId, postMessage } from '@/lib/slack-bot';
 import { slackSigningSecret } from '@/lib/slack-verify';
+import { getSetting, getSettingBool } from '@/lib/settings';
 import { cohortPriceLabel, cohortPromoPriceLabel, COHORT_PROMO_CODE } from '@/lib/cohort-checkout';
 import { PLAN_PAYMENT_DOLLARS, planPriceLabel } from '@/lib/cohort-payment-plan';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 /** Interactive buttons need a verifiable signature; without it, use URL buttons. */
 const slackInteractive = () => Boolean(slackSigningSecret());
@@ -64,10 +66,14 @@ async function upsertGhl(input: {
   tier: string;
   score: number;
   isVip: boolean;
+  assignedTo: string;
 }): Promise<string | null> {
   const apiKey = process.env.GHL_API_KEY?.trim();
   const locationId = process.env.GHL_LOCATION_ID?.trim();
-  if (!apiKey || !locationId) return null;
+  if (!apiKey || !locationId) {
+    console.error('[cohort] GHL credentials missing');
+    return null;
+  }
 
   const [firstName, ...rest] = input.name.split(/\s+/);
   // Webinar's over — no 'source:webinar-live' or 'webinar-vip' on new applicants.
@@ -81,6 +87,7 @@ async function upsertGhl(input: {
   try {
     const res = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
       method: 'POST',
+      signal: AbortSignal.timeout(10_000),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -88,6 +95,8 @@ async function upsertGhl(input: {
       },
       body: JSON.stringify({
         locationId,
+        assignedTo: input.assignedTo,
+        source: 'Medicaid 12-Week Cohort',
         email: input.email,
         phone: normalizePhoneE164(input.phone) || input.phone,
         firstName: firstName || undefined,
@@ -96,12 +105,35 @@ async function upsertGhl(input: {
         tags,
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error('[cohort] GHL upsert failed', res.status);
+      return null;
+    }
     const json = await res.json();
     return json?.contact?.id ?? null;
-  } catch {
+  } catch (error) {
+    console.error('[cohort] GHL upsert failed', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
+}
+
+/** Record provider acceptance separately from customer delivery. */
+async function recordDelivery(
+  applicationId: string,
+  event: string,
+  ok: boolean,
+  details: Record<string, string | boolean | null | undefined> = {},
+  error?: string,
+) {
+  await prisma.webhookLog.create({
+    data: {
+      source: COHORT_SOURCE,
+      event: `cohort:${event}`,
+      status: ok ? 'success' : 'failed',
+      errorMessage: error ?? null,
+      payload: { applicationId, ...details },
+    },
+  }).catch((err) => console.error('[cohort] Delivery log failed', err));
 }
 
 /**
@@ -138,9 +170,9 @@ export async function POST(request: Request) {
     isVip,
   });
 
-  // Round-robin the lead so the team splits them evenly and everyone knows
-  // whose call it is the moment the Slack message lands.
+  // Assign only new applications. Historical owners remain unchanged.
   const assignedTo = await nextCohortCloser();
+  const ghlAssigneeId = cohortGhlAssigneeId();
 
   const app = await prisma.cohortApplication.create({
     data: {
@@ -166,201 +198,243 @@ export async function POST(request: Request) {
   });
 
   after(async () => {
-    const ghlContactId = await upsertGhl({
-      name: d.name,
-      email: d.email,
-      phone: d.phone,
-      state: d.state,
-      tier,
-      score,
-      isVip,
-    });
-    if (ghlContactId) {
-      await prisma.cohortApplication
-        .update({ where: { id: app.id }, data: { ghlContactId } })
-        .catch(() => {});
-    }
+    const internalEnabled = await getSettingBool('internalNotificationsEnabled', true);
 
-    // Applicant confirmation text — sets the callback expectation and lifts
-    // the connect rate (per the brief).
-    await sendSmsToRecipient(
-      { id: app.id, phone: app.phone, label: app.name, ghlContactId },
-      "Application received — Todd's team will reach out soon. Keep your phone close."
-    ).catch(() => {});
-
-    // Internal alerts go to SLACK ONLY — no staff SMS. notifyRecipients() texts
-    // every NotificationRecipient with notifyOnLead, which is
-    // not wanted for cohort applications: the volume is high and the call sheet
-    // + Slack channel already cover triage.
-
-    // Slack — its own event type so this never spams existing `lead` channels.
-    // Sends EVERY form field: closers should be able to work the call straight
-    // from the notification without opening the dashboard.
-    const labelOf = <T extends { value: string; label: string; points: number }>(
-      opts: readonly T[],
-      v: string
-    ) => {
-      const o = opts.find((x) => x.value === v);
-      return o ? `${o.label} (${o.points} pts)` : v;
-    };
-
-    const slackPayload = {
-      headline: `${assignedTo.toUpperCase()} → TIER ${tier} · ${score}/28 pts${isVip ? ' · ★ VIP BUYER' : ''} — ${d.name}`,
-      emoji: tier === 'A' ? '🔥' : '🎯',
-      contactName: d.name,
-      email: d.email,
-      phone: app.phone,
-      fields: [
-        { label: '🎯 ASSIGNED TO', value: closerMention(assignedTo) },
-        { label: 'Tier', value: `${tier} — ${TIER_ACTION[tier as Tier]}` },
-        { label: 'Score', value: `${score} / 28` },
-        { label: 'State', value: d.state },
-        { label: 'Q: Where are you right now with this?', value: labelOf(READINESS_OPTIONS, d.readiness) },
-        { label: 'Q: How much to invest in yourself', value: labelOf(INVESTMENT_OPTIONS, d.investment) },
-        { label: 'Q: Current work situation', value: labelOf(WORK_OPTIONS, d.work) },
-        { label: 'Q: Anything we should know?', value: d.note?.trim() || '—' },
-        ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),
-        // Slack hard-caps a section at 10 fields and the builder slices the rest,
-        // so keep this list at 10 — anything past it silently disappears.
-        // Just the list price. The coupon is a decision the closer makes on
-        // the call, and showing both numbers here read as "which one is it?".
-        { label: `💳 Price`, value: cohortPriceLabel() },
-      ],
-      // Repeated right above the buttons: by the time a reader scrolls past all
-      // the form fields, the assignee at the top is off screen — and these
-      // buttons text and email a real applicant.
-      //
-      // The number is a tel: link rather than a button because Slack rejects a
-      // tel: URL on a button outright (invalid_blocks) — as a link it dials in
-      // one tap with no browser hop in between. Bold and alone on its line is
-      // as prominent as Slack gets; mrkdwn has no font sizing.
-      actionsNote: [
-        `🎯 This lead belongs to ${closerMention(assignedTo)} — ${d.name}`,
-        `📞 *<tel:${app.phone}|${formatPhoneUS(app.phone)}>*  ← tap to call`,
-      ].join('\n'),
-      // Each button opens a signed one-tap confirm page that performs the send.
-      // Slack URL buttons can't POST, and a bare GET would let link unfurlers
-      // and mobile prefetch fire real messages at applicants.
-      // Slack caps an actions block at 5 elements.
-      // Interactive buttons when the Slack app has Interactivity wired up:
-      // the press posts straight to /api/slack/interactive and the send happens
-      // in place, with Slack's own confirm modal standing in for the browser
-      // page. Without a signing secret those presses can't be verified, so we
-      // fall back to the URL buttons rather than trusting an unsigned request.
-      // Slack caps an actions block at 5 elements.
-      links: slackInteractive()
-        ? [
-            {
-              actionId: 'cohort_send:sms:0',
-              value: app.id,
-              label: '📲 Text Checkout',
-              style: 'primary' as const,
-              confirm: {
-                title: 'Text the checkout link?',
-                text: `Send *${d.name}* the ${cohortPriceLabel()} enrollment link by text.`,
-                confirm: 'Send text',
-              },
-            },
-            {
-              actionId: 'cohort_send:sms:1',
-              value: app.id,
-              label: '📲 Text Coupon',
-              confirm: {
-                title: 'Text the coupon?',
-                text: `Send *${d.name}* the *${COHORT_PROMO_CODE}* code (${cohortPromoPriceLabel()}) by text.`,
-                confirm: 'Send coupon',
-              },
-            },
-            {
-              actionId: 'cohort_send:email:0',
-              value: app.id,
-              label: '✉️ Email Checkout',
-              confirm: {
-                title: 'Email the checkout link?',
-                text: `Send *${d.name}* the ${cohortPriceLabel()} enrollment link by email.`,
-                confirm: 'Send email',
-              },
-            },
-            {
-              actionId: 'cohort_send:email:1',
-              value: app.id,
-              label: '✉️ Email Coupon',
-              confirm: {
-                title: 'Email the coupon?',
-                text: `Send *${d.name}* the *${COHORT_PROMO_CODE}* code (${cohortPromoPriceLabel()}) by email.`,
-                confirm: 'Send coupon',
-              },
-            },
-            {
-              actionId: 'cohort_plan:sms',
-              value: app.id,
-              label: `💳 Text Plan (3×$${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')})`,
-              confirm: {
-                title: 'Text the payment plan?',
-                text: `Send *${d.name}* the 3-payment plan: *$${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')} today* to hold their seat, then Sep 14 and Oct 12. Total ${planPriceLabel()} (vs ${cohortPriceLabel()} paid in full).`,
-                confirm: 'Send plan',
-              },
-            },
-            {
-              actionId: 'cohort_plan:email',
-              value: app.id,
-              label: '✉️ Email Plan',
-              confirm: {
-                title: 'Email the payment plan?',
-                text: `Send *${d.name}* the 3-payment plan by email. ${planPriceLabel()}, first payment today.`,
-                confirm: 'Send plan',
-              },
-            },
-            {
-              actionId: 'cohort_contacted',
-              value: app.id,
-              label: '✅ Contacted',
-              confirm: {
-                title: 'Mark contacted?',
-                // No '#' prefix: Slack auto-links #channel into <#C09…>, and confirm
-                // dialogs don't render channel links — it shows the raw id.
-                text: `Moves *${d.name}* to the cohort-contacted channel and removes this card. Does not text or email them.`,
-                confirm: 'Mark contacted',
-              },
-            },
-          ]
-        : [
-            { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout', style: 'primary' as const },
-            { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
-            { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
-            { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },
-            { url: cohortContactedUrl(app.id, assignedTo), label: '✅ Contacted' },
-          ],
-    };
-
-    // Prefer the bot token: chat.postMessage returns a message id, which is the
-    // only way the ✅ Contacted button can later collapse this card. Incoming
-    // webhooks return nothing and their messages can never be edited.
-    //
-    // Falls back to the webhook fan-out whenever the bot isn't configured or
-    // Slack rejects the call — a misconfigured token must never cost a live
-    // lead its notification.
-    let postedViaBot = false;
-    if (hasSlackBot() && cohortChannelId()) {
-      const msg = buildBlockKitMessage('cohort_application', slackPayload);
-      const res = await postMessage({
-        channel: cohortChannelId(),
-        text: msg.text,
-        blocks: msg.blocks,
+    const syncApplicant = async () => {
+      const ghlContactId = await upsertGhl({
+        name: d.name, email: d.email, phone: d.phone, state: d.state,
+        tier, score, isVip, assignedTo: ghlAssigneeId,
       });
-      if (res.ok && res.data) {
-        postedViaBot = true;
-        await prisma.cohortApplication
-          .update({
-            where: { id: app.id },
-            data: { slackChannelId: res.data.channel, slackMessageTs: res.data.ts },
-          })
-          .catch(() => {});
+      if (ghlContactId) {
+        await prisma.cohortApplication.update({
+          where: { id: app.id }, data: { ghlContactId },
+        });
       }
-    }
-    if (!postedViaBot) {
-      await notifySlackChannels('cohort_application', COHORT_SOURCE, slackPayload).catch(() => {});
-    }
+      await recordDelivery(app.id, 'ghl-assignment', Boolean(ghlContactId),
+        { ghlContactId, assignedTo: ghlAssigneeId },
+        ghlContactId ? undefined : 'GHL contact sync failed');
+
+      const receipt = await sendSmsToRecipient(
+        { id: app.id, phone: app.phone, label: app.name, ghlContactId },
+        "Application received — Todd's team will reach out soon. Keep your phone close."
+      );
+      await recordDelivery(app.id, 'applicant-sms', receipt.ok,
+        { messageId: receipt.messageId, contactId: receipt.contactId }, receipt.error);
+    };
+
+    const notifyJackie = async () => {
+      if (!internalEnabled) return;
+      // Stable recipient ID verified against Jackie's GHL staff phone. Do not
+      // broadcast: other staff may subscribe to all sources for other funnels.
+      const recipientId = await getSetting('cohortNotificationRecipientId', '');
+      if (!recipientId) throw new Error('Cohort notification recipient is not configured');
+      const body = [
+        `New Medicaid cohort lead — assigned to ${assignedTo}`,
+        `Name: ${app.name}`,
+        `Phone: ${formatPhoneUS(app.phone)}`,
+        `Email: ${app.email}`,
+        `State: ${app.state} | Tier ${tier}`,
+        'https://university.maxxedout.com/admin/cohort',
+      ].join('\n');
+      const results = await notifyRecipients('lead', body, COHORT_SOURCE, [recipientId]);
+      if (!results.length) throw new Error('Configured cohort recipient is inactive or not subscribed');
+      for (const result of results) {
+        await recordDelivery(app.id, 'staff-sms', result.ok, {
+          recipientId: result.recipientId, contactId: result.contactId,
+          messageId: result.messageId,
+        }, result.error);
+      }
+    };
+
+    const notifySlack = async () => {
+      if (!internalEnabled) return;
+      // Slack — its own event type so this never spams existing `lead` channels.
+      // Sends EVERY form field: closers should be able to work the call straight
+      // from the notification without opening the dashboard.
+      const labelOf = <T extends { value: string; label: string; points: number }>(
+        opts: readonly T[],
+        v: string
+      ) => {
+        const o = opts.find((x) => x.value === v);
+        return o ? `${o.label} (${o.points} pts)` : v;
+      };
+
+      const slackPayload = {
+        headline: `${assignedTo.toUpperCase()} → TIER ${tier} · ${score}/28 pts${isVip ? ' · ★ VIP BUYER' : ''} — ${d.name}`,
+        emoji: tier === 'A' ? '🔥' : '🎯',
+        contactName: d.name,
+        email: d.email,
+        phone: app.phone,
+        fields: [
+          { label: '🎯 ASSIGNED TO', value: closerMention(assignedTo) },
+          { label: 'Tier', value: `${tier} — ${TIER_ACTION[tier as Tier]}` },
+          { label: 'Score', value: `${score} / 28` },
+          { label: 'State', value: d.state },
+          { label: 'Q: Where are you right now with this?', value: labelOf(READINESS_OPTIONS, d.readiness) },
+          { label: 'Q: How much to invest in yourself', value: labelOf(INVESTMENT_OPTIONS, d.investment) },
+          { label: 'Q: Current work situation', value: labelOf(WORK_OPTIONS, d.work) },
+          { label: 'Q: Anything we should know?', value: d.note?.trim() || '—' },
+          ...(reasons.length ? [{ label: 'Scoring overrides', value: reasons.join('; ') }] : []),
+          // Slack hard-caps a section at 10 fields and the builder slices the rest,
+          // so keep this list at 10 — anything past it silently disappears.
+          // Just the list price. The coupon is a decision the closer makes on
+          // the call, and showing both numbers here read as "which one is it?".
+          { label: `💳 Price`, value: cohortPriceLabel() },
+        ],
+        // Repeated right above the buttons: by the time a reader scrolls past all
+        // the form fields, the assignee at the top is off screen — and these
+        // buttons text and email a real applicant.
+        //
+        // The number is a tel: link rather than a button because Slack rejects a
+        // tel: URL on a button outright (invalid_blocks) — as a link it dials in
+        // one tap with no browser hop in between. Bold and alone on its line is
+        // as prominent as Slack gets; mrkdwn has no font sizing.
+        actionsNote: [
+          `🎯 This lead belongs to ${closerMention(assignedTo)} — ${d.name}`,
+          `📞 *<tel:${app.phone}|${formatPhoneUS(app.phone)}>*  ← tap to call`,
+        ].join('\n'),
+        // Each button opens a signed one-tap confirm page that performs the send.
+        // Slack URL buttons can't POST, and a bare GET would let link unfurlers
+        // and mobile prefetch fire real messages at applicants.
+        // Slack caps an actions block at 5 elements.
+        // Interactive buttons when the Slack app has Interactivity wired up:
+        // the press posts straight to /api/slack/interactive and the send happens
+        // in place, with Slack's own confirm modal standing in for the browser
+        // page. Without a signing secret those presses can't be verified, so we
+        // fall back to the URL buttons rather than trusting an unsigned request.
+        // Slack caps an actions block at 5 elements.
+        links: slackInteractive()
+          ? [
+              {
+                actionId: 'cohort_send:sms:0',
+                value: app.id,
+                label: '📲 Text Checkout',
+                style: 'primary' as const,
+                confirm: {
+                  title: 'Text the checkout link?',
+                  text: `Send *${d.name}* the ${cohortPriceLabel()} enrollment link by text.`,
+                  confirm: 'Send text',
+                },
+              },
+              {
+                actionId: 'cohort_send:sms:1',
+                value: app.id,
+                label: '📲 Text Coupon',
+                confirm: {
+                  title: 'Text the coupon?',
+                  text: `Send *${d.name}* the *${COHORT_PROMO_CODE}* code (${cohortPromoPriceLabel()}) by text.`,
+                  confirm: 'Send coupon',
+                },
+              },
+              {
+                actionId: 'cohort_send:email:0',
+                value: app.id,
+                label: '✉️ Email Checkout',
+                confirm: {
+                  title: 'Email the checkout link?',
+                  text: `Send *${d.name}* the ${cohortPriceLabel()} enrollment link by email.`,
+                  confirm: 'Send email',
+                },
+              },
+              {
+                actionId: 'cohort_send:email:1',
+                value: app.id,
+                label: '✉️ Email Coupon',
+                confirm: {
+                  title: 'Email the coupon?',
+                  text: `Send *${d.name}* the *${COHORT_PROMO_CODE}* code (${cohortPromoPriceLabel()}) by email.`,
+                  confirm: 'Send coupon',
+                },
+              },
+              {
+                actionId: 'cohort_plan:sms',
+                value: app.id,
+                label: `💳 Text Plan (3×$${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')})`,
+                confirm: {
+                  title: 'Text the payment plan?',
+                  text: `Send *${d.name}* the 3-payment plan: *$${PLAN_PAYMENT_DOLLARS.toLocaleString('en-US')} today* to hold their seat, then Sep 14 and Oct 12. Total ${planPriceLabel()} (vs ${cohortPriceLabel()} paid in full).`,
+                  confirm: 'Send plan',
+                },
+              },
+              {
+                actionId: 'cohort_plan:email',
+                value: app.id,
+                label: '✉️ Email Plan',
+                confirm: {
+                  title: 'Email the payment plan?',
+                  text: `Send *${d.name}* the 3-payment plan by email. ${planPriceLabel()}, first payment today.`,
+                  confirm: 'Send plan',
+                },
+              },
+              {
+                actionId: 'cohort_contacted',
+                value: app.id,
+                label: '✅ Contacted',
+                confirm: {
+                  title: 'Mark contacted?',
+                  // No '#' prefix: Slack auto-links #channel into <#C09…>, and confirm
+                  // dialogs don't render channel links — it shows the raw id.
+                  text: `Moves *${d.name}* to the cohort-contacted channel and removes this card. Does not text or email them.`,
+                  confirm: 'Mark contacted',
+                },
+              },
+            ]
+          : [
+              { url: cohortSendUrl(app.id, false, 'sms'), label: '📲 Text Checkout', style: 'primary' as const },
+              { url: cohortSendUrl(app.id, true, 'sms'), label: '📲 Text Coupon' },
+              { url: cohortSendUrl(app.id, false, 'email'), label: '✉️ Email Checkout' },
+              { url: cohortSendUrl(app.id, true, 'email'), label: '✉️ Email Coupon' },
+              { url: cohortContactedUrl(app.id, assignedTo), label: '✅ Contacted' },
+            ],
+      };
+
+      // Prefer the bot token: chat.postMessage returns a message id, which is the
+      // only way the ✅ Contacted button can later collapse this card. Incoming
+      // webhooks return nothing and their messages can never be edited.
+      //
+      // Falls back to the webhook fan-out whenever the bot isn't configured or
+      // Slack rejects the call — a misconfigured token must never cost a live
+      // lead its notification.
+      let postedViaBot = false;
+      if (hasSlackBot() && cohortChannelId()) {
+        const msg = buildBlockKitMessage('cohort_application', slackPayload);
+        const res = await postMessage({
+          channel: cohortChannelId(),
+          text: msg.text,
+          blocks: msg.blocks,
+        });
+        if (res.ok && res.data) {
+          postedViaBot = true;
+          await prisma.cohortApplication
+            .update({
+              where: { id: app.id },
+              data: { slackChannelId: res.data.channel, slackMessageTs: res.data.ts },
+            })
+            .catch(() => {});
+        }
+      }
+      if (postedViaBot) {
+        await recordDelivery(app.id, 'slack', true, { channelId: cohortChannelId(), transport: 'bot' });
+      } else {
+        const fallback = await notifySlackChannels('cohort_application', COHORT_SOURCE, slackPayload);
+        const delivered = fallback.some((result) => result.ok);
+        await recordDelivery(app.id, 'slack', delivered, { transport: 'webhook' },
+          delivered ? undefined : fallback.map((result) => result.error).filter(Boolean).join('; ') || 'No matching Slack channel');
+      }
+    };
+
+    // Start independently so a failed/slow SMS or GHL request cannot prevent
+    // the Slack card, and a Slack failure cannot prevent Jackie's text.
+    const jobs = [syncApplicant, notifyJackie, notifySlack];
+    const names = ['ghl-applicant', 'staff-sms', 'slack'];
+    const outcomes = await Promise.allSettled(jobs.map((job) => job()));
+    await Promise.all(outcomes.map(async (outcome, index) => {
+      if (outcome.status === 'rejected') {
+        const error = outcome.reason instanceof Error ? outcome.reason.message : 'Unexpected delivery failure';
+        console.error(`[cohort] ${names[index]} failed`, error);
+        await recordDelivery(app.id, names[index], false, {}, error);
+      }
+    }));
   });
 
   return NextResponse.json({ ok: true, id: app.id, tier, score });
