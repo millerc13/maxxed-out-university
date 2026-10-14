@@ -1,18 +1,14 @@
 import crypto from 'crypto';
-import { prisma } from '@/lib/prisma';
 
 /**
- * Cohort lead rotation — equal distribution across the closing team.
- *
- * Order is fixed so the rotation is predictable and auditable; the counter row
- * is incremented atomically in Postgres (update-and-return), so two
- * applications submitted in the same instant can never land on the same person.
+ * New Medicaid cohort applications belong to Jackie. Existing applications
+ * retain their saved owner; this only selects the owner at submission time.
  */
-// Tonight (2026-07-23): Todd + Mike only, 50/50. (Miles/Jackie paused.)
-export const COHORT_CLOSERS = ['Mike', 'Todd'] as const;
+export const COHORT_CLOSERS = ['Jackie'] as const;
 export type CohortCloser = (typeof COHORT_CLOSERS)[number];
 
-const SCOPE = 'cohort-medicaid';
+export const cohortGhlAssigneeId = () =>
+  process.env.GHL_USER_JACKIE_ID?.trim() || 'IhMt70Bb1ofSoWRfVj3A';
 
 /**
  * Slack member IDs, so an assignment actually pings the closer's phone — bold
@@ -45,18 +41,9 @@ export function closerMention(name: string): string {
   return id ? `<@${id}>` : `*${name}*`;
 }
 
-/** Next closer in the rotation. Never throws — falls back to the first name. */
+/** A single owner needs no assignment-counter writes. */
 export async function nextCohortCloser(): Promise<string> {
-  try {
-    const updated = await prisma.assignmentCounter.upsert({
-      where: { scope: SCOPE },
-      create: { scope: SCOPE, counter: 1 },
-      update: { counter: { increment: 1 } },
-    });
-    return COHORT_CLOSERS[(updated.counter - 1) % COHORT_CLOSERS.length];
-  } catch {
-    return COHORT_CLOSERS[0];
-  }
+  return COHORT_CLOSERS[0];
 }
 
 /**
