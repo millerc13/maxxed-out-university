@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { notifySlackChannels, type SlackEventType } from '@/lib/slack';
+import { closerMention } from '@/lib/cohort-assign';
 
 export const runtime = 'nodejs';
 
@@ -66,17 +67,22 @@ export async function POST(request: NextRequest) {
   // ── parse body ──────────────────────────────────────────────────
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    const parsed: unknown = await request.json();
+    if (!isRecord(parsed)) {
+      return NextResponse.json({ error: 'Expected a JSON object' }, { status: 400 });
+    }
+    body = parsed;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
+  const healthcare = eventType === 'dd_application' ? healthcareFields(body) : null;
   const firstName = strField(body, 'first_name', 'firstName') ?? '';
   const lastName = strField(body, 'last_name', 'lastName') ?? '';
-  const fullName = `${firstName} ${lastName}`.trim() || strField(body, 'name', 'full_name') || 'Unknown';
-  const email = strField(body, 'email');
-  const phone = strField(body, 'phone');
-  const contactId =
+  const fullName = healthcare?.name ?? (`${firstName} ${lastName}`.trim() || strField(body, 'name', 'full_name') || 'Unknown');
+  const email = healthcare ? healthcare.email : strField(body, 'email');
+  const phone = healthcare ? healthcare.phone : strField(body, 'phone');
+  const contactId = healthcare ? healthcare.contactId :
     strField(body, 'contact_id', 'contactId') ?? strField(body, 'id') ?? null;
 
   // Assigned-to display name. Two ways the GHL workflow can set this:
@@ -90,7 +96,7 @@ export async function POST(request: NextRequest) {
   const ghlUser = (body.user ?? body.assigned_user) as
     | { firstName?: string; lastName?: string; id?: string }
     | undefined;
-  const assignedToName =
+  const assignedToName = healthcare ? healthcare.assignedTo :
     hardcodedAssignedTo ??
     (ghlUser?.firstName
       ? `${ghlUser.firstName} ${ghlUser.lastName ?? ''}`.trim()
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
     (body.custom_data as Record<string, unknown>) ??
     (body.customFields as Record<string, unknown>) ??
     {};
-  const extraFields = Object.entries(customData)
+  const extraFields = healthcare?.extraFields ?? Object.entries(customData)
     .filter(([, v]) => v != null && String(v).trim() !== '')
     .slice(0, 8)
     .map(([k, v]) => ({ label: humanizeKey(k), value: String(v) }));
@@ -123,14 +129,108 @@ export async function POST(request: NextRequest) {
   });
 
   const sent = results.filter((r) => r.ok).length;
+  const allSent = results.length > 0 && sent === results.length;
+  // GHL must be able to distinguish a missing/rejected DD destination from a
+  // successful notification. Partial delivery stays 200 to avoid retrying the
+  // entire fan-out and duplicating a card in channels that already received it.
+  const failedHealthcare = eventType === 'dd_application' && !allSent;
   return NextResponse.json({
-    ok: true,
+    ok: !failedHealthcare,
     eventType,
     source,
     channelsAttempted: results.length,
     channelsSent: sent,
     failures: results.filter((r) => !r.ok).map((r) => ({ name: r.channelName, error: r.error })),
+    ...(failedHealthcare && results.length === 0 ? { error: 'No active Slack channel subscribes to healthcare applications' } : {}),
+  }, { status: eventType === 'dd_application' && sent === 0 ? 503 : 200 });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** The standard GHL webhook and its Custom Data fields are both supported. */
+function healthcareFields(body: Record<string, unknown>) {
+  const customObjects = [body.customData, body.custom_data, body.customFields].filter(isRecord);
+  const containers = [body, ...customObjects];
+  const contacts = containers.flatMap((container) => isRecord(container.contact) ? [container.contact] : []);
+  const sources = [...containers, ...contacts];
+  const field = (...keys: string[]) => sources.map((source) => strField(source, ...keys)).find(Boolean);
+  const name = sources.map((source) => {
+    const first = strField(source, 'first_name', 'firstName') ?? '';
+    const last = strField(source, 'last_name', 'lastName') ?? '';
+    return `${first} ${last}`.trim() || strField(source, 'name', 'full_name', 'fullName');
+  }).find(Boolean) || 'Unknown';
+  const user = sources.flatMap((source) => [source.user, source.assigned_user]).find(isRecord);
+  const userName = user ? [strField(user, 'firstName', 'first_name'), strField(user, 'lastName', 'last_name')].filter(Boolean).join(' ') : undefined;
+  const owner = field('assigned_to', 'assignedTo') || userName;
+  const assignedTo = owner && /^jackie(?:\s+powers)?$/i.test(owner.trim())
+    ? closerMention('Jackie') : owner;
+  const envelopeKeys = new Set([
+    'id', 'contactid', 'contact', 'firstname', 'lastname', 'fullname', 'name', 'email', 'phone',
+    'assignedto', 'assigneduser', 'user', 'customdata', 'customfields',
+    'currentbusiness', 'monthlyrevenue', 'healthcareinterest',
+    'readiness', 'investmentbudget', 'worksituation', 'state', 'notes',
+  ]);
+  // Stable webhook payload keys. The GHL form's exact custom-field merge
+  // tokens must be bound and verified before publishing its revised questions.
+  const revisedQuestions = [
+    { key: 'readiness', label: 'Readiness' },
+    { key: 'investment_budget', label: 'Investment Budget' },
+    { key: 'work_situation', label: 'Work Situation' },
+    { key: 'state', label: 'State' },
+    { key: 'notes', label: 'Additional Notes' },
+  ];
+  const legacyQuestions = [
+    { key: 'current_business', label: 'Current Business' },
+    { key: 'monthly_revenue', label: 'Monthly Revenue' },
+    { key: 'healthcare_interest', label: 'Healthcare Interest' },
+    { key: 'notes', label: 'Additional Notes' },
+  ];
+  // State and generic notes can appear in legacy payloads too. Only a required
+  // revised question (even empty) selects the new layout; old answers retained
+  // on an existing contact must never masquerade as this submission's answers.
+  const hasRevisedQuestions = ['readiness', 'investment_budget', 'work_situation'].some((key) =>
+    sources.some((source) => Object.prototype.hasOwnProperty.call(source, key)));
+  const questions = (hasRevisedQuestions ? revisedQuestions : legacyQuestions).flatMap(({ key, label }) => {
+    const source = sources.find((candidate) => Object.prototype.hasOwnProperty.call(candidate, key));
+    const raw = source?.[key];
+    const value = hasRevisedQuestions
+      ? typeof raw === 'string' ? raw.trim() : typeof raw === 'number' && Number.isFinite(raw) ? String(raw) : undefined
+      : field(key);
+    return value ? [healthcareSlackField(label, value)] : [];
   });
+  const seen = new Set<string>();
+  const otherFields = customObjects.flatMap((object) => Object.entries(object))
+    .filter(([key, value]) => {
+      const normalized = key.replace(/[_\s-]/g, '').toLowerCase();
+      if (envelopeKeys.has(normalized) || seen.has(normalized) || value == null || isRecord(value) || Array.isArray(value)) return false;
+      if (!String(value).trim()) return false;
+      seen.add(normalized);
+      return true;
+    })
+    .map(([key, value]) => healthcareSlackField(humanizeKey(key), String(value)));
+  return {
+    name, email: field('email'), phone: field('phone'),
+    contactId: field('contact_id', 'contactId', 'id') ?? null,
+    assignedTo, extraFields: [...questions, ...otherFields].slice(0, 8),
+  };
+}
+
+/** User answers cannot introduce Slack mentions or exceed a section field. */
+function healthcareSlackField(label: string, value: string) {
+  const safeLabel = escapeSlackText(label, 100);
+  return { label: safeLabel, value: escapeSlackText(value, 2000 - safeLabel.length - 4) };
+}
+
+function escapeSlackText(value: string, maxLength: number): string {
+  let escaped = '';
+  for (const character of value) {
+    const token = character === '&' ? '&amp;' : character === '<' ? '&lt;' : character === '>' ? '&gt;' : character;
+    if (escaped.length + token.length > maxLength - 1) return `${escaped}…`;
+    escaped += token;
+  }
+  return escaped;
 }
 
 function strField(obj: Record<string, unknown>, ...keys: string[]): string | undefined {
@@ -151,7 +251,7 @@ function humanizeKey(k: string): string {
 function headlineForEvent(eventType: SlackEventType, fullName: string): string {
   switch (eventType) {
     case 'dd_application':
-      return `DD Application — ${fullName}`;
+      return `Healthcare Application — ${fullName}`;
     case 'abandoned_checkout':
       return `Abandoned Checkout — ${fullName}`;
     case 'sale':
