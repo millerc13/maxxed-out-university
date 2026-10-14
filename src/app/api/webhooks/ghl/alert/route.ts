@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { notifySlackChannels, type SlackEventType } from '@/lib/slack';
+import { buildBlockKitMessage, notifySlackChannels, type NotifySlackResult, type SlackEventPayload, type SlackEventType } from '@/lib/slack';
 import { closerMention } from '@/lib/cohort-assign';
+import { postMessage } from '@/lib/slack-bot';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -16,8 +18,8 @@ export const runtime = 'nodejs';
  *   1. Validate the shared secret (?secret=… or x-webhook-secret header)
  *   2. For dd_application: the GHL workflow owns assignment (it assigns
  *      to the current closer before calling this webhook)
- *   3. Fire the Slack alert via notifySlackChannels — channel routing
- *      is admin-managed in /admin/notifications
+ *   3. Route healthcare alerts to SLACK_HEALTHCARE_CHANNEL_ID when configured.
+ *      Other alerts use admin-managed incoming webhooks.
  *
  * GHL workflow setup: replace the existing "Slack Alert" step with a
  * "Custom Webhook" step pointing at:
@@ -62,6 +64,10 @@ export async function POST(request: NextRequest) {
   // events the source is forced to 'dd-healthcare' so the round-robin
   // logic + the channel routing align.
   let source = url.searchParams.get('source') ?? null;
+  // The existing DD webhook omits source. Check the original source before
+  // legacy normalization so an explicitly different DD source is not moved.
+  const useHealthcareDestination = eventType === 'dd_application' &&
+    (source === null || source === 'dd-healthcare');
   if (eventType === 'dd_application') source = 'dd-healthcare';
 
   // ── parse body ──────────────────────────────────────────────────
@@ -118,7 +124,7 @@ export async function POST(request: NextRequest) {
     ? `https://app.gohighlevel.com/v2/location/${process.env.GHL_LOCATION_ID}/contacts/detail/${contactId}`
     : undefined;
 
-  const results = await notifySlackChannels(eventType, source, {
+  const slackPayload: SlackEventPayload = {
     headline: headlineForEvent(eventType, fullName),
     contactName: fullName,
     email,
@@ -126,7 +132,12 @@ export async function POST(request: NextRequest) {
     assignedTo: assignedToName,
     fields: extraFields,
     link: ghlContactLink ? { url: ghlContactLink, label: 'Open in GHL' } : undefined,
-  });
+  };
+  const healthcareChannelId = useHealthcareDestination
+    ? process.env.SLACK_HEALTHCARE_CHANNEL_ID?.trim() : undefined;
+  const results = healthcareChannelId
+    ? await notifyHealthcareChannel(healthcareChannelId, slackPayload)
+    : await notifySlackChannels(eventType, source, slackPayload);
 
   const sent = results.filter((r) => r.ok).length;
   const allSent = results.length > 0 && sent === results.length;
@@ -143,6 +154,27 @@ export async function POST(request: NextRequest) {
     failures: results.filter((r) => !r.ok).map((r) => ({ name: r.channelName, error: r.error })),
     ...(failedHealthcare && results.length === 0 ? { error: 'No active Slack channel subscribes to healthcare applications' } : {}),
   }, { status: eventType === 'dd_application' && sent === 0 ? 503 : 200 });
+}
+
+/** A configured private destination must never fall back to the old channel. */
+async function notifyHealthcareChannel(channelId: string, payload: SlackEventPayload): Promise<NotifySlackResult[]> {
+  const message = buildBlockKitMessage('dd_application', payload);
+  const posted = await postMessage({ channel: channelId, text: message.text, blocks: message.blocks });
+  const ok = posted.ok && posted.data?.channel === channelId && Boolean(posted.data.ts);
+  const error = ok ? undefined : posted.error || 'Slack did not confirm the configured healthcare channel and message';
+  const channelName = 'Healthcare Applications';
+  await prisma.webhookLog.createMany({ data: [{
+    source: 'dd-healthcare', event: 'slack:dd_application', status: ok ? 'success' : 'failed',
+    errorMessage: error ?? null,
+    payload: {
+      channelId, channelName, transport: 'bot',
+      slackChannelId: posted.data?.channel ?? null,
+      slackMessageTs: posted.data?.ts ?? null,
+      headline: payload.headline, contactName: payload.contactName ?? null,
+      email: payload.email ?? null, phone: payload.phone ?? null,
+    },
+  }] }).catch((err) => console.error('[ghl-alert] Slack delivery log failed', err));
+  return [{ ok, channelId, channelName, ...(error ? { error } : {}) }];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

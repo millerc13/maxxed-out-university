@@ -25,6 +25,7 @@ const REVISED_QUESTIONS = {
   work_situation: 'I own a business now', state: 'Ohio',
   notes: 'I already have an operating partner.',
 };
+const HEALTHCARE_BOT_ENV = { SLACK_HEALTHCARE_CHANNEL_ID: 'C_PRIVATE_HEALTHCARE', SLACK_BOT_TOKEN: 'xoxb-test-token' };
 
 function harness(options = {}) {
   const calls = { queries: [], http: [], logs: [] };
@@ -34,7 +35,11 @@ function harness(options = {}) {
   }];
   const prisma = {
     slackChannel: { findMany: async (query) => { calls.queries.push(copy(query)); return channels; } },
-    webhookLog: { createMany: async ({ data }) => { calls.logs.push(...copy(data)); return { count: data.length }; } },
+    webhookLog: { createMany: async ({ data }) => {
+      calls.logs.push(...copy(data));
+      if (options.logFailure) throw new Error('Log unavailable');
+      return { count: data.length };
+    } },
   };
   const context = vm.createContext({
     process: { env: {
@@ -44,9 +49,16 @@ function harness(options = {}) {
     console: { log() {}, warn() {}, error() {} },
     Buffer, URL,
     fetch: async (url, init) => {
-      assert.ok(channels.some((c) => c.webhookUrl === url), `Unexpected HTTP request blocked: ${url}`);
+      const botRequest = url === 'https://slack.com/api/chat.postMessage';
+      assert.ok(botRequest || channels.some((c) => c.webhookUrl === url), `Unexpected HTTP request blocked: ${url}`);
       calls.http.push({ url, body: JSON.parse(init.body) });
       if (options.throwUrls?.includes(url)) throw new Error('Network unavailable');
+      if (botRequest) {
+        assert.equal(init.headers.Authorization, `Bearer ${options.env?.SLACK_BOT_TOKEN?.trim()}`);
+        return new Response(JSON.stringify(options.botResponse ?? {
+          ok: true, channel: JSON.parse(init.body).channel, ts: '1792000000.000001',
+        }), { status: 200 });
+      }
       return new Response(options.failUrls?.includes(url) ? 'invalid_payload' : 'ok', {
         status: options.failUrls?.includes(url) ? 400 : 200,
       });
@@ -61,7 +73,7 @@ function harness(options = {}) {
   };
   const allowed = new Set([
     'src/app/api/webhooks/ghl/alert/route.ts', 'src/lib/slack.ts',
-    'src/lib/sms.ts', 'src/lib/cohort-assign.ts',
+    'src/lib/sms.ts', 'src/lib/cohort-assign.ts', 'src/lib/slack-bot.ts',
   ]);
   const cache = new Map();
   function load(relative) {
@@ -104,6 +116,72 @@ function harness(options = {}) {
 const fields = (h) => h.calls.http[0].body.blocks.filter((b) => b.fields).flatMap((b) => b.fields.map((f) => f.text));
 const questionFields = (h) => fields(h).filter((f) => /^\*(Current Business|Monthly Revenue|Healthcare Interest):/.test(f));
 const revisedFields = (h) => fields(h).filter((f) => /^\*(Readiness|Investment Budget|Work Situation|State|Additional Notes):/.test(f));
+
+test('configured healthcare destination receives one bot card with all answers and no legacy fan-out', async (t) => {
+  for (const source of [undefined, 'dd-healthcare']) await t.test(String(source), async () => {
+    const h = harness({ env: HEALTHCARE_BOT_ENV });
+    const response = await h.submit({ ...CONTACT, customData: REVISED_QUESTIONS }, { source });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).channelsSent, 1);
+    assert.equal(h.calls.queries.length, 0, 'legacy webhook rows are never read');
+    assert.equal(h.calls.http.length, 1);
+    assert.equal(h.calls.http[0].url, 'https://slack.com/api/chat.postMessage');
+    assert.equal(h.calls.http[0].body.channel, HEALTHCARE_BOT_ENV.SLACK_HEALTHCARE_CHANNEL_ID);
+    assert.equal(revisedFields(h).length, 5);
+    assert.match(JSON.stringify(h.calls.http[0].body), /<@U0BJZSKHB36>/);
+    assert.equal(h.calls.logs[0].status, 'success');
+    assert.equal(h.calls.logs[0].payload.transport, 'bot');
+    assert.equal(h.calls.logs[0].payload.slackChannelId, HEALTHCARE_BOT_ENV.SLACK_HEALTHCARE_CHANNEL_ID);
+    assert.equal(h.calls.logs[0].payload.slackMessageTs, '1792000000.000001');
+  });
+});
+
+test('dedicated healthcare failures are visible and never fall back to the old channel', async (t) => {
+  for (const item of [
+    { name: 'missing token', env: { SLACK_BOT_TOKEN: '' }, httpCount: 0 },
+    { name: 'private channel membership rejected', botResponse: { ok: false, error: 'not_in_channel' }, httpCount: 1 },
+    { name: 'network failure', throwUrls: ['https://slack.com/api/chat.postMessage'], httpCount: 1 },
+    { name: 'missing message receipt', botResponse: { ok: true }, httpCount: 1 },
+    { name: 'different channel receipt', botResponse: { ok: true, channel: 'C_OTHER', ts: '123.4' }, httpCount: 1 },
+  ]) await t.test(item.name, async () => {
+    const h = harness({ ...item, env: { ...HEALTHCARE_BOT_ENV, ...item.env } });
+    const response = await h.submit(CONTACT);
+    assert.equal(response.status, 503);
+    const result = await response.json();
+    assert.equal(result.ok, false);
+    assert.equal(result.channelsAttempted, 1);
+    assert.equal(result.channelsSent, 0);
+    assert.equal(result.failures.length, 1);
+    assert.equal(h.calls.queries.length, 0);
+    assert.equal(h.calls.http.length, item.httpCount);
+    assert.ok(h.calls.http.every((call) => call.url === 'https://slack.com/api/chat.postMessage'));
+    assert.equal(h.calls.logs[0].status, 'failed');
+  });
+});
+
+test('a failed log write does not retry or misreport a successful dedicated card', async () => {
+  const h = harness({ env: HEALTHCARE_BOT_ENV, logFailure: true });
+  const response = await h.submit(CONTACT);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).ok, true);
+  assert.equal(h.calls.http.length, 1);
+  assert.equal(h.calls.queries.length, 0);
+});
+
+test('blank destination, explicit unrelated DD source, and non-DD events keep webhook routing', async (t) => {
+  for (const item of [
+    { name: 'blank destination', env: { SLACK_HEALTHCARE_CHANNEL_ID: '  ' }, request: {} },
+    { name: 'unrelated DD source', request: { source: 'other-funnel' } },
+    { name: 'non-DD event', request: { type: 'lead', source: 'unrelated-source' } },
+  ]) await t.test(item.name, async () => {
+    const h = harness({ env: { ...HEALTHCARE_BOT_ENV, ...item.env } });
+    const response = await h.submit(CONTACT, item.request);
+    assert.equal(response.status, 200);
+    assert.equal(h.calls.queries.length, 1);
+    assert.equal(h.calls.http.length, 1);
+    assert.equal(h.calls.http[0].url, 'https://slack.test/dd-channel');
+  });
+});
 
 test('revised question contract shows every exact answer in order for top-level and Custom Data payloads', async (t) => {
   for (const container of ['top-level', 'customData', 'custom_data']) await t.test(container, async () => {
